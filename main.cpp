@@ -1,9 +1,7 @@
 #include <iostream>
 #include <Eigen/Dense>
-#include <openmpi>
-#include <mpi>
+#include <mpi.h>
 int main() {
-    std::cout << "Hello, World!" << std::endl;
 
     // Initialize the MPI environment
     MPI_Init(NULL, NULL);
