@@ -1,11 +1,13 @@
 #include <iostream>
 #include <Eigen/Dense>
 #include <mpi.h>
+#include "source/class_worker.h"
+using namespace std;
+
 int main() {
 
     // Initialize the MPI environment
     MPI_Init(NULL, NULL);
-
     // Get the number of processes
     int world_size;
     MPI_Comm_size(MPI_COMM_WORLD, &world_size);
@@ -13,7 +15,7 @@ int main() {
     // Get the rank of the process
     int world_rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
-
+    worker w(world_rank);
     // Get the name of the processor
     char processor_name[MPI_MAX_PROCESSOR_NAME];
     int name_len;
@@ -22,7 +24,7 @@ int main() {
     // Print off a hello world message
     printf("Hello world from processor %s, rank %d"
                    " out of %d processors\n",
-           processor_name, world_rank, world_size);
+           processor_name, w.world_ID, world_size);
 
     // Finalize the MPI environment.
     MPI_Finalize();
