@@ -1,2 +1,3 @@
-# WL
-Wang-Landau Algorithm, with histogram saturation, 1/t algorithm, MPI-parallelism and adaptive energy sub-windows.
+# Wang-Landau Algorithm
+
+This program estimates the Density of States (DOS) of discrete models.
