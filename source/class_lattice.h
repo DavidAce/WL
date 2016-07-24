@@ -13,10 +13,12 @@ class class_lattice {
 private:
 public:
     class_lattice() {
+        L.resize(constants::L, constants::L);
         randomize_lattice();
     };
-    MatrixXi lattice(constants::L,constants::L);
+    MatrixXi L;                                                                 //The Lattice Data structure
     void randomize_lattice();
+    friend std::ostream &operator<<(std::ostream &, const class_lattice &);
 
 };
 

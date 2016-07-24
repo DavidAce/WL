@@ -6,29 +6,27 @@
 #define WL_CLASS_WORKER_H
 #include <mpi.h>
 #include <random>
+#include <fstream>
 #include "class_lattice.h"
 #include "constants.h"
-
+#include "randomNumbers.h"
 
 class class_worker {
 private:
-    typedef std::mt19937 RNGType;
-    RNGType rng;
+
 public:
     class_worker(){
-        MPI_Comm_rank(MPI_COMM_WORLD, &world_ID);
-        MPI_Comm_size(MPI_COMM_WORLD, &world_size);
-        rng.seed(world_ID);
+        MPI_Comm_rank(MPI_COMM_WORLD, &world_ID);       //Establish thread number of this worker
+        MPI_Comm_size(MPI_COMM_WORLD, &world_size);     //Get total number of threads
+        //rn::rng.seed((unsigned long) world_ID);        //Seed the random number generator
     };
-    int world_ID;
-    int world_size;
-    class_lattice lattice(constants::L);
 
-    //Random functions
-    double  uniform_double(RNGType *, const double &, const double &);
-    int     uniform_integer(RNGType *, const int &, const int &);
-    double  gaussian_truncated(RNGType *, const double &, const double &, const double &, const double &);
+    //MPI Communicator
+    int world_ID;                                       //Thread number
+    int world_size;                                     //Total threads
 
+    //Lattice
+    class_lattice lattice;
 
 };
 
