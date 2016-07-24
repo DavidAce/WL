@@ -13,5 +13,5 @@ include_directories(${MPI_INCLUDE_PATH})
 SET(CMAKE_C_COMPILER mpicc)
 SET(CMAKE_CXX_COMPILER mpicxx)
 
-set(SOURCE_FILES main.cpp source/class_worker.cpp source/class_worker.h)
+set(SOURCE_FILES main.cpp source/class_worker.cpp source/class_worker.h source/class_master.cpp source/class_master.h source/class_lattice.cpp source/class_lattice.h source/constants.h)
 add_executable(WL ${SOURCE_FILES})
