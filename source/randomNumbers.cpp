@@ -5,7 +5,6 @@
 #include "randomNumbers.h"
 namespace rn{
     std::mt19937 rng;
-
     double uniform_double(const double &lowerLimit, const double &upperLimit) {
         std::uniform_real_distribution<> dice(lowerLimit, upperLimit);
         return dice(rng);
