@@ -9,9 +9,11 @@
 #include <fstream>
 #include <Eigen/Core>
 #include <Eigen/Dense>
-
+#include <set>
 #include "class_model.h"
 #include "constants.h"
+#include "counters_timers.h"
+#include "math_algorithms.h"
 #include "randomNumbers.h"
 
 using namespace Eigen;
@@ -22,68 +24,63 @@ public:
     class_worker();                 //Constructor
 
     //Functions
-    void measure_state();           //Compute current E and M
+    void measure_current_state();           //Compute current E and M (and their indices)
     void initial_limits();
-    void initial_spectrum();
-    void update_limits();           //
-    void update_Eidx();
-    void reset_timers();
+    void start_counters();
+    void update_local_spectrum();
+    void update_global_limits();    //
+    void update_local_bins();       //
+    void update_local_limits();     //
+    bool check_in_window(const double &);
     void make_MC_trial();
     void accept_MC_trial();
     void reject_MC_trial();
-    //int  find_idx(const double list[], const double &x, const int &idx_min, const int &idx_max);
-
-   // template <typename List_type, typename T>
-    //int const& binary_search(const List_type (&)[], const T&, const long int &size);
-    template <typename List_type, typename T, typename size_type>
-    int binary_search(const List_type &list , const T& x, const size_type &size){
-       auto low = std::upper_bound (list, list + size, x); //          ^
-       return  (low - list - 1);
-    }
+    void next_WL_iteration();
 
 
     //MPI Communicator
     int world_ID;                   //Thread number
-    int world_size;                 //Total threads
+    int world_size;                 //Total number of threads
 
     //Lattice
     class_model model;
 
+    //WL acceptance criterion
+    bool accept;
+    bool in_window;
+
     //WL DOS and Histograms
     MatrixXi histogram, histogram_temp;
     MatrixXd dos, dos_temp;
+    VectorXi saturation;                //Measures the histogram saturation
 
 
-    int finish_line;                    //turns to 1 when converged
+    //WL convergence parameters
+    int     flag_one_over_t;             //turns to 1 when 1/t algorithm starts
+    int     finish_line;                 //turns to 1 when converged
+    double  lnf;                         //Modification factor of WL-algorithm
 
-    double lnf;
-    //WL Energy and Order parameter limits
+    //WL Energy and Order parameter and their limits
     double E,M;                         //Current Energy and Order parameter
     double E_trial, M_trial;                 //Proposed
-    int Eidx, Midx;
-    int Eidx_trial, Midx_trial;         //Position of trial values
-    double Emin_global, Mmin_global;    //Global minimum
-    double Emax_global, Mmax_global;    //Global maximum
-    double Emin_local , Mmin_local ;    //Local minimum
-    double Emax_local , Mmax_local ;    //Local maximum
+    int E_idx, M_idx;
+    int E_idx_trial, M_idx_trial;         //Position of trial values
+    double E_min_global, M_min_global;    //Global minimum
+    double E_max_global, M_max_global;    //Global maximum
+    double E_min_local , M_min_local ;    //Local minimum
+    double E_max_local , M_max_local ;    //Local maximum
 
 
 
     VectorXd E_bins;                     //Energy spectrum
     VectorXd M_bins;                     //Order parameter spectrum
     VectorXd X_bins;                     //Auxiliary spectrum for calculations.
+    VectorXd Y_bins;                     //Auxiliary spectrum for calculations.
+
+    std::set<double> E_set;              //Set of found energies, used in discrete simulations.
+    std::set<double> M_set;              //Set of found energies, used in discrete simulations.
+
     friend std::ostream &operator<<(std::ostream &, const class_worker &);
-
-    //Counters and flags
-    int MCS;
-    int timer_append;
-    int timer_check;
-    int timer_print;
-    int timer_swap;
-    int timer_resize;
-
-    int flag_foundE;
-    int flag_foundM;
 
 };
 

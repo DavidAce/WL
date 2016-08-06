@@ -28,8 +28,6 @@ int class_model::mod(const int &a, const int &b){
         ret += b;
     }
     return ret;
-
-
 };
 
 int class_model::sum_neighbours(const int &i, const int &j) {
@@ -63,7 +61,7 @@ void class_model::make_new_state(const double &E, const double &M, double &E_tri
 
 
 //Function for printing the lattice. Very easy if L is an Eigen matrix.
-std::ostream &operator<<(std::ostream &os, const class_model &lattice){
-    os << lattice << std::endl;
+std::ostream &operator<<(std::ostream &os, const class_model &model){
+    os << model.lattice << std::endl;
     return os;
 }
