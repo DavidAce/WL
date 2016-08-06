@@ -17,4 +17,18 @@ namespace math{
         }
         return idx;
     }
+
+    int find_min_positive(MatrixXi &H) {
+        int min = 1000000000;
+        for (int j = 0; j < H.cols(); j++) {
+            for (int i = 0; i < H.rows(); i++) {
+                if (H(i, j) < min) {
+                    if (H(i, j) > 0) {
+                        min = H(i, j);
+                    }
+                }
+            }
+        }
+        return min;
+    }
 }

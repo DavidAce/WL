@@ -14,7 +14,7 @@ void WangLandau(class_worker &worker){
     while(finish_line == 0){
         sweep(worker);
         check_convergence(worker, finish_line);
-        split_windows(worker);
+        worker.split_global_spectrum();
         //swap(worker);
         print_status(worker);
         //backup_data(worker);
@@ -25,7 +25,7 @@ void WangLandau(class_worker &worker){
 void sweep(class_worker &worker){
     for (int i = 0; i < constants::N ; i++){
         worker.make_MC_trial();
-        worker.accept = worker.accept && rn::uniform_double(0,1) < exp(worker.dos(worker.E_idx, worker.M_idx) - worker.dos(worker.E_idx_trial, worker.M_idx_trial));
+        worker.acceptance_criterion();
         if(worker.accept){
             worker.accept_MC_trial();
 
@@ -62,7 +62,7 @@ void add_hist_volume(class_worker &worker) {
     if (timer::add_hist_volume >= constants::rate_add_hist_volume) {
         timer::add_hist_volume = 0;
         //Find minimum histogram entry larger than 2.
-        int min = find_min_positive(worker.histogram);
+        int min = math::find_min_positive(worker.histogram);
         for (int j = 0; j < worker.histogram.cols(); j++) {
             for (int i = 0; i < worker.histogram.rows(); i++) {
                 if (worker.histogram(i, j) == 0) { continue; }
@@ -118,38 +118,6 @@ void check_saturation(class_worker &worker) {
     }
 }
 
-void split_windows(class_worker &worker){
-    //Compare to the other workers to find global limits
-    if (timer::split_windows >= constants::rate_split_windows) {
-        timer::split_windows = 0;
-        //merge_windows(worker);
-        switch (constants::rw_dims) {
-            case 1:
-                MPI_Allreduce(&worker.E_min_local, &worker.E_min_global, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
-                MPI_Allreduce(&worker.E_max_local, &worker.E_max_global, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-                worker.M_min_global = 0;
-                worker.M_max_global = 0;
-                break;
-            case 2:
-                MPI_Allreduce(&worker.E_min_local, &worker.E_min_global, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
-                MPI_Allreduce(&worker.E_max_local, &worker.E_max_global, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-                MPI_Allreduce(&worker.M_min_local, &worker.M_min_global, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
-                MPI_Allreduce(&worker.M_max_local, &worker.M_max_global, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-                break;
-            default:
-                cout << "Error in check_windows(). Wrong dimension for WL-random walk (rw_dims = ?)" << endl;
-                exit(1);
-        }
-
-
-
-        worker.update_local_bins();
-
-
-    }else{
-        timer::split_windows++;
-    }
-}
 
 void merge_windows (class_worker &worker) {
 
@@ -245,72 +213,6 @@ void merge_windows (class_worker &worker) {
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
-
-    //exit(5);
-
-
-
-//    //MPI_Sendrecv(wl.lng.data(), (int)wl.lng.size(), MPI_DOUBLE, neighbor_up, 0, lng_recv_dn.data(), (int)wl.lng.size(), MPI_DOUBLE, neighbor_dn, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-//    MPI_Sendrecv(wl.lng.data(), (int)wl.lng.size(), MPI_DOUBLE, neighbor_dn, 0, lng_recv_up.data(), Esize_up*Osize_up, MPI_DOUBLE, neighbor_up, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-//    MPI_Sendrecv(&wl.Emin_idx, 1, MPI_INT, neighbor_dn, 0, &Emin_neighbor_up, 1, MPI_INT, neighbor_up, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-//    //MPI_Sendrecv(&wl.Emax_idx, 1, MPI_INT, neighbor_up, 0, &Emax_neighbor_dn, 1, MPI_INT, neighbor_dn, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-//    Vector3d v1A, v2A, v1B, v2B; //Vectors connecting adjacent 3 orthogonal points on DOS
-//    Vector2d a1, a2;
-//    Vector3d uA, uB;
-//    ArrayXd sum;
-//    //sum.fill(0);
-//    int ii = 0, num, Ejoin;
-//    int maxi = (int)fmin(wl.Emax_idx, Esize_up - 1);
-//    int maxj = (int)fmin(wl.Olen - 1, Osize_up - 1);
-//    int mini = (int)fmax(wl.Emin_idx, Emin_neighbor_up);
-//    //printf("ID %d mini %d maxi %d Emin %d Emax %d Emin_up %d\n", wl.id, mini, maxi, wl.Emin_idx, wl.Emax_idx, Emin_neighbor_up);
-//
-//    sum.resize(maxi - mini+1);
-//    sum.fill(0);
-//    //cout << "ID " << wl.id << " maxi: " << maxi << " mini: " << mini << endl;
-//    //fflush(stdout);
-//    if (wl.id < wl.world_size - 1) {
-//        if (maxj > 0) {
-//            for (i = mini; i < maxi; i++) {
-//                num = 0;
-//                for (j = 0; j < maxj; j++) {
-//                    //if (wl.lng(i, j) == 0 || lng_recv_up(i, j) == 0) { continue; }
-//                    v1A << wl.E_list(i + 1) - wl.E_list(i), 0, wl.lng(i + 1, j) - wl.lng(i, j);
-//                    v2A << 0, wl.O_list(j + 1) - wl.O_list(j), wl.lng(i, j + 1) - wl.lng(i, j);
-//                    v1B << wl.E_list(i + 1) - wl.E_list(i), 0, lng_recv_up(i + 1, j) - lng_recv_up(i, j);
-//                    v2B << 0, wl.O_list(j + 1) - wl.O_list(j), lng_recv_up(i, j + 1) - lng_recv_up(i, j);
-//                    uA = v1A.cross(v2A).normalized();
-//                    uB = v1B.cross(v2B).normalized();
-//                    sum(ii) += uA.dot(uB);
-//                    num++;
-//                }
-//                //sum.conservativeResize(num);
-//                sum(ii) /= num;
-//                ii++;
-//            }
-//
-//            Ejoin = mini + find_max_idx(sum);
-//            //cout << "Emin " << mini << " Ejoin " << Ejoin << " Emax " << maxi << endl;
-//            if (Ejoin < wl.Emin_idx) {
-//                cout << "ERROR" << endl;
-//            }
-//        }else {
-//            j = 0;
-//            for (i = mini; i < maxi; i++) {
-//                a1 << wl.E_list(i + 1) - wl.E_list(i), wl.lng(i + 1, j) - wl.lng(i, j);
-//                a2 << wl.E_list(i + 1) - wl.E_list(i), lng_recv_up(i + 1, j) - lng_recv_up(i, j);
-//                a1 = a1.normalized();
-//                a2 = a2.normalized();
-//                sum(ii) = fabs(a1(0)*a2(0) + a1(1)*a2(1));
-//                ii++;
-//            }
-//            Ejoin = mini + find_max_idx(sum);
-//            //cout << "WL Olen == 0" << endl;
-//            if (Ejoin < wl.Emin_idx) {
-//                cout << "ERROR" << endl;
-//            }
-//        }
-//    }
 }
 
 
@@ -352,18 +254,4 @@ void print_status(class_worker &worker){
         timer::print++;
     }
 
-}
-
-int find_min_positive(MatrixXi &H) {
-    int min = 1000000000;
-    for (int j = 0; j < H.cols(); j++) {
-        for (int i = 0; i < H.rows(); i++) {
-            if (H(i, j) < min) {
-                if (H(i, j) > 0) {
-                    min = H(i, j);
-                }
-            }
-        }
-    }
-    return min;
 }

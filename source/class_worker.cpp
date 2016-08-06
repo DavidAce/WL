@@ -67,6 +67,8 @@ void class_worker::measure_current_state(){
     E_idx = math::binary_search(E_bins.data(), E, E_bins.size());
     M_idx = math::binary_search(M_bins.data(), M, M_bins.size());
     in_window = check_in_window(E);
+    cout << "ID: " << world_ID << " In window: " << in_window << endl;
+    MPI_Barrier(MPI_COMM_WORLD);
 }
 
 void class_worker::initial_limits(){
@@ -167,16 +169,7 @@ void class_worker::update_local_bins() {
             }
         }
     }
-    MPI_Barrier(MPI_COMM_WORLD);
-    //MPI_Barrier(MPI_COMM_WORLD);
-    cout << setprecision(0);
-    cout << "ID: " << world_ID << " E_set after contains: ";
-    for (auto it = E_set.begin(); it != E_set.end(); it++) {
-        cout << " " << *it;
-    }
-    cout << endl;
-    MPI_Barrier(MPI_COMM_WORLD);
-//    exit(6);
+
 
     //Check if we need more bins
     int E_old_size = (int) E_bins.size();
@@ -244,60 +237,95 @@ void class_worker::update_local_limits() {
                                    E_max_global - local_range * (world_size - (world_ID + 1) - 0.5));
 }
 
+void class_worker::split_global_spectrum(){
+    //Compare to the other workers to find global limits
+    if (timer::split_windows >= constants::rate_split_windows) {
+        timer::split_windows = 0;
+        //merge_windows(worker);
+        switch (constants::rw_dims) {
+            case 1:
+                MPI_Allreduce(&E_min_global, &E_min_global, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+                MPI_Allreduce(&E_max_global, &E_max_global, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+                M_min_global = 0;
+                M_max_global = 0;
+                break;
+            case 2:
+                MPI_Allreduce(&E_min_global, &E_min_global, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+                MPI_Allreduce(&E_max_global, &E_max_global, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+                MPI_Allreduce(&M_min_global, &M_min_global, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+                MPI_Allreduce(&M_max_global, &M_max_global, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+                break;
+            default:
+                cout << "Error in check_windows(). Wrong dimension for WL-random walk (rw_dims = ?)" << endl;
+                exit(1);
+        }
+        update_local_limits();
+        update_local_bins();
+
+
+    }else{
+        timer::split_windows++;
+    }
+}
+
+
 bool class_worker::check_in_window(const double &x) {
     return x >= E_min_local && x <= E_max_local;
 }
 
 void class_worker::make_MC_trial(){
-//    cout << *this << endl;
-//    MPI_Barrier(MPI_COMM_WORLD);
     model.make_new_state(E,M, E_trial, M_trial);
     update_global_limits();
+}
 
-    if  (in_window){accept      = check_in_window(E_trial);}
-    else           {in_window   = check_in_window(E);
-                    accept      = check_in_window(E_trial) || !in_window;}
+void class_worker::acceptance_criterion(){
+    //Scenarios:
+    //  1) in_window = true, E_trial is in_window ->  Find idx -> MC-test
+    //  2) in_window = true, E_trial not in_window->  Reject
+    //  3) in_window = false,E_trial is in_window ->  Accept -> Find idx -> set in_window true
+    //  4) in_window = false,E_trial not in_window->  Accept (without updating dos)
 
-    if (!accept){return;}
-
-    switch (constants::rw_dims){
-        case 1:
-            E_idx_trial = math::binary_search(E_bins.data(), E_trial, E_bins.size());
-            M_idx_trial = 0;
-            if (class_model::discrete_model) {
-                E_set.insert(E);
-                E_bins(E_idx) = E;
-            }
-            break;
-        case 2:
+    if (in_window){
+        E_set.insert(E);
+        M_set.insert(M);
+        E_bins(E_idx) = E;
+        M_bins(M_idx) = M;
+        if (check_in_window(E_trial)){
             E_idx_trial = math::binary_search(E_bins.data(), E_trial, E_bins.size());
             M_idx_trial = math::binary_search(M_bins.data(), M_trial, M_bins.size());
-            if (class_model::discrete_model) {
-                E_set.insert(E);
-                M_set.insert(M);
-                E_bins(E_idx) = E;
-                M_bins(M_idx) = M;
-            }
-            break;
-        default:
-            cout << "Error in class_worker::make_MC_trial(). Wrong dimension for WL-random walk (rw_dims = ?)" << endl;
-            exit(1);
+            accept      = rn::uniform_double(0,1) < exp(dos(E_idx, M_idx) - dos(E_idx_trial, M_idx_trial));
+        }else{
+            accept      = false;
+        }
+    }else{
+        if (check_in_window(E_trial)){
+            accept      = true;
+            in_window   = true;
+            E_idx_trial = math::binary_search(E_bins.data(), E_trial, E_bins.size());
+            M_idx_trial = math::binary_search(M_bins.data(), M_trial, M_bins.size());
+        }else{
+            accept      = true;
+        }
     }
 }
 
-void class_worker::accept_MC_trial(){
+void class_worker::accept_MC_trial() {
     E = E_trial;
     M = M_trial;
     E_idx = E_idx_trial;
     M_idx = M_idx_trial;
     model.flip();
-    dos(E_idx,M_idx) += lnf;
-    histogram(E_idx,M_idx) += 1;
+    if (in_window) {
+        dos(E_idx, M_idx) += lnf;
+        histogram(E_idx, M_idx) += 1;
+    }
 }
 
-void class_worker::reject_MC_trial(){
-    dos(E_idx,M_idx) += lnf;
-    histogram(E_idx,M_idx) += 1;
+void class_worker::reject_MC_trial() {
+    if (in_window) {
+        dos(E_idx, M_idx) += lnf;
+        histogram(E_idx, M_idx) += 1;
+    }
 }
 
 void class_worker::next_WL_iteration() {
@@ -335,9 +363,27 @@ std::ostream &operator<<(std::ostream &os, const class_worker &worker) {
        << worker.M_max_global << "]"
        << std::endl
        << "     E_bins: " << worker.E_bins.transpose() << endl
-       << "     M_bins: " << worker.M_bins.transpose() << endl;
+       << "     M_bins: " << worker.M_bins.transpose() << endl
+       << "     E_set : ";
+        for (auto it = worker.E_set.begin(); it != worker.E_set.end(); it++) {
+            if (*it == worker.E){ os << "[";}
+            os << *it ;
+            if (*it == worker.E){ os << "]";}
+            os << " ";
 
+        }
+        os << endl
+        << "     M_set : ";
+        for (auto it = worker.M_set.begin(); it != worker.M_set.end(); it++) {
+            if (*it == worker.M){ os << "[";}
+            os << *it;
+            if (*it == worker.M){ os << "]";}
+            os << " ";
+
+        }
+        os << endl;
     return os;
 }
+
 
 

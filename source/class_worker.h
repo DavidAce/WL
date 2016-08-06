@@ -31,8 +31,10 @@ public:
     void update_global_limits();    //
     void update_local_bins();       //
     void update_local_limits();     //
+    void split_global_spectrum();
     bool check_in_window(const double &);
     void make_MC_trial();
+    void acceptance_criterion();
     void accept_MC_trial();
     void reject_MC_trial();
     void next_WL_iteration();

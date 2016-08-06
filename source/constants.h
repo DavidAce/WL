@@ -21,7 +21,7 @@ namespace constants{
     static const int    rate_add_hist_volume   = 100;
     static const int    rate_check_finish_line = 5000;
     static const int    rate_check_saturation  = 2000;
-    static const int    rate_split_windows     = 500;
+    static const int    rate_split_windows     = 5000;
     static const int    rate_print_status      = 10000;
 
     //Wang-Landau convergence criteria
