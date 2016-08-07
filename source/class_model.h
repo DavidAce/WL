@@ -20,6 +20,8 @@ public:
     MatrixXi lattice;                           //The Lattice Data structure
     //double E_new, M_new;                      //Store values from MC-trial
     const static bool discrete_model = true;          //Toggle model type
+    const static int J = 1;
+
     void randomize_lattice();
     void flip();
     int mod(const int &,const int &);

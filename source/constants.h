@@ -10,19 +10,19 @@ namespace constants{
 
     //Lattice Properties
     static const int d = 2;         //Dimension
-    static const int L = 10;        //Linear size
+    static const int L = 8;        //Linear size
     static const int N = (int)pow(L,d);  //Number of spins/particles
 
     //DOS and Histogram properties
     static const int rw_dims = 2;      //Dimension of random walks (1D or 2D WL)
-    static const int bins = 10;
+    static const int bins = 5;
 
     //Rates for checking and printing (MCS units)
-    static const int    rate_add_hist_volume   = 100;
-    static const int    rate_check_finish_line = 5000;
-    static const int    rate_check_saturation  = 2000;
-    static const int    rate_split_windows     = 5000;
-    static const int    rate_print_status      = 10000;
+    static const int    rate_add_hist_volume        = 100;
+    static const int    rate_check_finish_line      = 5000;
+    static const int    rate_check_saturation       = 2000;
+    static const int    rate_resize_global_range    = 100;
+    static const int    rate_print_status           = 10000;
 
     //Wang-Landau convergence criteria
     static const double minimum_lnf            = 1e-4;

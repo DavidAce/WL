@@ -24,20 +24,24 @@ public:
     class_worker();                 //Constructor
 
     //Functions
-    void measure_current_state();           //Compute current E and M (and their indices)
-    void initial_limits();
+    void find_current_state();           //Compute current E and M (and their indices)
+    void find_initial_limits();
     void start_counters();
-    void update_local_spectrum();
-    void update_global_limits();    //
-    void update_local_bins();       //
-    void update_local_limits();     //
-    void split_global_spectrum();
+    void set_initial_local_bins();
+    void update_global_range();    //
+    void resize_global_range();
+    void divide_global_range();     //
+    void divide_global_range2();     //
+
+    void resize_local_bins();       //
+    void compute_number_of_bins(int &, int &);
     bool check_in_window(const double &);
     void make_MC_trial();
     void acceptance_criterion();
     void accept_MC_trial();
     void reject_MC_trial();
     void next_WL_iteration();
+    void prev_WL_iteration();
 
 
     //MPI Communicator
@@ -50,7 +54,7 @@ public:
     //WL acceptance criterion
     bool accept;
     bool in_window;
-
+    int  need_to_resize;
     //WL DOS and Histograms
     MatrixXi histogram, histogram_temp;
     MatrixXd dos, dos_temp;

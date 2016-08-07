@@ -13,5 +13,5 @@ include_directories(${MPI_INCLUDE_PATH})
 SET(CMAKE_C_COMPILER mpicc)
 SET(CMAKE_CXX_COMPILER mpicxx)
 
-set(SOURCE_FILES main.cpp source/class_worker.cpp source/class_worker.h source/class_master.cpp source/class_master.h source/class_model.cpp source/class_model.h source/constants.h source/randomNumbers.h source/randomNumbers.cpp source/wanglandau.cpp source/wanglandau.cpp source/wanglandau.h source/counters.h)
+set(SOURCE_FILES main.cpp source/class_worker.cpp source/class_worker.h source/class_master.cpp source/class_master.h source/class_model.cpp source/class_model.h source/constants.h source/randomNumbers.h source/randomNumbers.cpp source/wanglandau.cpp source/wanglandau.cpp source/wanglandau.h source/counters_timers.h source/class_data.cpp source/class_data.h source/math_algorithms.h source/math_algorithms.cpp)
 add_executable(WL ${SOURCE_FILES})

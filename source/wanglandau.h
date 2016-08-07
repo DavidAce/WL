@@ -13,7 +13,7 @@ void check_convergence  (class_worker &, int &);
 void add_hist_volume    (class_worker &);
 void check_saturation   (class_worker &);
 void check_one_over_t   (class_worker &);
-void split_windows      (class_worker &);
+void split_spectrum     (class_worker &);
 void merge_windows      (class_worker &);
 void print_status       (class_worker &);
 

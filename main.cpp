@@ -1,5 +1,6 @@
 #include <iostream>
 #include <mpi.h>
+#include <iomanip>
 #include "source/class_worker.h"
 #include "source/wanglandau.h"
 using namespace std;
@@ -18,8 +19,15 @@ int main() {
     MPI_Get_processor_name(processor_name, &name_len);
 
     WangLandau(worker);
-    cout << worker << endl;
-    cout << worker.dos.transpose() << endl;
+    for (int i = 0; i < worker.world_size ; i++){
+        if (i == worker.world_ID){
+            cout << worker << endl;
+
+        }
+        MPI_Barrier(MPI_COMM_WORLD);
+    }
+
+    MPI_Barrier(MPI_COMM_WORLD);
 
     // Finalize the MPI environment.
     MPI_Finalize();

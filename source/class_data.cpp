@@ -12,25 +12,6 @@
 #endif
 
 
-//void gather_data(class_worker &worker){
-//    //Gather data into worker 0
-//    MatrixXd dos_receive;
-//
-//    //Resize dos_receive to be able to receive the matrix
-//    if (worker.world_ID == 0){
-//        dos_receive = worker.dos;
-//    }
-//
-//    for (int i = 1; i < worker.world_size; i++){
-//        if(worker.world_ID == 0){
-//            MPI_Recv(dos_receive.data(), (int)dos_receive.size(), MPI_DOUBLE, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE );
-//
-//        }else{
-//            MPI_Send(worker.dos.data(), (int) worker.dos.size(), MPI_INT, 0, 0, MPI_COMM_WORLD );
-//        }
-//    }
-//}
-
 void outdata::write_data(class_worker &worker){
     print_to_file(worker.dos, file_dos);
     print_to_file(worker.E_bins, file_E_bins);

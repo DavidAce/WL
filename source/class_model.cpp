@@ -41,7 +41,7 @@ double class_model::get_E() {
     double E = 0;
     for(int i = 0; i < constants::L; i ++){
         for(int j = 0; j < constants::L; j ++) {
-            E += lattice(i,j) * sum_neighbours(i,j);
+            E += - J * lattice(i,j) * sum_neighbours(i,j);
         }
     }
 
@@ -53,10 +53,13 @@ double class_model::get_M() {
 }
 
 void class_model::make_new_state(const double &E, const double &M, double &E_trial, double &M_trial){
-    class_model::randI = rn::uniform_integer(0, constants::L - 1);
-    class_model::randJ = rn::uniform_integer(0, constants::L - 1);
-    E_trial = E - 2*lattice(randI,randJ)*sum_neighbours(randI,randJ);
+
+    randI = rn::uniform_integer(0, constants::L - 1);
+    randJ = rn::uniform_integer(0, constants::L - 1);
+    //Is this correct?
+    E_trial = E + J * 2*lattice(randI,randJ)*sum_neighbours(randI,randJ);
     M_trial = M - 2*lattice(randI,randJ);
+
 }
 
 

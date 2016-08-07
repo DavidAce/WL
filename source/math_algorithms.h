@@ -6,12 +6,14 @@
 #define WL_MATH_ALGORITHMS_H
 #include <Eigen/Core>
 #include <Eigen/Dense>
+#include <iostream>
+#include <fstream>
 
 using namespace Eigen;
 namespace math{
     //Find index of maximum element in an Eigen-type array
     //extern int find_max_idx(const Ref<const ArrayXd> &list);
-    extern int find_max_idx(const Ref<const VectorXd>  &list);
+//    extern int find_max_idx(const Ref<const VectorXd>  &list);
 
     //Find the minimum element larger than zero in a matrix
     extern int find_min_positive(MatrixXi &H);
