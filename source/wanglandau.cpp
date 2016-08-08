@@ -20,8 +20,11 @@ void WangLandau(class_worker &worker){
         print_status(worker);
         //backup_data(worker);
     }
+    out.write_data_worker(worker);
     merge_windows(worker);
-    out.write_data(worker);
+    out.write_data_master(worker);
+
+
 }
 
 void sweep(class_worker &worker){
@@ -153,7 +156,7 @@ void merge_windows (class_worker &worker) {
     VectorXd E_bins_up(E_size_up);
     VectorXd M_bins_up(M_size_up);
     //Receive it as well
-    MPI_Sendrecv(worker.dos.data(), (int) worker.dos.size(), MPI_DOUBLE, dn, 0, dos_up.data(), E_size_up*M_size_up, MPI_DOUBLE, up, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    MPI_Sendrecv(worker.dos.data()   , (int) worker.dos.size()   , MPI_DOUBLE, dn, 0, dos_up.data(), E_size_up*M_size_up, MPI_DOUBLE, up, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     MPI_Sendrecv(worker.E_bins.data(), (int) worker.E_bins.size(), MPI_DOUBLE, dn, 0, E_bins_up.data(), E_size_up, MPI_DOUBLE, up, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     MPI_Sendrecv(worker.M_bins.data(), (int) worker.M_bins.size(), MPI_DOUBLE, dn, 0, M_bins_up.data(), M_size_up, MPI_DOUBLE, up, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
@@ -173,8 +176,6 @@ void merge_windows (class_worker &worker) {
     int col = 0, num;
     int x, y; //Coordinates closest to i, j on dos of neighbor above.
     for (int i = 0; i < E_size - 1; i++) {
-
-        //if (worker.dos.row(i).isZero()){continue;}
         num = 0;
         for (int j = 0; j < M_size - 1; j++) {
             if (worker.E_bins(i) < E_bins_up.minCoeff()) { continue;}
@@ -194,25 +195,17 @@ void merge_windows (class_worker &worker) {
             sum(col) += uA.dot(uB);
             num++;
         }
-//        v1A << wl.E_list(i + 1) - wl.E_list(i), 0, wl.lng(i + 1, j) - wl.lng(i, j);
-//        v2A << 0, wl.O_list(j + 1) - wl.O_list(j), wl.lng(i, j + 1) - wl.lng(i, j);
-//        v1B << wl.E_list(i + 1) - wl.E_list(i), 0, lng_recv_up(i + 1, j) - lng_recv_up(i, j);
-//        v2B << 0, wl.O_list(j + 1) - wl.O_list(j), lng_recv_up(i, j + 1) - lng_recv_up(i, j);
-//        uA = v1A.cross(v2A).normalized();
-//        uB = v1B.cross(v2B).normalized();
-//        sum(ii) += uA.dot(uB);
-//        num++;
         sum(col) /= max(1,num);
         col++;
     }
     MPI_Barrier(MPI_COMM_WORLD);
 
-//    int E_merge_idx = math::find_max_idx(sum);
-//    int M_merge_idx = math::find_max_idx(worker.dos.row(E_merge_idx));
+
     int E_merge_idx; //Index of merging point
     int M_merge_idx; //Index of merging point
     sum.maxCoeff(&E_merge_idx);
     worker.dos.row(E_merge_idx).maxCoeff(&M_merge_idx);
+
     //Find the merge coordinates on the upper dos
     int E_merge_idx_up = math::upper_bound(E_bins_up.data(), worker.E_bins(E_merge_idx), E_size_up);
     int M_merge_idx_up = math::upper_bound(M_bins_up.data(), worker.M_bins(M_merge_idx), M_size_up);
@@ -224,12 +217,12 @@ void merge_windows (class_worker &worker) {
         if (worker.world_ID == w) {
             //Adjust the dos above and send up
             diff = worker.dos(E_merge_idx, M_merge_idx) - dos_up(E_merge_idx_up, M_merge_idx_up);
-            cout << "ID: " << worker.world_ID
-                 << " Diff " << diff << " (" << worker.dos(E_merge_idx, M_merge_idx) << " - " << dos_up(E_merge_idx_up, M_merge_idx_up) << ")"
-                 << " Merge [" << worker.E_bins(E_merge_idx) << "(" <<E_merge_idx<< ")"  << " " << worker.M_bins(M_merge_idx) << "(" << M_merge_idx << ")" << "]"
-                 << "   Merge up [" << E_merge_idx_up << " " << M_merge_idx_up << "]"
-                 << endl;
-            cout << "Sum: " << setprecision(2) <<sum.transpose() << endl;
+//            cout << "ID: " << worker.world_ID
+//                 << " Diff " << diff << " (" << worker.dos(E_merge_idx, M_merge_idx) << " - " << dos_up(E_merge_idx_up, M_merge_idx_up) << ")"
+//                 << " Merge [" << worker.E_bins(E_merge_idx) << "(" <<E_merge_idx<< ")"  << " " << worker.M_bins(M_merge_idx) << "(" << M_merge_idx << ")" << "]"
+//                 << "   Merge up [" << E_merge_idx_up << " " << M_merge_idx_up << "]"
+//                 << endl;
+//            cout << "Sum: " << setprecision(2) <<sum.transpose() << endl;
             for (int j = 0; j < M_size_up; j++) {
                 for (int i = 0; i < E_size_up; i++) {
                     if (dos_up(i, j) == 0) { continue; }
@@ -244,8 +237,6 @@ void merge_windows (class_worker &worker) {
         }
         else if ( worker.world_ID == w+1){
             MPI_Recv(worker.dos.data(),E_size*M_size, MPI_DOUBLE, dn,0,MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            //cout << worker.dos.transpose() << endl << endl;
-
         }
         MPI_Barrier(MPI_COMM_WORLD);
     }
@@ -255,58 +246,75 @@ void merge_windows (class_worker &worker) {
     //Now all workers have their dos aligned with the others. Now just send all to master?
     //Start by trimming off excess
     //Use dos_temp for temporary storage
+    worker.dos_temp = worker.dos;
+    worker.X_bins   = worker.E_bins;
+
     int E_merge_idx_dn;
     MPI_Sendrecv(&E_merge_idx_up, 1, MPI_INT, up, 0, &E_merge_idx_dn, 1, MPI_INT, dn, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-
-    if (worker.world_ID == 0){
-        worker.dos_temp = worker.dos.topRows(E_merge_idx);
-        worker.X_bins   = worker.E_bins.head(E_merge_idx);
-    }else{
-        worker.dos_temp     = worker.dos.middleRows(E_merge_idx_dn, E_merge_idx - E_merge_idx_dn );
-        worker.X_bins   = worker.E_bins.segment(E_merge_idx_dn, E_merge_idx - E_merge_idx_dn );
-    }
-    cout << worker.dos_temp << endl;
-
-
     MPI_Barrier(MPI_COMM_WORLD);
-    exit(10);
+    cout << "ID: " << worker.world_ID << " E_merge_idx: " << E_merge_idx << " E_merge_idx_dn: " << E_merge_idx_dn << endl;
+    if (worker.world_ID == 0){
+        worker.dos      = worker.dos_temp.topRows(E_merge_idx);
+        worker.E_bins   = worker.X_bins.head(E_merge_idx);
+        E_size          = (int) worker.dos.rows();
+
+    }else if (worker.world_ID == worker.world_size - 1){
+       worker.dos       = worker.dos_temp.bottomRows(E_size - E_merge_idx_dn);
+       worker.E_bins    = worker.X_bins.tail(E_size - E_merge_idx_dn);
+       E_size           = (int) worker.dos.rows();
+    }else{
+        worker.dos      = worker.dos_temp.middleRows(E_merge_idx_dn, E_merge_idx - E_merge_idx_dn );
+        worker.E_bins   = worker.X_bins.segment(E_merge_idx_dn, E_merge_idx - E_merge_idx_dn );
+        E_size          = (int) worker.dos.rows();
+    }
 
 
+    //Now send all to world_ID == 0, to do the merging
     MatrixXd dos_recv;
     VectorXd E_bins_recv;
-    int E_curr_size;
+    int E_new_size;
     for (int w = 1; w < worker.world_size; w++) {
         if (worker.world_ID == 0){
             MPI_Recv(&E_size_up, 1, MPI_INT, w, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             MPI_Recv(&M_size_up, 1, MPI_INT, w, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             dos_recv.resize(E_size_up, M_size_up);
-            MPI_Recv(dos_recv.data(), E_size_up*M_size_up, MPI_DOUBLE, w, 3, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-            MPI_Recv(dos_recv.data(), E_size_up*M_size_up, MPI_DOUBLE, w, 3, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-            dos_recv = dos_recv.middleRows(E_merge_idx_up, E_size_up - E_merge_idx_up);
-            E_curr_size = worker.dos_temp.rows();
-            cout << dos_recv << endl;
+            E_bins_recv.resize(E_size_up);
 
-            worker.dos_temp.conservativeResize(worker.dos_temp.rows() + dos_recv.rows(), M_size_up);
-            worker.dos_temp << worker.dos_temp,
-                               dos_recv;
-            MPI_Recv(&E_merge_idx_up, 1, MPI_INT, w, 4, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Recv(dos_recv.data()   , (int)dos_recv.size()    , MPI_DOUBLE, w, 3, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+            MPI_Recv(E_bins_recv.data(), (int)E_bins_recv.size() , MPI_DOUBLE, w, 4, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+            E_new_size = (int)worker.dos.rows() + (int)dos_recv.rows();
+
+            worker.dos.conservativeResize(E_new_size, M_size_up);
+            worker.E_bins.conservativeResize(E_new_size , 1);
+            worker.dos.bottomRows(E_size_up)        = dos_recv;
+            worker.E_bins.tail(E_size_up)           = E_bins_recv;
+
         }else if(worker.world_ID == w){
-            worker.dos_temp = worker.dos.topRows(E_merge_idx);
-            worker.X_bins   = worker.E_bins.head(E_merge_idx);
-            MPI_Send(&E_merge_idx, 1, MPI_INT, 0, 1, MPI_COMM_WORLD);
+            MPI_Send(&E_size     , 1, MPI_INT, 0, 1, MPI_COMM_WORLD);
             MPI_Send(&M_size     , 1, MPI_INT, 0, 2, MPI_COMM_WORLD);
-            MPI_Send(worker.dos_temp.data(), (int)worker.dos_temp.size(), MPI_DOUBLE, 0, 3, MPI_COMM_WORLD);
-            MPI_Send(worker.X_bins.data()  , (int)worker.X_bins.size()  , MPI_DOUBLE, 0, 4, MPI_COMM_WORLD);
-            MPI_Send(&E_merge_idx_up, 1, MPI_INT, 0, 5, MPI_COMM_WORLD);
+            MPI_Send(worker.dos.data(), (int)worker.dos.size(), MPI_DOUBLE, 0, 3, MPI_COMM_WORLD);
+            MPI_Send(worker.E_bins.data()  , (int)worker.E_bins.size()  , MPI_DOUBLE, 0, 4, MPI_COMM_WORLD);
         }
         MPI_Barrier(MPI_COMM_WORLD);
     }
 
+    if(worker.world_ID == 0){
+        cout << "Total DOS "<< endl;
+        cout << worker.dos << endl;
+        E_size = worker.dos.rows();
+        M_size = worker.dos.cols();
 
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Bcast(&E_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&M_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    worker.dos.conservativeResize(E_size,M_size);
+    worker.E_bins.conservativeResize(E_size);
+    MPI_Bcast(worker.dos.data(), E_size*M_size, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(worker.E_bins.data(), E_size, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
     cout << "Merge Successful" << endl;
 
-    MPI_Barrier(MPI_COMM_WORLD);
 }
 
 void check_one_over_t (class_worker &worker){

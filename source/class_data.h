@@ -34,12 +34,12 @@ private:
     int         world_ID;
 
 public:
-    outdata();
     outdata(int &);
     void create_directories();
     //File streams
 
-    void write_data(class_worker &);
+    void write_data_worker(class_worker &);
+    void write_data_master(class_worker &);
     template<typename Derived>
     void print_to_file(const Eigen::MatrixBase<Derived>& data, ofstream &file){
         string      _coeffSeparator = "	";
