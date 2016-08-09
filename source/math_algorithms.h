@@ -16,7 +16,9 @@ namespace math{
 //    extern int find_max_idx(const Ref<const VectorXd>  &list);
 
     //Find the minimum element larger than zero in a matrix
-    extern int find_min_positive(MatrixXi &H);
+    extern int      find_min_positive(MatrixXi &);
+    extern double   find_min_positive(MatrixXd &);
+    extern int      mod(const int &,const int &);
 
     //Finds the element nearest x in a C-style array
     template <typename List_type, typename T, typename size_type>

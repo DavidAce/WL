@@ -31,7 +31,6 @@ public:
     void update_global_range();    //
     void resize_global_range();
     void divide_global_range();     //
-    void divide_global_range2();     //
 
     void resize_local_bins();       //
     void compute_number_of_bins(int &, int &);
@@ -83,8 +82,14 @@ public:
     VectorXd X_bins;                     //Auxiliary spectrum for calculations.
     VectorXd Y_bins;                     //Auxiliary spectrum for calculations.
 
+
+
     std::set<double> E_set;              //Set of found energies, used in discrete simulations.
     std::set<double> M_set;              //Set of found energies, used in discrete simulations.
+
+    //Holders for total, merged data
+    MatrixXd dos_total;
+    VectorXd E_bins_total, M_bins_total;
 
     friend std::ostream &operator<<(std::ostream &, const class_worker &);
 

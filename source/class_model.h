@@ -24,7 +24,6 @@ public:
 
     void randomize_lattice();
     void flip();
-    int mod(const int &,const int &);
     int sum_neighbours(const int &, const int &);
 
     double get_E();

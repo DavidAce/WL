@@ -46,9 +46,9 @@ void outdata::write_data_master(class_worker &worker){
         file_M_bins << fixed << showpoint << setprecision(10);
 
 
-        print_to_file(worker.dos, file_dos);
-        print_to_file(worker.E_bins, file_E_bins);
-        print_to_file(worker.M_bins, file_M_bins);
+        print_to_file(worker.dos_total, file_dos);
+        print_to_file(worker.E_bins_total, file_E_bins);
+        print_to_file(worker.M_bins_total, file_M_bins);
     }
 }
 

@@ -10,7 +10,7 @@ namespace constants{
 
     //Lattice Properties
     static const int d = 2;         //Dimension
-    static const int L = 20;        //Linear size
+    static const int L = 10;        //Linear size
     static const int N = (int)pow(L,d);  //Number of spins/particles
 
     //DOS and Histogram properties
@@ -22,12 +22,15 @@ namespace constants{
     static const int    rate_check_finish_line      = 5000;
     static const int    rate_check_saturation       = 2000;
     static const int    rate_resize_global_range    = 1000;
+    static const int    rate_swap                   = 500;
+    static const int    rate_backup_data            = 100000;
     static const int    rate_print_status           = 10000;
 
     //Wang-Landau convergence criteria
     static const double minimum_lnf            = 1e-4;
     static const double check_saturation_from  = 0.7;   // From which fraction to check saturation convergence
     static const double reduce_factor_lnf      = 0.5;
+    static const double overlap_factor         = 0.25;
 }
 
 

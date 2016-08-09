@@ -1,6 +1,6 @@
 close all
 clear all
-N = 10^2;
+N = 20^2;
 
 for i = 0:3
     dos = importdata(['../outdata/dos' num2str(i) '.dat']);

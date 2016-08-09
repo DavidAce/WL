@@ -6,6 +6,7 @@
       <w>emin</w>
       <w>mmax</w>
       <w>mmin</w>
+      <w>recv</w>
     </words>
   </dictionary>
 </component>

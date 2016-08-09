@@ -19,22 +19,12 @@ void class_model::flip(){
     lattice(randI,randJ) *= -1;
 }
 
-int class_model::mod(const int &a, const int &b){
-    if (b < 0) {
-        return class_model::mod(-a, -b);
-    }
-    int ret = a % b;
-    if (ret < 0) {
-        ret += b;
-    }
-    return ret;
-};
 
 int class_model::sum_neighbours(const int &i, const int &j) {
-    return       lattice(mod(i+1,constants::L), mod(j  ,constants::L))
-            +    lattice(mod(i  ,constants::L), mod(j+1,constants::L))
-            +    lattice(mod(i-1,constants::L), mod(j  ,constants::L))
-            +    lattice(mod(i  ,constants::L), mod(j-1,constants::L));
+    return       lattice(math::mod(i+1,constants::L), math::mod(j  ,constants::L))
+            +    lattice(math::mod(i  ,constants::L), math::mod(j+1,constants::L))
+            +    lattice(math::mod(i-1,constants::L), math::mod(j  ,constants::L))
+            +    lattice(math::mod(i  ,constants::L), math::mod(j-1,constants::L));
 }
 
 double class_model::get_E() {

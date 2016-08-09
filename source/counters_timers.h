@@ -11,6 +11,8 @@ namespace counter {
     extern int MCS;
     extern int saturation;
     extern int walks;
+    extern int swaps;
+    extern int swap_accepts;
 };
 
 namespace timer {
@@ -18,6 +20,7 @@ namespace timer {
     extern int check_finish_line;
     extern int check_saturation;
     extern int split_windows;
+    extern int backup;
     extern int print;
     extern int swap;
     extern int resize;

@@ -12,10 +12,13 @@ using namespace Eigen;
 int counter::MCS;
 int counter::saturation;
 int counter::walks;
+int counter::swaps;
+int counter::swap_accepts;
 int timer::add_hist_volume;
 int timer::check_saturation;
 int timer::check_finish_line;
 int timer::split_windows;
+int timer::backup;
 int timer::print;
 int timer::swap;
 int timer::resize;
@@ -26,15 +29,17 @@ class_worker::class_worker(): model(), finish_line(false){
     MPI_Comm_size(MPI_COMM_WORLD, &world_size);         //Get total number of threads
     rn::rng.seed((unsigned long)world_ID);
 
-    lnf = 1;
+    lnf = 1.0;
 
     find_initial_limits();
     resize_global_range();
+    divide_global_range();
     set_initial_local_bins();
     find_current_state();
     start_counters();
     need_to_resize = 0;
     cout << "ID: " << world_ID << " Started OK"<<endl;
+
 }
 
 void class_worker::find_current_state(){
@@ -62,14 +67,16 @@ void class_worker::find_initial_limits(){
 }
 
 void class_worker::start_counters() {
-    counter::MCS = 0;
-    counter::saturation = 0;
-    counter::walks = 0;
-
+    counter::MCS                = 0;
+    counter::saturation         = 0;
+    counter::walks              = 0;
+    counter::swaps              = 0;
+    counter::swap_accepts       = 0;
     timer::add_hist_volume      = 0;
     timer::check_saturation     = 0;
     timer::check_finish_line    = 0;
     timer::split_windows        = 0;
+    timer::backup               = 0;
     timer::print                = 0;
     timer::swap                 = 0;
     timer::resize               = 0;
@@ -137,31 +144,12 @@ void class_worker::resize_global_range() {
     }
 }
 
-void class_worker::divide_global_range2() {
-    //Update limits
-    double global_range     = fabs(E_max_global - E_min_global);
-    double local_range      = global_range / (world_size);
-    E_min_local             = fmax(E_min_global,
-                                   E_min_global + local_range * (world_ID - 0.5));
-
-    E_max_local             = fmin(E_max_global,
-                                   E_max_global - local_range * (world_size - (world_ID + 1) - 0.5));
-
-
-
-    M_min_local = M_min_global;
-    M_max_local = M_max_global;
-    cout << "ID: " << world_ID;
-    cout << "   E: [" << E_min_local << " " << E_max_local << "] ";
-    cout << "   M: [" << M_min_local << " " << M_max_local << "] " << endl;
-}
 
 void class_worker::divide_global_range() {
     //Update limits
     double global_range     = fabs(E_max_global - E_min_global);
     double local_range      = global_range / (world_size);
-    double overlap_factor   = 0.25;
-    double overlap_range    = local_range * overlap_factor;
+    double overlap_range    = local_range * constants::overlap_factor;
 
     if (world_ID == 0){
         E_min_local = E_min_global;
@@ -175,6 +163,7 @@ void class_worker::divide_global_range() {
     }
     M_min_local = M_min_global;
     M_max_local = M_max_global;
+    in_window = check_in_window(E);
 }
 
 
@@ -287,6 +276,8 @@ void class_worker::acceptance_criterion(){
     //  3) in_window = false,E_trial is in_window ->  Accept -> Find idx -> set in_window true
     //  4) in_window = false,E_trial not in_window->  Accept (without updating dos)
 
+    //  4a)in_window = false, E_trial not in_window, E_trial towards window = accept, otherwise accept 50% chance?
+    //  5) need_to_resize = true (because E_trial out of global bounds) -> accept with 50% chance?
     if (in_window){
         E_bins(E_idx) = E;
         M_bins(M_idx) = M;
@@ -295,20 +286,47 @@ void class_worker::acceptance_criterion(){
             M_idx_trial = math::binary_search(M_bins.data(), M_trial, M_bins.size());
             accept      = rn::uniform_double(0,1) < exp(dos(E_idx, M_idx) - dos(E_idx_trial, M_idx_trial));
             if (model.discrete_model){
-                E_set.insert(E_trial);
-                M_set.insert(M_trial);
+                E_set.insert(E);
+                M_set.insert(M);
             }
         }else{
             accept      = false;
         }
     }else{
         if (check_in_window(E_trial)){
+            //Reentering the window
             accept      = true;
             in_window   = true;
             E_idx_trial = math::binary_search(E_bins.data(), E_trial, E_bins.size());
             M_idx_trial = math::binary_search(M_bins.data(), M_trial, M_bins.size());
         }else{
-            accept      = true;
+            //Still out of window... prefer to move towards window.
+            in_window   = false;
+            if (E_trial >= E && E < E_min_local){
+                accept = true;
+            }else if (E_trial <= E && E > E_max_local){
+                accept = true;
+            }else if(E_trial < E && E < E_min_local){
+                accept = rn::uniform_double(0,1) > 0.5;
+            }else if (E_trial > E && E > E_max_local){
+                accept = rn::uniform_double(0,1) > 0.5;
+            }else{
+                accept = true;
+            }
+        }
+
+        if (need_to_resize == 1){
+            //Broke through global limits. Might as well explore
+            if (E_trial > E && E_trial >= E_max_local) {
+                accept = true;
+            }else if(E_trial < E && E_trial <= E_max_local){
+                accept = true;
+            }
+            if (M_trial > M && M_trial >= M_max_global){
+                accept = true;
+            }else if(M_trial < M && M_trial <= M_min_global){
+                accept = true;
+            }
         }
     }
 }
@@ -316,10 +334,10 @@ void class_worker::acceptance_criterion(){
 void class_worker::accept_MC_trial() {
     E                           = E_trial;
     M                           = M_trial;
-    E_idx                       = E_idx_trial;
-    M_idx                       = M_idx_trial;
     model.flip();
     if (in_window) {
+        E_idx                       = E_idx_trial;
+        M_idx                       = M_idx_trial;
         dos(E_idx, M_idx)       += lnf;
         histogram(E_idx, M_idx) += 1;
     }
@@ -333,7 +351,7 @@ void class_worker::reject_MC_trial() {
 }
 
 void class_worker::next_WL_iteration() {
-    lnf *= constants::reduce_factor_lnf;
+    lnf = fmax(1e-12, lnf*constants::reduce_factor_lnf);
     histogram.fill(0);
     saturation.fill(0);
     counter::saturation = 0;
@@ -341,13 +359,26 @@ void class_worker::next_WL_iteration() {
 }
 
 void class_worker::prev_WL_iteration() {
-    if (counter::walks > 0){
-        lnf        /= constants::reduce_factor_lnf;
+    if (counter::walks > 0) {
+        lnf /= constants::reduce_factor_lnf;
+        counter::walks--;
+    }
+
+    timer::add_hist_volume  = 0;
+    timer::backup           = 0;
+    timer::check_finish_line= 0;
+    timer::check_saturation = 0;
+    timer::split_windows    = 0;
+    timer::swap             = 0;
+    if (flag_one_over_t == 0) {
+        counter::MCS = 0;
         histogram.fill(0);
         saturation.fill(0);
         counter::saturation = 0;
-        counter::walks--;
+    }else {
+        counter::MCS = (int) (1.0 / lnf);
     }
+
 }
 
 
@@ -397,7 +428,7 @@ std::ostream &operator<<(std::ostream &os, const class_worker &worker) {
 
         }
         os << endl;
-        os << setprecision(0) << worker.dos << endl;
+        //os << setprecision(0) << worker.dos << endl;
 
     return os;
 }

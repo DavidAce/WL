@@ -30,4 +30,29 @@ namespace math{
         }
         return min;
     }
+    double find_min_positive(MatrixXd &M) {
+        double min = 1000000000;
+        for (int j = 0; j < M.cols(); j++) {
+            for (int i = 0; i < M.rows(); i++) {
+                if (M(i, j) < min) {
+                    if (M(i, j) > 0) {
+                        min = M(i, j);
+                    }
+                }
+            }
+        }
+        return min;
+    }
+
+    int mod(const int &a, const int &b){
+        if (b < 0) {
+            return mod(-a, -b);
+        }
+        int ret = a % b;
+        if (ret < 0) {
+            ret += b;
+        }
+        return ret;
+    };
+
 }
