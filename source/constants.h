@@ -23,7 +23,7 @@ namespace constants{
     static const int    rate_check_saturation       = 2000;
     static const int    rate_resize_global_range    = 1000;
     static const int    rate_swap                   = 500;
-    static const int    rate_backup_data            = 100000;
+    static const int    rate_backup_data            = 50000;
     static const int    rate_print_status           = 10000;
 
     //Wang-Landau convergence criteria
