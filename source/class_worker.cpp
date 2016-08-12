@@ -7,6 +7,9 @@
 #include "class_worker.h"
 #include "counters_timers.h"
 #include "math_algorithms.h"
+#include <thread>
+#include <chrono>
+#define debug_divide 1
 using namespace std;
 using namespace Eigen;
 int counter::MCS;
@@ -14,14 +17,15 @@ int counter::saturation;
 int counter::walks;
 int counter::swaps;
 int counter::swap_accepts;
+int counter::merges;
 int timer::add_hist_volume;
 int timer::check_saturation;
 int timer::check_finish_line;
-int timer::split_windows;
+int timer::check_limits;
 int timer::backup;
 int timer::print;
 int timer::swap;
-int timer::resize;
+int timer::split_windows;
 
 //Constructor
 class_worker::class_worker(): model(), finish_line(false){
@@ -72,14 +76,15 @@ void class_worker::start_counters() {
     counter::walks              = 0;
     counter::swaps              = 0;
     counter::swap_accepts       = 0;
+    counter::merges             = 0;
     timer::add_hist_volume      = 0;
     timer::check_saturation     = 0;
     timer::check_finish_line    = 0;
-    timer::split_windows        = 0;
+    timer::check_limits        = 0;
     timer::backup               = 0;
     timer::print                = 0;
     timer::swap                 = 0;
-    timer::resize               = 0;
+    timer::split_windows        = 0;
 
     flag_one_over_t             = 0;
 }
@@ -121,6 +126,7 @@ void class_worker::update_global_range() {
         M_max_global = M_trial;
         need_to_resize = 1;
     }
+
 }
 
 void class_worker::resize_global_range() {
@@ -144,7 +150,6 @@ void class_worker::resize_global_range() {
     }
 }
 
-
 void class_worker::divide_global_range() {
     //Update limits
     double global_range     = fabs(E_max_global - E_min_global);
@@ -164,8 +169,11 @@ void class_worker::divide_global_range() {
     M_min_local = M_min_global;
     M_max_local = M_max_global;
     in_window = check_in_window(E);
+    if (in_window){
+        E_idx = math::binary_search(E_bins.data(), E, E_bins.size());
+        M_idx = math::binary_search(M_bins.data(), M, M_bins.size());
+    }
 }
-
 
 void class_worker::resize_local_bins() {
     // This function does rebinning of dos and histograms.
@@ -173,8 +181,7 @@ void class_worker::resize_local_bins() {
     // If M_set contains more ----" " ---
     int x, y, i, j, k;
     double weight, weight_sum, dE, dM, dR, dx, dy;
-    bool zero = false;
-    bool flag = false;
+    bool zero;
 
 
 
@@ -206,7 +213,7 @@ void class_worker::resize_local_bins() {
                     if (dos(x, y) == 0) {
                         zero = true;
                         break;
-                    }
+                    }else{zero = false;}
                     dx = fabs(E_bins(i) - X_bins(x));
                     dy = fabs(M_bins(j) - Y_bins(y));
                     if (dx >= dE) { continue; }
@@ -279,18 +286,22 @@ void class_worker::acceptance_criterion(){
     //  4a)in_window = false, E_trial not in_window, E_trial towards window = accept, otherwise accept 50% chance?
     //  5) need_to_resize = true (because E_trial out of global bounds) -> accept with 50% chance?
     if (in_window){
-        E_bins(E_idx) = E;
-        M_bins(M_idx) = M;
+
         if (check_in_window(E_trial)){
             E_idx_trial = math::binary_search(E_bins.data(), E_trial, E_bins.size());
             M_idx_trial = math::binary_search(M_bins.data(), M_trial, M_bins.size());
             accept      = rn::uniform_double(0,1) < exp(dos(E_idx, M_idx) - dos(E_idx_trial, M_idx_trial));
-            if (model.discrete_model){
-                E_set.insert(E);
-                M_set.insert(M);
-            }
         }else{
             accept      = false;
+        }
+        if (model.discrete_model){
+            E_bins(E_idx) = E;
+            M_bins(M_idx) = M;
+            if (E_bins(0) < E_min_local || E_bins(E_bins.size()  -1 ) > E_max_local){
+                need_to_resize = 1;
+            }
+            E_set.insert(E);
+            M_set.insert(M);
         }
     }else{
         if (check_in_window(E_trial)){
@@ -336,8 +347,8 @@ void class_worker::accept_MC_trial() {
     M                           = M_trial;
     model.flip();
     if (in_window) {
-        E_idx                       = E_idx_trial;
-        M_idx                       = M_idx_trial;
+        E_idx                    = E_idx_trial;
+        M_idx                    = M_idx_trial;
         dos(E_idx, M_idx)       += lnf;
         histogram(E_idx, M_idx) += 1;
     }
@@ -368,7 +379,7 @@ void class_worker::prev_WL_iteration() {
     timer::backup           = 0;
     timer::check_finish_line= 0;
     timer::check_saturation = 0;
-    timer::split_windows    = 0;
+    timer::check_limits    = 0;
     timer::swap             = 0;
     if (flag_one_over_t == 0) {
         counter::MCS = 0;
@@ -391,6 +402,8 @@ std::ostream &operator<<(std::ostream &os, const class_worker &worker) {
        << "     M = " << worker.M << " (" << worker.M_idx << ")" << endl
        << "     E_trial = " << worker.E_trial << " (" << worker.E_idx_trial << ")"
        << "     M_trial = " << worker.M_trial << " (" << worker.M_idx_trial << ")" << endl
+       << "     E_size  = " << worker.E_bins.size()
+       << "     M_size  = " << worker.M_bins.size() << endl
        << "     Local E "
        << "["
        << worker.E_min_local << " "

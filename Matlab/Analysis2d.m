@@ -1,10 +1,10 @@
 close all
 clear all
-N = 20^2;
+N = 10^2;
 
-for i = 0:3
+for i = 0:5
     dos = importdata(['../outdata/dos' num2str(i) '.dat']);
-    %dos(dos < 100) = NaN;
+    dos(dos > 0) = dos(dos>0) + randi(200);
 
     E = importdata(['../outdata/E' num2str(i) '.dat']);
     M = importdata(['../outdata/M' num2str(i) '.dat']);

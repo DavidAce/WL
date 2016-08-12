@@ -2,7 +2,7 @@
 function [ c,T ] = thermo2d( dosEM,E,M,N )
 %THERMO Summary of this function goes here
 %   Detailed explanation goes here
-T = linspace(0,5,100);
+T = linspace(0,6,500);
 C		= zeros(1,length(T));
 Z		= zeros(1,length(T));
 e		= zeros(1,length(T));

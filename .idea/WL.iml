@@ -5,20 +5,22 @@
       <sourceFolder url="file://$MODULE_DIR$/main.cpp" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/FindEigen3.cmake" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/CMakeLists.txt" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/source/wanglandau.cpp" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/source/class_master.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/source/randomNumbers.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/source/class_worker.cpp" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/source/constants.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/source/MPI_algorithms.cpp" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/source/class_data.cpp" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/source/math_algorithms.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/source/class_master.h" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/source/randomNumbers.cpp" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/source/class_model.cpp" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/source/class_data.h" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/source/class_worker.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/source/MPI_algorithms.h" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/source/class_worker.h" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/source/class_master.cpp" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/source/counters_timers.h" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/source/wanglandau.h" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/source/randomNumbers.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/source/wanglandau.cpp" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/source/class_model.h" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/source/math_algorithms.cpp" isTestSource="false" />
     </content>

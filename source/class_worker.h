@@ -28,11 +28,10 @@ public:
     void find_initial_limits();
     void start_counters();
     void set_initial_local_bins();
-    void update_global_range();    //
+    void update_global_range();
     void resize_global_range();
-    void divide_global_range();     //
-
-    void resize_local_bins();       //
+    void divide_global_range();
+    void resize_local_bins();
     void compute_number_of_bins(int &, int &);
     bool check_in_window(const double &);
     void make_MC_trial();
