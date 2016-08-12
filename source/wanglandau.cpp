@@ -72,7 +72,7 @@ void WangLandau(class_worker &worker){
         }
 
         MPI_Barrier(MPI_COMM_WORLD);
-//        backup_data(worker,out);
+        backup_data(worker,out);
         if (worker.world_ID == 0 && debug_all) {
             cout << "backup ";
             cout.flush();
@@ -80,7 +80,7 @@ void WangLandau(class_worker &worker){
         }
 
         MPI_Barrier(MPI_COMM_WORLD);
-        //divide_range(worker);
+        divide_range(worker);
         if (worker.world_ID == 0 && debug_all) {
             cout << "divide ";
             cout.flush();

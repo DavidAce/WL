@@ -125,32 +125,33 @@ namespace mpi {
         MPI_Barrier(MPI_COMM_WORLD);
         MatrixXd dos_total, dos_temp;
         VectorXd E_total, M_total, E_temp, M_temp;
-        MatrixXd dos_recv[worker.world_size] ;
-        VectorXd E_recv[worker.world_size];
-        VectorXd M_recv[worker.world_size];
+        MatrixXd dos_recv;
+        VectorXd E_recv;
+        VectorXd M_recv;
         int E_sizes[worker.world_size];
         int M_sizes[worker.world_size];
         int E_size = (int)worker.E_bins.size();
         int M_size = (int)worker.M_bins.size();
-        VectorXi E_merge_idx(worker.world_size-1);
-        VectorXi M_merge_idx(worker.world_size-1);
-        VectorXi E_merge_idx_up(worker.world_size-1);
-        VectorXi M_merge_idx_up(worker.world_size-1);
-        double diff[worker.world_size-1];
+
+        double diff;
 
         MPI_Gather(&E_size, 1, MPI_INT, E_sizes, 1, MPI_INT, 0, MPI_COMM_WORLD);
         MPI_Gather(&M_size, 1, MPI_INT, M_sizes, 1, MPI_INT, 0, MPI_COMM_WORLD);
-        if(worker.world_ID == 0) {
-            dos_recv[0] = worker.dos;
-            E_recv[0] = worker.E_bins;
-            M_recv[0] = worker.M_bins;
-        }
+
         if (worker.world_ID == 0 && debug_merge) {
             cout << "Receiving from " ;
             cout.flush();
             std::this_thread::sleep_for(std::chrono::microseconds(1000));
         }
         MPI_Barrier(MPI_COMM_WORLD);
+        if (worker.world_ID == 0) {
+            dos_total = worker.dos;
+            E_total = worker.E_bins;
+            M_total = worker.M_bins;
+        }
+        int from_total, from_up, rows_total,rows_up;
+        int E_merge_idx, E_merge_idx_up;
+        int M_merge_idx, M_merge_idx_up;
         for(int w = 1; w < worker.world_size; w++){
             if (worker.world_ID == 0){
                 if (debug_merge) {
@@ -158,21 +159,49 @@ namespace mpi {
                     cout.flush();
                     std::this_thread::sleep_for(std::chrono::microseconds(1000));
                 }
-                dos_recv[w].resize(E_sizes[w],M_sizes[w]);
-                E_recv[w].resize(E_sizes[w]);
-                M_recv[w].resize(M_sizes[w]);
-                MPI_Recv(dos_recv[w].data(), E_sizes[w]*M_sizes[w], MPI_DOUBLE, w, 60, MPI_COMM_WORLD,MPI_STATUS_IGNORE );
-                MPI_Recv(E_recv[w].data(), E_sizes[w], MPI_DOUBLE, w, 61, MPI_COMM_WORLD,MPI_STATUS_IGNORE );
-                MPI_Recv(M_recv[w].data(), M_sizes[w], MPI_DOUBLE, w, 62, MPI_COMM_WORLD,MPI_STATUS_IGNORE );
+                dos_recv.resize(E_sizes[w],M_sizes[w]);
+                E_recv.resize(E_sizes[w]);
+                M_recv.resize(M_sizes[w]);
+                MPI_Recv(dos_recv.data(), E_sizes[w]*M_sizes[w], MPI_DOUBLE, w, 60, MPI_COMM_WORLD,MPI_STATUS_IGNORE );
+                MPI_Recv(E_recv.data(), E_sizes[w], MPI_DOUBLE, w, 61, MPI_COMM_WORLD,MPI_STATUS_IGNORE );
+                MPI_Recv(M_recv.data(), M_sizes[w], MPI_DOUBLE, w, 62, MPI_COMM_WORLD,MPI_STATUS_IGNORE );
+
+                //Find coordinates on dos_total
+                E_merge_idx        = math::find_matching_slope(dos_total, dos_recv, E_total, E_recv, M_total, M_recv);
+                dos_total.row(E_merge_idx).maxCoeff(&M_merge_idx);
+                //Find coordinates on received dos;
+                E_merge_idx_up     = math::binary_search(E_recv.data(), E_total(E_merge_idx), E_sizes[w]);
+                dos_recv.row(E_merge_idx_up).maxCoeff(&M_merge_idx_up);
+                //Find difference between heights at these points
+                diff = dos_total(E_merge_idx, M_merge_idx) - dos_recv(E_merge_idx_up, M_merge_idx_up) ;
+                //Add that difference to the next
+                math::add_to_nonzero(dos_recv, diff);
+                //Now now all doses should be the same height
                 if (debug_merge) {
-                    cout << "Stitch ";
+                    cout << "Concatenating ID: "<< w << endl;
+                    cout << "E_bins_up      " << E_recv(E_merge_idx_up) << " [" << E_merge_idx_up << "]" << "    = " << E_recv.transpose() << endl;
+                    cout << "E_bins_total   " << E_total(E_merge_idx)      << " [" << E_merge_idx    << "]" << "    = " << E_total.transpose() << endl;
                     cout.flush();
                     std::this_thread::sleep_for(std::chrono::microseconds(1000));
                 }
-                E_merge_idx(w-1)        = math::find_matching_slope(dos_recv[w-1], dos_recv[w], E_recv[w-1], E_recv[w], M_recv[w-1], M_recv[w]);
-                dos_recv[w-1].row(E_merge_idx(w-1)).maxCoeff(&M_merge_idx(w-1));
-                E_merge_idx_up(w-1)     = math::binary_search(E_recv[w].data(), E_recv[w-1](E_merge_idx(w-1)), E_sizes[w]);
-                dos_recv[w].row(E_merge_idx_up(w-1)).maxCoeff(&M_merge_idx_up(w-1));
+
+                //Compute the starting points and number of rows for concatenation
+                from_total = 0;
+                from_up    = E_merge_idx_up + 1;
+
+                rows_total = E_merge_idx + 1;
+                rows_up    = E_sizes[w] - E_merge_idx_up - 1;
+
+                E_temp.resize(E_total.segment(from_total,rows_total).size() + E_recv.segment(from_up, rows_up).size());
+                dos_temp.resize(dos_total.middleRows(from_total, rows_total).size() + dos_recv.middleRows(from_up,rows_up).size()  , M_size);
+
+                dos_temp << dos_total.middleRows(from_total, rows_total),
+                        dos_recv.middleRows(from_up,rows_up);
+                E_temp   << E_total.segment(from_total,rows_total),
+                        E_recv.segment(from_up, rows_up);
+                dos_total = dos_temp;
+                E_total   = E_temp  ;
+
                 if (debug_merge) {
                     cout << "OK ";
                     cout.flush();
@@ -188,62 +217,6 @@ namespace mpi {
 
         MPI_Barrier(MPI_COMM_WORLD);
 
-        //Now we have all the dos-es and merging points. Now subtract diff
-        if (worker.world_ID == 0 && debug_merge) {
-            cout << endl << "Merging points: " << endl;
-            cout << E_merge_idx.transpose() << endl;
-            cout << E_merge_idx_up.transpose() << endl;
-            cout.flush();
-            std::this_thread::sleep_for(std::chrono::microseconds(1000));
-        }
-        MPI_Barrier(MPI_COMM_WORLD);
-
-        MPI_Barrier(MPI_COMM_WORLD);
-
-        //Now we have all the dos-es and merging points. Now subtract diff
-        if (worker.world_ID == 0 && debug_merge) {
-            cout << "Subtracting" << endl;
-            cout.flush();
-            std::this_thread::sleep_for(std::chrono::microseconds(1000));
-        }
-        MPI_Barrier(MPI_COMM_WORLD);
-
-        if (worker.world_ID == 0){
-            for (int w = 0;  w < worker.world_size-1; w++){
-                diff[w] = dos_recv[w+1](E_merge_idx_up(w), M_merge_idx_up(w)) - dos_recv[w](E_merge_idx(w), M_merge_idx(w));
-                math::add_to_nonzero(dos_recv[w+1], diff[w]);
-            }
-
-            //Now now all doses should be the same height
-            if (debug_merge) {
-                cout << "Concatenating " << endl;
-                cout.flush();
-                std::this_thread::sleep_for(std::chrono::microseconds(1000));
-            }
-            dos_total = dos_recv[0].topRows(E_merge_idx(0) + 1);
-            E_total   = E_recv[0].head(E_merge_idx(0) + 1);
-            M_total   = M_recv[0];
-            int from, rows;
-            for (int w = 1;  w < worker.world_size; w++){
-                if (w < worker.world_size - 1){
-                    from     = E_merge_idx_up(w-1) + 1;
-                    rows     = E_merge_idx(w) - E_merge_idx_up(w-1);
-                }else{
-                    from     = E_merge_idx_up(w-1) + 1;
-                    rows     = E_sizes[w] - 1 - E_merge_idx_up(w-1);
-                }
-                E_temp.resize(E_total.size() + rows);
-                dos_temp.resize(dos_total.rows() + rows, dos_total.cols());
-                dos_temp <<  dos_total,
-                             dos_recv[w].middleRows(from, rows);
-                E_temp   <<  E_total,
-                             E_recv[w].middleRows(from, rows);
-                dos_total = dos_temp;
-                E_total   = dos_temp;
-            }
-        }
-        MPI_Barrier(MPI_COMM_WORLD);
-
         if (worker.world_ID == 0 && debug_merge) {
             cout << "Sending back to workers " << endl;
             cout.flush();
@@ -253,15 +226,16 @@ namespace mpi {
             worker.dos_total    = dos_total;
             worker.E_bins_total = E_total;
             worker.M_bins_total = M_total;
-            E_size              = (int)worker.dos_total.rows();
-            M_size              = (int)worker.dos_total.cols();
+            E_size              = (int)E_total.size();
+            M_size              = (int)M_total.size();
         }
+
         MPI_Barrier(MPI_COMM_WORLD);
         MPI_Bcast(&E_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
         MPI_Bcast(&M_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
-        worker.dos_total.resize(E_size,M_size);
-        worker.E_bins_total.resize(E_size);
-        worker.M_bins_total.resize(M_size);
+        worker.dos_total.conservativeResize(E_size,M_size);
+        worker.E_bins_total.conservativeResize(E_size);
+        worker.M_bins_total.conservativeResize(M_size);
         MPI_Bcast(worker.dos_total.data()   , E_size*M_size, MPI_DOUBLE, 0, MPI_COMM_WORLD);
         MPI_Bcast(worker.E_bins_total.data(), E_size       , MPI_DOUBLE, 0, MPI_COMM_WORLD);
         MPI_Bcast(worker.M_bins_total.data(), M_size       , MPI_DOUBLE, 0, MPI_COMM_WORLD);
