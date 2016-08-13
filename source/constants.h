@@ -10,7 +10,7 @@ namespace constants{
 
     //Lattice Properties
     static const int d = 2;         //Dimension
-    static const int L = 20;        //Linear size
+    static const int L = 12;        //Linear size
     static const int N = (int)pow(L,d);  //Number of spins/particles
 
     //DOS and Histogram properties
@@ -21,9 +21,9 @@ namespace constants{
     static const int    rate_add_hist_volume        = 200;
     static const int    rate_check_finish_line      = 5000;
     static const int    rate_check_saturation       = 5000;
-    static const int    rate_check_limits           = 5000;
+    static const int    rate_check_limits           = 2000;
     static const int    rate_split_windows          = 300000;
-    static const int    rate_swap                   = 1000;
+    static const int    rate_swap                   = 200;
     static const int    rate_backup_data            = 500000;
     static const int    rate_print_status           = 10000;
 

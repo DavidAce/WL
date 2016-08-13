@@ -260,7 +260,7 @@ void print_status(class_worker &worker){
                         << " f: "     << left << setw(16)<< fixed << setprecision(12) << exp(worker.lnf)
                         << " Bins: [" << left << setw(4) << worker.dos.rows() << " " << worker.dos.cols() << "]"
                         << " dE: "    << left << setw(7) << setprecision(2)   << worker.E_max_local - worker.E_min_local
-                        << " E : ["   << left << setw(7) << setprecision(1)   << worker.E_bins(0) << " " << left << setw(7) << setprecision(1) << worker.E_bins(worker.E_bins.size()) << "]"
+                        << " E : ["   << left << setw(7) << setprecision(1)   << worker.E_bins(0) << " " << left << setw(7) << setprecision(1) << worker.E_bins(worker.E_bins.size()-1) << "]"
                         << " Sw: "    << left << setw(5) << counter::swap_accepts
                         << " iw: "    << worker.in_window
                         << " 1/t: "   << worker.flag_one_over_t
