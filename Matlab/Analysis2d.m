@@ -4,7 +4,7 @@ N = 10^2;
 
 for i = 0:5
     dos = importdata(['../outdata/dos' num2str(i) '.dat']);
-    dos(dos > 0) = dos(dos>0) + randi(200);
+    dos(dos > 0) = dos(dos>0) + randi(100);
 
     E = importdata(['../outdata/E' num2str(i) '.dat']);
     M = importdata(['../outdata/M' num2str(i) '.dat']);

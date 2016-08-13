@@ -10,6 +10,7 @@
 #include <thread>
 #include <chrono>
 #define debug_divide 1
+#define debug_resize_local_range 1
 using namespace std;
 using namespace Eigen;
 int counter::MCS;
@@ -41,7 +42,7 @@ class_worker::class_worker(): model(), finish_line(false){
     set_initial_local_bins();
     find_current_state();
     start_counters();
-    need_to_resize = 0;
+    need_to_resize_global = 0;
     cout << "ID: " << world_ID << " Started OK"<<endl;
 
 }
@@ -112,22 +113,22 @@ void class_worker::set_initial_local_bins(){
 void class_worker::update_global_range() {
     if (E_trial < E_min_global){
         E_min_global  = E_trial;
-        need_to_resize = 1;
+        need_to_resize_global = 1;
     }
     if (E_trial > E_max_global){
         E_max_global  = E_trial;
-        need_to_resize = 1;
+        need_to_resize_global = 1;
     }
     if (M_trial < M_min_global){
         M_min_global = M_trial;
-        need_to_resize = 1;
+        need_to_resize_global = 1;
     }
     if (M_trial > M_max_global){
         M_max_global = M_trial;
-        need_to_resize = 1;
+        need_to_resize_global = 1;
     }
-
 }
+
 
 void class_worker::resize_global_range() {
     //Compare to the other workers to find global limits
@@ -175,6 +176,48 @@ void class_worker::divide_global_range() {
     }
 }
 
+void class_worker::resize_local_range(){
+    //Scenarios
+    //  1) E_bins.maxCoeff() < E_max_local, E_max_local = *E_set.end()
+    //  2) E_bins.minCoeff() > E_min_local, E_min_local = *E_set.begin()
+    need_to_resize_local = 0;
+    if (model.discrete_model) {
+        for (int w = 0; w < world_size; w++) {
+            if (w == world_ID) {
+                if (E_bins.maxCoeff() != E_max_local && E_bins.size() <= E_set.size()) {
+                    if (debug_resize_local_range) {
+                        cout << "E_max_local = " << E_max_local << " adjusted to " << fmax(E_bins.maxCoeff(),*E_set.rbegin())
+                             << endl;
+                        cout << "E_bins: " << E_bins.transpose() << endl;
+                        cout << "E_set:  ";
+                        for (auto it = E_set.begin(); it != E_set.end(); it++) {
+                            if (*it == E) { cout << "["; }
+                            cout << *it;
+                            if (*it == E) { cout << "]"; }
+                            cout << " ";
+                        }
+                        cout << endl;
+                    }
+                    E_max_local =  fmax(E_bins.maxCoeff(),*E_set.rbegin());
+                    need_to_resize_local = 1;
+                }
+                if (E_bins.minCoeff() != E_min_local && E_bins.size() <= E_set.size()) {
+                    if (debug_resize_local_range) {
+
+                        cout << "E_min_local = " << E_min_local << " adjusted to " <<  fmin(E_bins.minCoeff(),*E_set.begin())
+                             << endl;
+
+                    }
+                    E_min_local = fmin(E_bins.minCoeff(),*E_set.begin());
+                    need_to_resize_local = 1;
+                }
+            }
+            MPI_Barrier(MPI_COMM_WORLD);
+        }
+    }
+
+}
+
 void class_worker::resize_local_bins() {
     // This function does rebinning of dos and histograms.
     // If E_set contains more than the default number of bins, then enlarge E_bins, otherwise shrink it!
@@ -192,6 +235,7 @@ void class_worker::resize_local_bins() {
     int M_new_size;
 
     compute_number_of_bins(E_new_size, M_new_size);
+
 
     histogram_temp  = MatrixXi::Zero(E_new_size, M_new_size);
     dos_temp        = MatrixXd::Zero(E_new_size, M_new_size);
@@ -246,6 +290,8 @@ void class_worker::compute_number_of_bins(int & E_new_size, int & M_new_size) {
     //Scenarios:
     //  1) E_set contains more elements than the current E_bins.size() -> E_new_size = E_set.size()
     //  2) E_set contains less elements than the current E_bins.size() -> E
+
+
     if (model.discrete_model){
         //Purge elements from E_set outside of window
         for (auto it = E_set.begin(); it != E_set.end(); ) {
@@ -256,7 +302,10 @@ void class_worker::compute_number_of_bins(int & E_new_size, int & M_new_size) {
                 ++it;
             }
         }
-        E_new_size = max(constants::bins, (int) E_set.size());
+        int spacing = (int) ceil((E_bins.tail(E_bins.size() - 1) - E_bins.head(E_bins.size()-1)).mean());
+        int maxElem = (int) ceil((E_max_local - E_min_local) / spacing);
+        E_new_size = max(constants::bins, (int) E_set.size()); //What if there is a jump in E_set?
+        E_new_size = max(E_new_size, maxElem);
         M_new_size = max(constants::bins, (int) M_set.size());
         MPI_Allreduce(&M_new_size, &M_new_size, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
     }else{
@@ -284,7 +333,7 @@ void class_worker::acceptance_criterion(){
     //  4) in_window = false,E_trial not in_window->  Accept (without updating dos)
 
     //  4a)in_window = false, E_trial not in_window, E_trial towards window = accept, otherwise accept 50% chance?
-    //  5) need_to_resize = true (because E_trial out of global bounds) -> accept with 50% chance?
+    //  5) need_to_resize_global = true (because E_trial out of global bounds) -> accept with 50% chance?
     if (in_window){
 
         if (check_in_window(E_trial)){
@@ -297,9 +346,9 @@ void class_worker::acceptance_criterion(){
         if (model.discrete_model){
             E_bins(E_idx) = E;
             M_bins(M_idx) = M;
-            if (E_bins(0) < E_min_local || E_bins(E_bins.size()  -1 ) > E_max_local){
-                need_to_resize = 1;
-            }
+//            if (E_bins(0) < E_min_local || E_bins(E_bins.size()  - 1 ) > E_max_local){
+//                need_to_resize_global = 1;
+//            }
             E_set.insert(E);
             M_set.insert(M);
         }
@@ -326,7 +375,7 @@ void class_worker::acceptance_criterion(){
             }
         }
 
-        if (need_to_resize == 1){
+        if (need_to_resize_global == 1){
             //Broke through global limits. Might as well explore
             if (E_trial > E && E_trial >= E_max_local) {
                 accept = true;
@@ -369,6 +418,22 @@ void class_worker::next_WL_iteration() {
     counter::walks++;
 }
 
+void class_worker::rewind_to_lowest_walk(){
+    int min_walks;
+    MPI_Allreduce(&counter::walks, &min_walks, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+    counter::walks = min_walks;
+    lnf = pow(constants::reduce_factor_lnf, min_walks);
+
+    timer::add_hist_volume  = 0;
+    timer::backup           = 0;
+    timer::check_finish_line= 0;
+    timer::check_saturation = 0;
+    timer::check_limits     = 0;
+    timer::swap             = 0;
+    counter::MCS            = (int) (1.0 / lnf);
+
+
+}
 void class_worker::prev_WL_iteration() {
     if (counter::walks > 0) {
         lnf /= constants::reduce_factor_lnf;
@@ -379,7 +444,7 @@ void class_worker::prev_WL_iteration() {
     timer::backup           = 0;
     timer::check_finish_line= 0;
     timer::check_saturation = 0;
-    timer::check_limits    = 0;
+    timer::check_limits     = 0;
     timer::swap             = 0;
     if (flag_one_over_t == 0) {
         counter::MCS = 0;
@@ -389,7 +454,6 @@ void class_worker::prev_WL_iteration() {
     }else {
         counter::MCS = (int) (1.0 / lnf);
     }
-
 }
 
 

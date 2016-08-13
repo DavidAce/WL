@@ -10,7 +10,6 @@
 #include <thread>
 #include <chrono>
 #define debug_all 0
-#define debug_merge 1
 #define debug_check_global_limits 1
 using namespace std;
 
@@ -72,7 +71,7 @@ void WangLandau(class_worker &worker){
         }
 
         MPI_Barrier(MPI_COMM_WORLD);
-        backup_data(worker,out);
+        //backup_data(worker,out);
         if (worker.world_ID == 0 && debug_all) {
             cout << "backup ";
             cout.flush();
@@ -141,13 +140,13 @@ void check_convergence(class_worker &worker, int &finish_line){
 void check_global_limits(class_worker &worker){
     if (timer::check_limits >= constants::rate_check_limits) {
         timer::check_limits = 0;
-        MPI_Allreduce(&worker.need_to_resize, &worker.need_to_resize, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-        if (worker.need_to_resize == 1){
+        MPI_Allreduce(&worker.need_to_resize_global, &worker.need_to_resize_global, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+        if (worker.need_to_resize_global == 1) {
             worker.resize_global_range();
             worker.divide_global_range();
             worker.resize_local_bins();
             worker.prev_WL_iteration();
-            worker.need_to_resize = 0;
+            worker.need_to_resize_global = 0;
         }
     }else{
         timer::check_limits++;
@@ -159,13 +158,11 @@ void divide_range(class_worker &worker){
         timer::split_windows = 0;
         int min_walks, need_to_resize;
         MPI_Allreduce(&counter::walks, &min_walks, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
-        MPI_Allreduce(&worker.need_to_resize, &need_to_resize, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-        if (min_walks > 1 && need_to_resize == 0) {
+        MPI_Allreduce(&worker.need_to_resize_global, &need_to_resize, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+        if (min_walks > 2 && need_to_resize == 0) {
             mpi::merge(worker);
             mpi::divide_global_range_dos_volume(worker);
-            worker.resize_local_bins();
-            worker.prev_WL_iteration();
-
+            worker.rewind_to_lowest_walk();
         }
     }else{
         timer::split_windows++;
@@ -242,7 +239,7 @@ void backup_data(class_worker &worker, outdata &out){
        int all_in_window;
        int need_to_resize;
         MPI_Allreduce(&worker.in_window     , &all_in_window,  1, MPI_INT, MPI_MIN,MPI_COMM_WORLD);
-        MPI_Allreduce(&worker.need_to_resize, &need_to_resize, 1, MPI_INT, MPI_MAX,MPI_COMM_WORLD);
+        MPI_Allreduce(&worker.need_to_resize_global, &need_to_resize, 1, MPI_INT, MPI_MAX,MPI_COMM_WORLD);
        if (need_to_resize == 0 && all_in_window == 1){
            mpi::merge(worker);
            out.write_data_master(worker);
@@ -263,22 +260,24 @@ void print_status(class_worker &worker){
                         << " f: "     << left << setw(16)<< fixed << setprecision(12) << exp(worker.lnf)
                         << " Bins: [" << left << setw(4) << worker.dos.rows() << " " << worker.dos.cols() << "]"
                         << " dE: "    << left << setw(7) << setprecision(2)   << worker.E_max_local - worker.E_min_local
-                        << " @: ["    << left << setw(3) << worker.E_idx      << " " << left << setw(3) << worker.M_idx      << "]"
-                        << " Swaps: " << left << setw(5) << counter::swap_accepts
+                        << " E : ["   << left << setw(7) << setprecision(1)   << worker.E_min_local << " " << left << setw(7) << setprecision(1) << worker.E_max_local << "]"
+                        << " Sw: "    << left << setw(5) << counter::swap_accepts
                         << " iw: "    << worker.in_window
                         << " 1/t: "   << worker.flag_one_over_t
                         << " Fin: "   << worker.finish_line
+                        << " MCS: "   << left << setw(10) << counter::MCS
                         << endl;
             }
             cout.flush();
+            std::this_thread::sleep_for(std::chrono::microseconds(10));
             MPI_Barrier(MPI_COMM_WORLD);
         }
         cout.flush();
+        std::this_thread::sleep_for(std::chrono::microseconds(10));
         MPI_Barrier(MPI_COMM_WORLD);
         if (worker.world_ID == 0){
             cout    << "-----"
-                    << "MCS: "          << counter::MCS
-                    <<  "    MaxWalks: "<< fixed << setprecision(0) << ceil(log(constants::minimum_lnf)/log(constants::reduce_factor_lnf))
+                    <<  " MaxWalks: "<< fixed << setprecision(0) << ceil(log(constants::minimum_lnf)/log(constants::reduce_factor_lnf))
                     << "  -----"
                     << endl;
         }

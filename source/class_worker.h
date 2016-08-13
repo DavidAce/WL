@@ -32,6 +32,7 @@ public:
     void resize_global_range();
     void divide_global_range();
     void resize_local_bins();
+    void resize_local_range();
     void compute_number_of_bins(int &, int &);
     bool check_in_window(const double &);
     void make_MC_trial();
@@ -40,6 +41,7 @@ public:
     void reject_MC_trial();
     void next_WL_iteration();
     void prev_WL_iteration();
+    void rewind_to_lowest_walk();
 
 
     //MPI Communicator
@@ -52,7 +54,8 @@ public:
     //WL acceptance criterion
     bool accept;
     bool in_window;
-    int  need_to_resize;
+    int  need_to_resize_global;
+    int  need_to_resize_local;
     //WL DOS and Histograms
     MatrixXi histogram, histogram_temp;
     MatrixXd dos, dos_temp;
