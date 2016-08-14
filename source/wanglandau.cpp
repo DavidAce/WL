@@ -7,93 +7,34 @@
 #include "class_data.h"
 #include "wanglandau.h"
 #include "MPI_algorithms.h"
+#include "class_profiling.h"
 #include <thread>
 #include <chrono>
-#define debug_all 0
-#define debug_check_global_limits 1
+#define debug_sweep                     0
+#define debug_convergence               0
+#define debug_global_limits             0
+#define profiling_sweep                 1
+#define profiling_swap                  1
+#define profiling_check_global_limits   0
+#define profiling_check_convergence     0
 using namespace std;
 
 void WangLandau(class_worker &worker){
     int finish_line = 0;
+    class_profiling t_sweep(profiling_sweep),
+                    t_swap(profiling_swap),
+                    t_check_global_limits(profiling_check_global_limits),
+                    t_check_convergence(profiling_check_convergence);
+
     outdata out(worker.world_ID);
     while(finish_line == 0){
-        MPI_Barrier(MPI_COMM_WORLD);
-        if (worker.world_ID == 0 && debug_all) {
-            cout << "Starting MCS " << counter::MCS;
-            cout.flush();
-            std::this_thread::sleep_for(std::chrono::microseconds(10));
-
-        }
-
-        sweep(worker);
-        MPI_Barrier(MPI_COMM_WORLD);
-        if (worker.world_ID == 0 && debug_all) {
-            cout << " Sweep ";
-            cout.flush();
-            std::this_thread::sleep_for(std::chrono::microseconds(10));
-
-        }
-
-        mpi::swap(worker);
-        MPI_Barrier(MPI_COMM_WORLD);
-        if (worker.world_ID == 0 && debug_all) {
-            cout << "Swap ";
-            cout.flush();
-            std::this_thread::sleep_for(std::chrono::microseconds(10));
-
-        }
-
-        check_global_limits(worker);
-        MPI_Barrier(MPI_COMM_WORLD);
-        if (worker.world_ID == 0 && debug_all) {
-            cout << "check_limit ";
-            cout.flush();
-            std::this_thread::sleep_for(std::chrono::microseconds(10));
-
-        }
-
-        check_convergence(worker, finish_line);
-        MPI_Barrier(MPI_COMM_WORLD);
-        if (worker.world_ID == 0 && debug_all) {
-            cout << "check_conv ";
-            cout.flush();
-            std::this_thread::sleep_for(std::chrono::microseconds(10));
-
-        }
-
-        print_status(worker);
-        MPI_Barrier(MPI_COMM_WORLD);
-        if (worker.world_ID == 0 && debug_all) {
-            cout << "print ";
-            cout.flush();
-            std::this_thread::sleep_for(std::chrono::microseconds(10));
-
-        }
-
-        MPI_Barrier(MPI_COMM_WORLD);
-        //backup_data(worker,out);
-        if (worker.world_ID == 0 && debug_all) {
-            cout << "backup ";
-            cout.flush();
-            std::this_thread::sleep_for(std::chrono::microseconds(10));
-        }
-
-        MPI_Barrier(MPI_COMM_WORLD);
+        sweep(worker, t_sweep);
+        mpi::swap(worker, t_swap);
+        check_global_limits(worker, t_check_global_limits);
+        check_convergence(worker, finish_line, t_check_convergence);
+        print_status(worker, t_sweep, t_swap, t_check_global_limits, t_check_convergence);
         divide_range(worker);
-        if (worker.world_ID == 0 && debug_all) {
-            cout << "divide ";
-            cout.flush();
-            std::this_thread::sleep_for(std::chrono::microseconds(10));
-        }
-
-
-        MPI_Barrier(MPI_COMM_WORLD);
-        if (worker.world_ID == 0 && debug_all) {
-            cout << "OK "<< endl;
-            cout.flush();
-            std::this_thread::sleep_for(std::chrono::microseconds(10));
-        }
-
+        backup_data(worker,out);
     }
     out.write_data_worker(worker);
     mpi::merge(worker);
@@ -102,7 +43,17 @@ void WangLandau(class_worker &worker){
 
 }
 
-void sweep(class_worker &worker){
+void sweep(class_worker &worker, class_profiling &t_sweep){
+    if (debug_sweep){
+        if (worker.world_ID == 0) {
+            cout << endl << "Starting MCS " << counter::MCS << endl;
+            cout.flush();
+            std::this_thread::sleep_for(std::chrono::microseconds(10));
+        }
+        MPI_Barrier(MPI_COMM_WORLD);
+    }
+
+    t_sweep.tic();
     for (int i = 0; i < constants::N ; i++){
         worker.make_MC_trial();
         worker.acceptance_criterion();
@@ -114,123 +65,129 @@ void sweep(class_worker &worker){
         }
     }
     counter::MCS++;
+    t_sweep.toc();
 }
 
-void check_convergence(class_worker &worker, int &finish_line){
+void check_convergence(class_worker &worker, int &finish_line, class_profiling &t_check_convergence){
     switch(worker.flag_one_over_t){
         case 0:
-            add_hist_volume(worker);
-            check_saturation(worker);
+            if (timer::add_hist_volume > constants::rate_add_hist_volume) {
+                timer::add_hist_volume = 0;
+                if (debug_convergence){debug_print(worker,"Add hist volume ");}
+                t_check_convergence.tic();
+                add_hist_volume(worker);
+                t_check_convergence.toc();
+
+            }else{
+                timer::add_hist_volume++;
+            }
+            if (timer::check_saturation >= constants::rate_check_saturation) {
+                timer::check_saturation = 0;
+                if (debug_convergence){debug_print(worker,"Check_saturation ");}
+                t_check_convergence.tic();
+                check_saturation(worker);
+                t_check_convergence.toc();
+            }else{
+                timer::check_saturation++;
+            }
+            if(worker.lnf < pow(constants::one_over_t_factor/counter::MCS, constants::one_over_t_exponent)){
+                worker.lnf =  pow(constants::one_over_t_factor/counter::MCS, constants::one_over_t_exponent);
+                worker.flag_one_over_t = 1;         //Change to 1/t algorithm
+            }
             break;
         case 1:
+            if (debug_convergence){debug_print(worker,"Check one over t ");}
+            t_check_convergence.tic();
             check_one_over_t(worker);
+            t_check_convergence.toc();
             break;
         default:
             cout << "Error: check_convergence has wrong flag" << endl;
             exit(2);
     }
+    timer::check_finish_line++;
     if (timer::check_finish_line > constants::rate_check_finish_line) {
         timer::check_finish_line = 0;
+        if (debug_convergence){debug_print(worker,"Check Finish line ");}
         MPI_Allreduce(&worker.finish_line, &finish_line, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
-    }else{
-        timer::check_finish_line++;
     }
 }
 
-void check_global_limits(class_worker &worker){
+void check_global_limits(class_worker &worker, class_profiling & t_check_global_limits){
+    timer::check_limits++;
     if (timer::check_limits >= constants::rate_check_limits) {
         timer::check_limits = 0;
         MPI_Allreduce(&worker.need_to_resize_global, &worker.need_to_resize_global, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
         if (worker.need_to_resize_global == 1) {
+            if (debug_global_limits){debug_print(worker,"Check Global Limits ");}
             worker.resize_global_range();
             worker.divide_global_range();
             worker.resize_local_bins();
             worker.prev_WL_iteration();
             worker.need_to_resize_global = 0;
         }
-    }else{
-        timer::check_limits++;
     }
 }
 
 void divide_range(class_worker &worker){
+    timer::split_windows++;
     if (timer::split_windows >= constants::rate_split_windows) {
         timer::split_windows = 0;
         int min_walks, need_to_resize;
         MPI_Allreduce(&counter::walks, &min_walks, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
         MPI_Allreduce(&worker.need_to_resize_global, &need_to_resize, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-        if (min_walks > 2 && need_to_resize == 0) {
+        if (min_walks > constants::min_walks && need_to_resize == 0 && counter::merges < constants::max_merges) {
             mpi::merge(worker);
             mpi::divide_global_range_dos_volume(worker);
             worker.rewind_to_lowest_walk();
         }
-    }else{
-        timer::split_windows++;
     }
 }
 
 void add_hist_volume(class_worker &worker) {
-    if (timer::add_hist_volume > constants::rate_add_hist_volume) {
-        timer::add_hist_volume = 0;
-        //Find minimum histogram entry larger than 2.
-        math::subtract_min_nonzero(worker.histogram);
-
-        //Resize saturation vector
-        if (worker.saturation.size() <= counter::saturation) {
-            worker.saturation.conservativeResize(2 * std::max(1,counter::saturation));
-            worker.saturation.bottomRows(counter::saturation).fill(0);
-        }
-        worker.saturation(counter::saturation) = worker.histogram.sum();
-        counter::saturation++;
-
-    }else{
-        timer::add_hist_volume++;
+    //Find minimum histogram entry larger than 2.
+    math::subtract_min_nonzero(worker.histogram);
+    //Resize saturation vector
+    if (worker.saturation.size() <= counter::saturation) {
+        worker.saturation.conservativeResize(2 * std::max(1, counter::saturation));
+        worker.saturation.bottomRows(counter::saturation).fill(0);
     }
+    worker.saturation(counter::saturation) = worker.histogram.sum();
+    counter::saturation++;
 }
 
 void check_saturation(class_worker &worker) {
-    if (timer::check_saturation >= constants::rate_check_saturation) {
-        timer::check_saturation = 0;
-        int i, j;
-        int idx = (int) (constants::check_saturation_from * counter::saturation);
-        double Sx = 0, Sxy = 0, mX = 0, mY = 0;
-        j = 0;
-        //Compute means of the last 10%:
-        for (i = idx; i < counter::saturation; i++) {
-            mX += i;//X(i);
-            mY += worker.saturation(i);
-            j++;
-        }
-        mX /= j;
-        mY /= j;
-        for (i = idx; i < counter::saturation; i++) {
-            Sx += pow(i - mX, 2);
-            Sxy += (worker.saturation(i) - mY) * (i - mX);
-        }
-        double slope = Sxy / Sx;
+    int i, j;
+    int idx = (int) (constants::check_saturation_from * counter::saturation);
+    double Sx = 0, Sxy = 0, mX = 0, mY = 0;
+    j = 0;
+    //Compute means of the last 10%:
+    for (i = idx; i < counter::saturation; i++) {
+        mX += i;//X(i);
+        mY += worker.saturation(i);
+        j++;
+    }
+    mX /= j;
+    mY /= j;
+    for (i = idx; i < counter::saturation; i++) {
+        Sx += pow(i - mX, 2);
+        Sxy += (worker.saturation(i) - mY) * (i - mX);
+    }
+    double slope = Sxy / Sx;
 
-        if (slope < 0) {
-            worker.next_WL_iteration();
-            if (worker.lnf < constants::minimum_lnf){
-                worker.finish_line = 1;
-            }
-            if(worker.lnf < 1/counter::MCS){
-            //if(counter::MCS > 1e5){
-                worker.lnf = 1.0/counter::MCS;
-                worker.flag_one_over_t = 1;         //Change to 1/t algorithm
-            }
+    if (slope < 0) {
+        worker.next_WL_iteration();
+        if (worker.lnf < constants::minimum_lnf) {
+            worker.finish_line = 1;
         }
-    }else{
-        timer::check_saturation++;
     }
 }
 
 void check_one_over_t (class_worker &worker){
-    worker.lnf = 1.0/counter::MCS;
+    worker.lnf =  pow(constants::one_over_t_factor/counter::MCS, constants::one_over_t_exponent);
     if (worker.lnf < constants::minimum_lnf){
         worker.finish_line = 1;
     }
-
 }
 
 void backup_data(class_worker &worker, outdata &out){
@@ -249,9 +206,26 @@ void backup_data(class_worker &worker, outdata &out){
     }
 }
 
-void print_status(class_worker &worker){
+void debug_print(class_worker & worker, string input){
+    if (worker.world_ID == 0) {
+        cout << input;
+        cout.flush();
+        std::this_thread::sleep_for(std::chrono::microseconds(10));
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+}
+
+void print_status(class_worker &worker, class_profiling &t_sweep,
+                                        class_profiling &t_swap,
+                                        class_profiling &t_check_global_limits,
+                                        class_profiling &t_check_convergence) {
+    timer::print++;
     if (timer::print >= constants::rate_print_status){
         timer::print = 0;
+        timer::total_toc = std::chrono::high_resolution_clock::now();
+        timer::print_toc = std::chrono::high_resolution_clock::now();
+        timer::elapsed_time_print = timer::print_toc - timer::print_tic;
+        timer::elapsed_time_total = timer::total_toc - timer::total_tic;
         for (int i = 0; i < worker.world_size; i++){
             if(worker.world_ID == i){
                 if (worker.world_ID == 0){cout << endl;}
@@ -266,7 +240,26 @@ void print_status(class_worker &worker){
                         << " 1/t: "   << worker.flag_one_over_t
                         << " Fin: "   << worker.finish_line
                         << " MCS: "   << left << setw(10) << counter::MCS
-                        << endl;
+                        << " Time: "  << fixed << setprecision(3) << timer::elapsed_time_print.count() << " s ";
+                if(profiling_sweep){
+                    cout << " t_sweep = " << t_sweep;
+                    t_sweep.reset();
+                }
+                if(profiling_swap){
+                    cout << " t_swap = " << t_swap;
+                    t_swap.reset();
+                }
+                if(profiling_check_global_limits){
+                    cout << " t_glob = " << t_check_global_limits;
+                    t_check_global_limits.reset();
+                }
+                if(profiling_check_convergence){
+                    cout << " t_conv = " << t_check_convergence;
+                    t_check_convergence.reset();
+                }
+
+
+                cout << endl;
             }
             cout.flush();
             std::this_thread::sleep_for(std::chrono::microseconds(10));
@@ -277,13 +270,12 @@ void print_status(class_worker &worker){
         MPI_Barrier(MPI_COMM_WORLD);
         if (worker.world_ID == 0){
             cout    << "-----"
-                    <<  " MaxWalks: "<< fixed << setprecision(0) << ceil(log(constants::minimum_lnf)/log(constants::reduce_factor_lnf))
+                    << " MaxWalks: "   << fixed << setprecision(0) << ceil(log(constants::minimum_lnf)/log(constants::reduce_factor_lnf))
+                    << " Total Time: " << fixed << setprecision(3) << timer::elapsed_time_total.count() << " s "
                     << "  -----"
                     << endl;
         }
-
-    }else{
-        timer::print++;
+        timer::print_tic = std::chrono::high_resolution_clock::now();
     }
 
 }

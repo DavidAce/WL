@@ -3,14 +3,15 @@
 //
 
 #include "MPI_algorithms.h"
-#define debug_merge 1
+
 using namespace std;
 
 namespace mpi {
-    void swap(class_worker &worker) {
+    void swap(class_worker &worker, class_profiling & t_swap) {
         //Use MPI Tag in the 100-200 range
         if (timer::swap > constants::rate_swap) {
             timer::swap = 0;
+            t_swap.tic();
             counter::swaps++;
             int swap, copy;
             double dos_X, dos_Y;
@@ -61,7 +62,7 @@ namespace mpi {
                                  - worker.dos(E_Y_idx, M_Y_idx)
                                  + dos_Y
                                  - dos_X);
-                    if (rn::uniform_double(0, 1) < fmin(1, P_swap)) {
+                    if (rn::uniform_double_1() < fmin(1, P_swap)) {
                         swap = 1;
                     } else {
                         swap = 0;
@@ -80,18 +81,14 @@ namespace mpi {
 
 
             //Now do the swapping if you got lucky
-            counter::swap_accepts += swap;
             if (myTurn) {
                 if (go_ahead == 1) {
-                    MPI_Sendrecv_replace(worker.model.lattice.data(), (int) worker.model.lattice.size(), MPI_INT, up,
-                                         111,
-                                         up, 111, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                    MPI_Sendrecv_replace(worker.model.lattice.data(), (int) worker.model.lattice.size(), MPI_INT, up, 111, up, 111, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                     worker.E = E_Y;
                     worker.M = M_Y;
                     worker.find_current_state();
                 } else if (copy == 1) {
-                    MPI_Recv(worker.model.lattice.data(), (int) worker.model.lattice.size(), MPI_INT, up, 112,
-                             MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                    MPI_Recv(worker.model.lattice.data(), (int) worker.model.lattice.size(), MPI_INT, up, 112, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                     worker.E = E_Y;
                     worker.M = M_Y;
                     worker.find_current_state();
@@ -99,17 +96,16 @@ namespace mpi {
             }
             else {
                 if (go_ahead == 1) {
-                    MPI_Sendrecv_replace(worker.model.lattice.data(), (int) worker.model.lattice.size(), MPI_INT, dn,
-                                         111,
-                                         dn, 111, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                    MPI_Sendrecv_replace(worker.model.lattice.data(), (int) worker.model.lattice.size(), MPI_INT, dn, 111, dn, 111, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                     worker.E = E_X;
                     worker.M = M_X;
                     worker.find_current_state();
                 } else if (copy == 1) {
-                    MPI_Send(worker.model.lattice.data(), (int) worker.model.lattice.size(), MPI_INT, dn, 112,
-                             MPI_COMM_WORLD);
+                    MPI_Send(worker.model.lattice.data(), (int) worker.model.lattice.size(), MPI_INT, dn, 112, MPI_COMM_WORLD);
                 }
             }
+            counter::swap_accepts += swap;
+            t_swap.toc();
 
         } else {
             timer::swap++;
@@ -300,7 +296,7 @@ namespace mpi {
                 cout << "E_min_local = "  << worker.E_min_local << " E_min_global = " << worker.E_min_global << endl;
                 cout.flush();
                 std::this_thread::sleep_for(std::chrono::microseconds(10000));
-                exit(40);
+//                exit(40);
             }
 
 
@@ -315,7 +311,7 @@ namespace mpi {
                 cout << "E_max_local = "  << worker.E_max_local << " E_max_global = " << worker.E_max_global << endl;
                 cout.flush();
                 std::this_thread::sleep_for(std::chrono::microseconds(10000));
-                exit(41);
+//                exit(41);
             }
 
         } else {
@@ -337,9 +333,9 @@ namespace mpi {
 
         //Inherit the corresponding part of the dos
         int from = E_min_local_idx;
-        int rows = E_max_local_idx - E_min_local_idx;
+        int rows = E_max_local_idx - E_min_local_idx + 1;
 
-        if (from+rows >= worker.E_bins_total.size()){
+        if (from+rows > worker.E_bins_total.size()){
             cout << "TOO MANY ROWS "<< endl;
             cout << worker << endl;
             cout.flush();
@@ -383,7 +379,9 @@ namespace mpi {
         if (debug_divide) {
             for (int w = 0; w < worker.world_size; w++){
                 if (w == worker.world_ID){
+                    cout << setprecision(2);
                     cout << "ID: "<< w << " Bounds : " << worker.E_min_local<< " " << worker.E_max_local <<  endl;
+                    cout << worker.E_bins.transpose() << endl;
                     cout.flush();
                     std::this_thread::sleep_for(std::chrono::microseconds(1000));
                 }

@@ -45,7 +45,7 @@ namespace math {
 //        return min;
 //    }
 
-    int mod(const int &a, const int &b) {
+    int mod2(const int &a, const int &b) {
         if (b < 0) {
             return mod(-a, -b);
         }
@@ -104,8 +104,8 @@ namespace math {
                 if (E1(i) >= E2.maxCoeff()) { continue; }
                 if (M1(j) >= M2.maxCoeff()) { continue; }
                 if (M1(j) <= M2.minCoeff()) { continue; }
-                x = math::upper_bound(E2.data(), E1(i), E2.size());
-                y = math::upper_bound(M2.data(), M1(i), M2.size());
+                x = math::binary_search(E2.data(), E1(i), E2.size());
+                y = math::binary_search(M2.data(), M1(i), M2.size());
                 if (x <= 0 || x >= E2.size() - 1) { continue; }
                 if (y <= 0 || y >= M2.size() - 1) { continue; }
 

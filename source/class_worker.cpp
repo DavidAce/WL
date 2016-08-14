@@ -27,6 +27,13 @@ int timer::backup;
 int timer::print;
 int timer::swap;
 int timer::split_windows;
+std::chrono::duration<double> timer::elapsed_time_total;
+std::chrono::duration<double> timer::elapsed_time_print;
+std::chrono::high_resolution_clock::time_point timer::total_tic;
+std::chrono::high_resolution_clock::time_point timer::total_toc;
+std::chrono::high_resolution_clock::time_point timer::print_tic;
+std::chrono::high_resolution_clock::time_point timer::print_toc;
+
 
 //Constructor
 class_worker::class_worker(): model(), finish_line(false){
@@ -86,6 +93,8 @@ void class_worker::start_counters() {
     timer::print                = 0;
     timer::swap                 = 0;
     timer::split_windows        = 0;
+    timer::total_tic            = std::chrono::high_resolution_clock::now();
+    timer::print_tic            = std::chrono::high_resolution_clock::now();
 
     flag_one_over_t             = 0;
 }
@@ -151,7 +160,7 @@ void class_worker::resize_global_range() {
     }
 }
 
-void class_worker::divide_global_range() {
+void class_worker::divide_global_range(){
     //Update limits
     double global_range     = fabs(E_max_global - E_min_global);
     double local_range      = global_range / (world_size);
@@ -320,7 +329,7 @@ bool class_worker::check_in_window(const double &x) {
     return x >= E_min_local && x <= E_max_local;
 }
 
-void class_worker::make_MC_trial(){
+void class_worker::make_MC_trial()  {
     model.make_new_state(E,M, E_trial, M_trial);
     update_global_range();
 }
@@ -339,7 +348,7 @@ void class_worker::acceptance_criterion(){
         if (check_in_window(E_trial)){
             E_idx_trial = math::binary_search(E_bins.data(), E_trial, E_bins.size());
             M_idx_trial = math::binary_search(M_bins.data(), M_trial, M_bins.size());
-            accept      = rn::uniform_double(0,1) < exp(dos(E_idx, M_idx) - dos(E_idx_trial, M_idx_trial));
+            accept      = rn::uniform_double_1() < exp(dos(E_idx, M_idx) - dos(E_idx_trial, M_idx_trial));
         }else{
             accept      = false;
         }
@@ -367,9 +376,9 @@ void class_worker::acceptance_criterion(){
             }else if (E_trial <= E && E > E_max_local){
                 accept = true;
             }else if(E_trial < E && E < E_min_local){
-                accept = rn::uniform_double(0,1) > 0.5;
+                accept = rn::uniform_double_1() > 0.5;
             }else if (E_trial > E && E > E_max_local){
-                accept = rn::uniform_double(0,1) > 0.5;
+                accept = rn::uniform_double_1() > 0.5;
             }else{
                 accept = true;
             }
@@ -416,6 +425,8 @@ void class_worker::next_WL_iteration() {
     saturation.fill(0);
     counter::saturation = 0;
     counter::walks++;
+    finish_line = lnf > constants::minimum_lnf ? 0 : 1;
+
 }
 
 void class_worker::rewind_to_lowest_walk(){
@@ -425,15 +436,16 @@ void class_worker::rewind_to_lowest_walk(){
     lnf = pow(constants::reduce_factor_lnf, min_walks);
 
     timer::add_hist_volume  = 0;
-    timer::backup           = 0;
     timer::check_finish_line= 0;
     timer::check_saturation = 0;
-    timer::check_limits     = 0;
-    timer::swap             = 0;
-    counter::MCS            = (int) (1.0 / lnf);
+//    counter::MCS            = (int) ( constants::one_over_t_factor / pow(lnf, constants::one_over_t_exponent));
+    counter::MCS            = (int) 1.0/lnf;
+    cout << "New MCS = " << counter::MCS << endl;
+    finish_line = lnf > constants::minimum_lnf ? 0 : 1;
 
 
 }
+
 void class_worker::prev_WL_iteration() {
     if (counter::walks > 0) {
         lnf /= constants::reduce_factor_lnf;
@@ -444,16 +456,18 @@ void class_worker::prev_WL_iteration() {
     timer::backup           = 0;
     timer::check_finish_line= 0;
     timer::check_saturation = 0;
-    timer::check_limits     = 0;
-    timer::swap             = 0;
     if (flag_one_over_t == 0) {
-        counter::MCS = 0;
+        //counter::MCS = 0;
         histogram.fill(0);
         saturation.fill(0);
         counter::saturation = 0;
     }else {
-        counter::MCS = (int) (1.0 / lnf);
+//        counter::MCS = (int) (constants::one_over_t_factor / pow(lnf, constants::one_over_t_exponent));
+        counter::MCS            = (int) 1.0 / lnf;
+
     }
+    finish_line = lnf > constants::minimum_lnf ? 0 : 1;
+
 }
 
 

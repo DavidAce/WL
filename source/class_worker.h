@@ -29,14 +29,14 @@ public:
     void start_counters();
     void set_initial_local_bins();
     void update_global_range();
-    void resize_global_range();
+    void resize_global_range() __attribute__((hot));
     void divide_global_range();
     void resize_local_bins();
     void resize_local_range();
     void compute_number_of_bins(int &, int &);
     bool check_in_window(const double &);
-    void make_MC_trial();
-    void acceptance_criterion();
+    void make_MC_trial() __attribute__((hot));
+    void acceptance_criterion() __attribute__((hot));
     void accept_MC_trial();
     void reject_MC_trial();
     void next_WL_iteration();

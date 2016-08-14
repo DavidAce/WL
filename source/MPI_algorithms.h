@@ -6,13 +6,14 @@
 #define WL_CLASS_MPI_ALGORITHMS_H
 #include <thread>
 #include <chrono>
+#include "class_profiling.h"
 #define debug_swap 0
 #define debug_merge 1
 #define debug_divide 1
 
 #include "class_worker.h"
 namespace mpi {
-    extern void swap(class_worker &);
+    extern void swap(class_worker &, class_profiling &t_swap);
     extern void merge(class_worker &);
     extern void merge2(class_worker &);
     extern void merge3(class_worker &);

@@ -18,7 +18,12 @@ namespace math{
     //Find the minimum element larger than zero in a matrix
 //    extern int      find_min_positive(const MatrixXi &);
 //    extern double   find_min_positive(const MatrixXd &);
-    extern int      mod(const int &,const int &);
+    extern int      mod2(const int &,const int &);
+    inline int      mod (const int &x, const int &y)
+    {
+        int result = x%y;
+        return result >= 0 ? result : result + y;
+    }
     extern double   volume(const MatrixXd &,const MatrixXd &,const MatrixXd &);
     int             volume_idx(const MatrixXd &,const MatrixXd &,const MatrixXd &, const double &);
 
@@ -61,34 +66,47 @@ namespace math{
         }
     }
     //Finds the element nearest x in a C-style array
+//    template <typename List_type, typename T, typename size_type>
+//    int binary_search(const List_type &list , const T& x, const size_type &size){
+//        //Now find the point in list closest to x, from below
+//        if (size <= 1){return 0;}
+//        auto low  = std::upper_bound (list, list + size, x);
+//        int index = low-list-1;
+//        if (index + 1 < size && fabs(list[index]- x) > fabs(list[index+1] < x)){
+//            index++;
+//        }
+//        return  index;
+//    }
+
+    //Finds the element nearest x in a C-style array
     template <typename List_type, typename T, typename size_type>
-    int binary_search(const List_type &list , const T& x, const size_type &size){
+    inline int binary_search(const List_type &list , const T& x, const size_type &size){
         //Now find the point in list closest to x, from below
-        if (size <= 1){return 0;}
-        auto low  = std::upper_bound (list, list + size, x);
-        int index = low-list-1;
-        if (index + 1 < size && fabs(list[index]- x) > fabs(list[index+1] < x)){
-            index++;
-        }
-        return  index;
-    }
-
-    //Finds the element nearest x FROM ABOVE in a C-style array
-    template <typename List_type, typename T, typename size_type>
-    int upper_bound(const List_type &list , const T& x, const size_type &size){
-        //Now find the point in list closest to x, from below.
-        if (size <= 1){return 0;}
-        auto low  = std::upper_bound (list, list + size, x);
-        return  low-list-1;
-    }
-
-    template <typename List_type, typename T, typename size_type>
-    int lower_bound(const List_type &list , const T& x, const size_type &size){
-        //Now find the point in list closest to x, from below.
-        if (size <= 1){return 0;}
+//        if (size <= 1){return 0;}
         auto low  = std::lower_bound(list, list + size, x);
-        return  low-list-1;
+        if (low-list >= size ){
+            low--;
+        }
+       return  low-list;
+
     }
+//
+//    //Finds the element nearest x FROM ABOVE in a C-style array
+//    template <typename List_type, typename T, typename size_type>
+//    int upper_bound(const List_type &list , const T& x, const size_type &size){
+//        //Now find the point in list closest to x, from below.
+//        if (size <= 1){return 0;}
+//        auto low  = std::upper_bound (list, list + size, x);
+//        return  low-list-1;
+//    }
+//
+//    template <typename List_type, typename T, typename size_type>
+//    int lower_bound(const List_type &list , const T& x, const size_type &size){
+//        //Now find the point in list closest to x, from below.
+//        if (size <= 1){return 0;}
+//        auto low  = std::lower_bound(list, list + size, x);
+//        return  low-list-1;
+//    }
 
 
 
