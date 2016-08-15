@@ -30,6 +30,7 @@ double class_model::get_E() {
 
 double class_model::get_M() {
     return (double) lattice.sum();
+
 }
 
 //void class_model::make_new_state(const double &E, const double &M, double &E_trial, double &M_trial){

@@ -40,9 +40,7 @@ class_worker::class_worker(): model(), finish_line(false){
     MPI_Comm_rank(MPI_COMM_WORLD, &world_ID);           //Establish thread number of this worker
     MPI_Comm_size(MPI_COMM_WORLD, &world_size);         //Get total number of threads
     rn::rng.seed((unsigned long)world_ID);
-
     lnf = 1.0;
-
     find_initial_limits();
     resize_global_range();
     divide_global_range();
@@ -57,7 +55,7 @@ class_worker::class_worker(): model(), finish_line(false){
 void class_worker::find_current_state(){
     E_idx = math::binary_search(E_bins.data(), E, E_bins.size());
     M_idx = math::binary_search(M_bins.data(), M, M_bins.size());
-    in_window = check_in_window(E);
+	in_window = check_in_window(E);
 }
 
 void class_worker::find_initial_limits(){
@@ -88,14 +86,13 @@ void class_worker::start_counters() {
     timer::add_hist_volume      = 0;
     timer::check_saturation     = 0;
     timer::check_finish_line    = 0;
-    timer::check_limits        = 0;
+    timer::check_limits         = 0;
     timer::backup               = 0;
     timer::print                = 0;
-    timer::swap                 = 0;
+	timer::swap 				= 0;
     timer::split_windows        = 0;
     timer::total_tic            = std::chrono::high_resolution_clock::now();
     timer::print_tic            = std::chrono::high_resolution_clock::now();
-
     flag_one_over_t             = 0;
 }
 
@@ -121,8 +118,8 @@ void class_worker::set_initial_local_bins(){
 
 void class_worker::update_global_range() {
     if (E_trial < E_min_global){
-        E_min_global  = E_trial;
-        need_to_resize_global = 1;
+        E_min_global  = E_trial;	
+		need_to_resize_global = 1;
     }
     if (E_trial > E_max_global){
         E_max_global  = E_trial;
@@ -244,7 +241,6 @@ void class_worker::resize_local_bins() {
     int M_new_size;
 
     compute_number_of_bins(E_new_size, M_new_size);
-
 
     histogram_temp  = MatrixXi::Zero(E_new_size, M_new_size);
     dos_temp        = MatrixXd::Zero(E_new_size, M_new_size);
@@ -458,6 +454,8 @@ void class_worker::prev_WL_iteration() {
     timer::check_saturation = 0;
     if (flag_one_over_t == 0) {
         //counter::MCS = 0;
+        counter::MCS            = (int) 1.0 / lnf;
+
         histogram.fill(0);
         saturation.fill(0);
         counter::saturation = 0;

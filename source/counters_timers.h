@@ -14,6 +14,7 @@ namespace counter {
     extern int swaps;
     extern int swap_accepts;
     extern int merges;
+	
 };
 
 namespace timer {
@@ -24,6 +25,7 @@ namespace timer {
     extern int backup;
     extern int print;
     extern int swap;
+	
     extern int split_windows;
     extern std::chrono::duration<double> elapsed_time_total;
     extern std::chrono::duration<double> elapsed_time_print;

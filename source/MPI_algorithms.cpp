@@ -72,7 +72,7 @@ namespace mpi {
                 }
                 MPI_Send(&swap, 1, MPI_INT, up, 110, MPI_COMM_WORLD);
             } else {
-                E_X_idx = math::binary_search(worker.E_bins.data(), E_X, worker.E_bins.size());
+				E_X_idx = math::binary_search(worker.E_bins.data(), E_X, worker.E_bins.size());
                 M_X_idx = math::binary_search(worker.M_bins.data(), M_X, worker.M_bins.size());
                 MPI_Send(&worker.dos(E_X_idx, M_X_idx), 1, MPI_DOUBLE, dn, 108, MPI_COMM_WORLD);
                 MPI_Send(&worker.dos(worker.E_idx, worker.M_idx), 1, MPI_DOUBLE, dn, 109, MPI_COMM_WORLD);
