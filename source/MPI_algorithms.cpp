@@ -25,19 +25,13 @@ namespace mpi {
             int dn = math::mod(worker.world_ID - 1, worker.world_size);
 
             //Send current E and M to neighbors up and down. Receive X from below, Y from above.
-            MPI_Sendrecv(&worker.E, 1, MPI_DOUBLE, up, 100, &E_X, 1, MPI_DOUBLE, dn, 100, MPI_COMM_WORLD,
-                         MPI_STATUS_IGNORE);
-            MPI_Sendrecv(&worker.M, 1, MPI_DOUBLE, up, 101, &M_X, 1, MPI_DOUBLE, dn, 101, MPI_COMM_WORLD,
-                         MPI_STATUS_IGNORE);
-            MPI_Sendrecv(&worker.E, 1, MPI_DOUBLE, dn, 102, &E_Y, 1, MPI_DOUBLE, up, 102, MPI_COMM_WORLD,
-                         MPI_STATUS_IGNORE);
-            MPI_Sendrecv(&worker.M, 1, MPI_DOUBLE, dn, 103, &M_Y, 1, MPI_DOUBLE, up, 103, MPI_COMM_WORLD,
-                         MPI_STATUS_IGNORE);
+            MPI_Sendrecv(&worker.E, 1, MPI_DOUBLE, up, 100, &E_X, 1, MPI_DOUBLE, dn, 100, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Sendrecv(&worker.M, 1, MPI_DOUBLE, up, 101, &M_X, 1, MPI_DOUBLE, dn, 101, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Sendrecv(&worker.E, 1, MPI_DOUBLE, dn, 102, &E_Y, 1, MPI_DOUBLE, up, 102, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Sendrecv(&worker.M, 1, MPI_DOUBLE, dn, 103, &M_Y, 1, MPI_DOUBLE, up, 103, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             //Check if the neighbors position is within my overlap region. If so, find the indices.
-            MPI_Sendrecv(&worker.E_min_local, 1, MPI_DOUBLE, dn, 104, &E_min_up, 1, MPI_DOUBLE, up, 104, MPI_COMM_WORLD,
-                         MPI_STATUS_IGNORE);
-            MPI_Sendrecv(&worker.E_max_local, 1, MPI_DOUBLE, up, 105, &E_max_dn, 1, MPI_DOUBLE, dn, 105, MPI_COMM_WORLD,
-                         MPI_STATUS_IGNORE);
+            MPI_Sendrecv(&worker.E_min_local, 1, MPI_DOUBLE, dn, 104, &E_min_up, 1, MPI_DOUBLE, up, 104, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Sendrecv(&worker.E_max_local, 1, MPI_DOUBLE, up, 105, &E_max_dn, 1, MPI_DOUBLE, dn, 105, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             //Now both swappees need to know if it is ok to go ahead with a swap.
             int go_ahead;
             if (myTurn) {
@@ -51,6 +45,7 @@ namespace mpi {
                 MPI_Recv(&go_ahead, 1, MPI_INT, dn, 106, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                 MPI_Recv(&copy, 1, MPI_INT, dn, 107, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             }
+				
             //Now we should only be left with workers going ahead with a swap.
             if (myTurn) {
                 if (go_ahead) {

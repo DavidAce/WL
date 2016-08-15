@@ -93,9 +93,6 @@ void check_convergence(class_worker &worker, int &finish_line, class_profiling &
             if(worker.lnf < pow(constants::one_over_t_factor/counter::MCS, constants::one_over_t_exponent)){
                 worker.lnf =  pow(constants::one_over_t_factor/counter::MCS, constants::one_over_t_exponent);
                 worker.flag_one_over_t = 1;         //Change to 1/t algorithm
-//                worker.histogram.resize(1,1);
-//                worker.histogram_temp.resize(1,1);
-//                worker.saturation.resize(1);
             }
             break;
         case 1:
