@@ -19,10 +19,8 @@ namespace math{
 //    extern int      find_min_positive(const MatrixXi &);
 //    extern double   find_min_positive(const MatrixXd &);
     extern int      mod2(const int &,const int &);
-    inline int      mod (const int &x, const int &y)
-    {
-        int result = x%y;
-        return result >= 0 ? result : result + y;
+    inline int      mod (const int &x, const int &y){
+        return x >= 0 ? x%y : x%y + y;
     }
     extern double   volume(const MatrixXd &,const MatrixXd &,const MatrixXd &);
     int             volume_idx(const MatrixXd &,const MatrixXd &,const MatrixXd &, const double &);

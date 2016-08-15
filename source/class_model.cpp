@@ -14,9 +14,7 @@ void class_model::randomize_lattice() {
     }
 }
 
-void class_model::flip(){
-    lattice(randI,randJ) *= -1;
-}
+
 
 
 double class_model::get_E() {

@@ -136,7 +136,7 @@ void divide_range(class_worker &worker){
         int min_walks, need_to_resize;
         MPI_Allreduce(&counter::walks, &min_walks, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
         MPI_Allreduce(&worker.need_to_resize_global, &need_to_resize, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-        if (min_walks > constants::min_walks && need_to_resize == 0 && counter::merges < constants::max_merges) {
+        if (min_walks > constants::min_walks && need_to_resize == 0 &&   counter::merges * counter::merges * constants::max_merges <  min_walks ) {
             mpi::merge(worker);
             mpi::divide_global_range_dos_volume(worker);
             worker.rewind_to_lowest_walk();

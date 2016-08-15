@@ -17,16 +17,18 @@ private:
     int randI,randJ; //Coordinates of random position;
 public:
     class_model() {
-        lattice.resize(constants::L, constants::L);
+        //lattice.resize(constants::L, constants::L);
         randomize_lattice();
     };
-    MatrixXi lattice;                           //The Lattice Data structure
+    Matrix<int, constants::L, constants::L> lattice;                           //The Lattice Data structure
     //double E_new, M_new;                      //Store values from MC-trial
     const static bool discrete_model = true;          //Toggle model type
     const static int J = 1;
 
     void randomize_lattice();
-    void flip();
+    inline void flip(){
+        lattice(randI,randJ) *= -1;
+    }
 
     double get_E();
     double get_M();
