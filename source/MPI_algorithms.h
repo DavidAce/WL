@@ -13,11 +13,11 @@
 
 #include "class_worker.h"
 namespace mpi {
-    extern void swap(class_worker &, class_profiling &t_swap);
-    extern void merge(class_worker &);
-    extern void merge2(class_worker &);
-    extern void merge3(class_worker &);
-    extern void divide_global_range_dos_volume(class_worker &);
+    extern void swap                           (class_worker &) ;
+    extern void merge                          (class_worker &) ;
+    extern void merge2                         (class_worker &) ;
+    extern void merge3                         (class_worker &) ;
+    extern void divide_global_range_dos_volume (class_worker &) ;
 };
 
 

@@ -18,8 +18,19 @@ private:
     const int profiling;        //Whether we are profiling or not.
 public:
     class_profiling(const int &);                 //Constructor
-    void tic();
-    void toc();
+    inline void tic(){
+        if (profiling) {
+            delta_tic = high_resolution_clock::now();
+        }
+    }
+    
+    inline void toc(){
+        if (profiling) {
+            delta_toc   = high_resolution_clock::now();
+            delta_time  = delta_toc - delta_tic;
+            total_time += delta_time.count();
+        }
+    }
     void reset();
     double total_time;
     duration<double> delta_time;

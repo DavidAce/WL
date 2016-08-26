@@ -11,10 +11,17 @@
 #include <Eigen/Dense>
 #include <set>
 #include "class_model.h"
+#include "class_profiling.h"
 #include "constants.h"
 #include "counters_timers.h"
 #include "math_algorithms.h"
 #include "randomNumbers.h"
+static const int profiling_sweep                =	1;
+static const int profiling_swap                 =	0;
+static const int profiling_check_global_limits  =	0;
+static const int profiling_check_convergence	=   0;
+static const int profiling_make_MC_trial 		=	0;
+static const int profiling_acceptance_criterion =	0;
 
 using namespace Eigen;
 class class_worker {
@@ -22,7 +29,63 @@ private:
 
 public:
     class_worker();                 //Constructor
+    //Main data structures of the WL algorithm. Needed very often.
+    MatrixXd dos; 
+    MatrixXi histogram;
+    VectorXd E_bins, M_bins;
+    //Model with lattice etc
+    class_model lattice;
 
+    //MPI Communicator
+    int world_ID;                   //Thread number
+    int world_size;                 //Total number of threads
+
+    //Lattice
+    class_model model;
+    //WL Energy and Order parameter and their limits
+    double E,M;                         //Current Energy and Order parameter
+    double E_trial, M_trial;                 //Proposed
+    int E_idx, M_idx;
+    int E_idx_trial, M_idx_trial;         //Position of trial values
+    double E_min_global, M_min_global;    //Global minimum
+    double E_max_global, M_max_global;    //Global maximum
+    double E_min_local , M_min_local ;    //Local minimum
+    double E_max_local , M_max_local ;    //Local maximum
+    //Sets containing discrete spectrums
+    std::set<double> E_set;              //Set of found energies, used in discrete simulations.
+    std::set<double> M_set;              //Set of found energies, used in discrete simulations.
+
+
+    //WL acceptance criterion
+    bool accept;
+    bool in_window;
+    int  need_to_resize_global;
+    int  need_to_resize_local;
+    //WL convergence parameters
+    int     flag_one_over_t;             //turns to 1 when 1/t algorithm starts
+    int     finish_line;                 //turns to 1 when converged
+    double  lnf;                         //Modification factor of WL-algorithm
+    //WL DOS and Histograms
+    //MatrixXi histogram_temp;
+    //MatrixXd dos_temp;
+    VectorXi saturation;                //Measures the histogram saturation
+
+    VectorXd X_bins;                     //Auxiliary spectrum for calculations.
+    VectorXd Y_bins;                     //Auxiliary spectrum for calculations.
+
+
+
+    //Holders for total, merged data
+    MatrixXd dos_total;
+    VectorXd E_bins_total, M_bins_total;
+
+	//Used for profiling functions in worker
+    class_profiling t_sweep 				,
+					t_swap 					,
+					t_check_global_limits 	,
+					t_check_convergence 	,
+					t_make_MC_trial 		,
+					t_acceptance_criterion 	;
     //Functions
     void find_current_state();           //Compute current E and M (and their indices)
     void find_initial_limits();
@@ -37,65 +100,15 @@ public:
     bool check_in_window(const double &);
     void make_MC_trial() __attribute__((hot));
     void acceptance_criterion() __attribute__((hot));
-    void accept_MC_trial();
-    void reject_MC_trial();
+    void accept_MC_trial() __attribute__((hot));
+    void reject_MC_trial() __attribute__((hot));
     void next_WL_iteration();
     void prev_WL_iteration();
     void rewind_to_lowest_walk();
-
-
-    //MPI Communicator
-    int world_ID;                   //Thread number
-    int world_size;                 //Total number of threads
-
-    //Lattice
-    class_model model;
-
-    //WL acceptance criterion
-    bool accept;
-    bool in_window;
-    int  need_to_resize_global;
-    int  need_to_resize_local;
-    //WL DOS and Histograms
-    MatrixXi histogram, histogram_temp;
-    MatrixXd dos, dos_temp;
-    VectorXi saturation;                //Measures the histogram saturation
-
-
-    //WL convergence parameters
-    int     flag_one_over_t;             //turns to 1 when 1/t algorithm starts
-    int     finish_line;                 //turns to 1 when converged
-    double  lnf;                         //Modification factor of WL-algorithm
-
-    //WL Energy and Order parameter and their limits
-    double E,M;                         //Current Energy and Order parameter
-    double E_trial, M_trial;                 //Proposed
-    int E_idx, M_idx;
-    int E_idx_trial, M_idx_trial;         //Position of trial values
-    double E_min_global, M_min_global;    //Global minimum
-    double E_max_global, M_max_global;    //Global maximum
-    double E_min_local , M_min_local ;    //Local minimum
-    double E_max_local , M_max_local ;    //Local maximum
-
-
-
-    VectorXd E_bins;                     //Energy spectrum
-    VectorXd M_bins;                     //Order parameter spectrum
-    VectorXd X_bins;                     //Auxiliary spectrum for calculations.
-    VectorXd Y_bins;                     //Auxiliary spectrum for calculations.
-
-
-
-    std::set<double> E_set;              //Set of found energies, used in discrete simulations.
-    std::set<double> M_set;              //Set of found energies, used in discrete simulations.
-
-    //Holders for total, merged data
-    MatrixXd dos_total;
-    VectorXd E_bins_total, M_bins_total;
 
     friend std::ostream &operator<<(std::ostream &, const class_worker &);
 
 };
 
 
-#endif //WL_CLASS_WORKER_H
+#endif //WL_CLASS_WO<Down>RKER_H

@@ -7,11 +7,11 @@
 using namespace std;
 
 namespace mpi {
-    void swap(class_worker &worker, class_profiling & t_swap) {
+    void swap(class_worker &worker) {
         //Use MPI Tag in the 100-200 range
         if (timer::swap > constants::rate_swap) {
             timer::swap = 0;
-            t_swap.tic();
+            worker.t_swap.tic();
             counter::swaps++;
             int swap, copy;
             double dos_X, dos_Y;
@@ -45,7 +45,7 @@ namespace mpi {
                 MPI_Recv(&go_ahead, 1, MPI_INT, dn, 106, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                 MPI_Recv(&copy, 1, MPI_INT, dn, 107, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             }
-				
+
             //Now we should only be left with workers going ahead with a swap.
             if (myTurn) {
                 if (go_ahead) {
@@ -67,7 +67,7 @@ namespace mpi {
                 }
                 MPI_Send(&swap, 1, MPI_INT, up, 110, MPI_COMM_WORLD);
             } else {
-				E_X_idx = math::binary_search(worker.E_bins.data(), E_X, worker.E_bins.size());
+                E_X_idx = math::binary_search(worker.E_bins.data(), E_X, worker.E_bins.size());
                 M_X_idx = math::binary_search(worker.M_bins.data(), M_X, worker.M_bins.size());
                 MPI_Send(&worker.dos(E_X_idx, M_X_idx), 1, MPI_DOUBLE, dn, 108, MPI_COMM_WORLD);
                 MPI_Send(&worker.dos(worker.E_idx, worker.M_idx), 1, MPI_DOUBLE, dn, 109, MPI_COMM_WORLD);
@@ -100,7 +100,7 @@ namespace mpi {
                 }
             }
             counter::swap_accepts += swap;
-            t_swap.toc();
+            worker.t_swap.toc();
 
         } else {
             timer::swap++;
@@ -368,7 +368,7 @@ namespace mpi {
         if (worker.world_ID == 0 && debug_divide) {
             cout << "...OK " << endl;
             cout.flush();
-            std::this_thread::sleep_for(std::chrono::microseconds(10000));
+            std::this_thread::sleep_for(std::chrono::microseconds(1000));
         }
         MPI_Barrier(MPI_COMM_WORLD);
         if (debug_divide) {
@@ -383,8 +383,13 @@ namespace mpi {
                 MPI_Barrier(MPI_COMM_WORLD);
             }
             cout.flush();
-            std::this_thread::sleep_for(std::chrono::microseconds(10000));
+            std::this_thread::sleep_for(std::chrono::microseconds(1000));
         }
+        worker.dos_total.resize(1,1);
+        worker.E_bins_total.resize(1);
+        worker.M_bins_total.resize(1);
+        
+
     }
 
 }

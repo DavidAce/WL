@@ -10,20 +10,6 @@ class_profiling::class_profiling(const int & p): profiling(p) {
     }
 }
 
-void class_profiling::tic() {
-    if (profiling) {
-        delta_tic = high_resolution_clock::now();
-    }
-}
-
-void class_profiling::toc() {
-    if (profiling) {
-        delta_toc   = high_resolution_clock::now();
-        delta_time  = delta_toc - delta_tic;
-        total_time += delta_time.count();
-    }
-}
-
 void class_profiling::reset() {
     if (profiling) {
         total_time = 0;

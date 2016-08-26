@@ -88,6 +88,31 @@ namespace math{
        return  low-list;
 
     }
+    template<typename T> struct TD;
+
+    template <typename List_type, typename T, typename T_idx, typename size_type>
+    inline int binary_search(const List_type &list , const T& x, const size_type &size, const T &y, const T_idx &y_idx){
+        //Now find the point in list closest to x, from below
+//        if (size <= 1){return 0;}
+        if (x == y){
+            return y_idx;
+        }
+       // auto low  = std::lower_bound(list + y_idx, list + size, x);
+       // TD<decltype(low)> td; 
+        double *low;
+        if (x > y){
+            low  = std::lower_bound(list + y_idx, list + size, x);
+        }else if(x < y){
+            low  = std::lower_bound(list, list + y_idx, x);
+        }
+        if (low-list >= size ){
+            low--;
+        }
+       return  low-list;
+
+    }
+//
+    
 //
 //    //Finds the element nearest x FROM ABOVE in a C-style array
 //    template <typename List_type, typename T, typename size_type>

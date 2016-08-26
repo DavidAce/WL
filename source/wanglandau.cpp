@@ -1,49 +1,33 @@
 //
 // Created by david on 2016-07-24.
 //
-#include <iomanip>
-#include "constants.h"
-#include "counters_timers.h"
-#include "class_data.h"
 #include "wanglandau.h"
-#include "MPI_algorithms.h"
-#include "class_profiling.h"
-#include <thread>
-#include <chrono>
+using namespace std;
 #define debug_sweep                     0
 #define debug_convergence               0
 #define debug_global_limits             0
-#define profiling_sweep                 1
-#define profiling_swap                  1
-#define profiling_check_global_limits   0
-#define profiling_check_convergence     1
-using namespace std;
+
 
 void WangLandau(class_worker &worker){
     int finish_line = 0;
-    class_profiling t_sweep(profiling_sweep),
-                    t_swap(profiling_swap),
-                    t_check_global_limits(profiling_check_global_limits),
-                    t_check_convergence(profiling_check_convergence);
-
     outdata out(worker.world_ID);
     while(finish_line == 0){
-        sweep(worker, t_sweep);
-        mpi::swap(worker, t_swap);
-        check_global_limits(worker, t_check_global_limits);
-        check_convergence(worker, finish_line, t_check_convergence);
-        print_status(worker, t_sweep, t_swap, t_check_global_limits, t_check_convergence);
-        divide_range(worker);
-        backup_data(worker,out);
+        sweep               (worker)              ;
+        mpi::swap           (worker)              ;
+        check_global_limits (worker)              ;
+        check_convergence   (worker, finish_line) ;
+        print_status        (worker)              ;
+        divide_range        (worker)              ;
+        backup_data         (worker,out)          ;
     }
-    out.write_data_worker(worker);
-    mpi::merge(worker);
-    out.write_data_master(worker);
+    out.write_data_worker (worker) ;
+    mpi::merge            (worker) ;
+    out.write_data_master (worker) ;
 
 
 }
 
-void sweep(class_worker &worker, class_profiling &t_sweep){
+void sweep(class_worker &worker){
     if (debug_sweep){
         if (worker.world_ID == 0) {
             cout << endl << "Starting MCS " << counter::MCS << endl;
@@ -53,7 +37,7 @@ void sweep(class_worker &worker, class_profiling &t_sweep){
         MPI_Barrier(MPI_COMM_WORLD);
     }
 
-    t_sweep.tic();
+    worker.t_sweep.tic();
     for (int i = 0; i < constants::N ; i++){
         worker.make_MC_trial();
         worker.acceptance_criterion();
@@ -65,18 +49,18 @@ void sweep(class_worker &worker, class_profiling &t_sweep){
         }
     }
     counter::MCS++;
-    t_sweep.toc();
+    worker.t_sweep.toc();
 }
 
-void check_convergence(class_worker &worker, int &finish_line, class_profiling &t_check_convergence){
+void check_convergence(class_worker &worker, int &finish_line){
     switch(worker.flag_one_over_t){
         case 0:
             if (timer::add_hist_volume > constants::rate_add_hist_volume) {
                 timer::add_hist_volume = 0;
                 if (debug_convergence){debug_print(worker,"Add hist volume ");}
-                t_check_convergence.tic();
+                worker.t_check_convergence.tic();
                 add_hist_volume(worker);
-                t_check_convergence.toc();
+                worker.t_check_convergence.toc();
 
             }else{
                 timer::add_hist_volume++;
@@ -84,9 +68,9 @@ void check_convergence(class_worker &worker, int &finish_line, class_profiling &
             if (timer::check_saturation >= constants::rate_check_saturation) {
                 timer::check_saturation = 0;
                 if (debug_convergence){debug_print(worker,"Check_saturation ");}
-                t_check_convergence.tic();
+                worker.t_check_convergence.tic();
                 check_saturation(worker);
-                t_check_convergence.toc();
+                worker.t_check_convergence.toc();
             }else{
                 timer::check_saturation++;
             }
@@ -97,9 +81,9 @@ void check_convergence(class_worker &worker, int &finish_line, class_profiling &
             break;
         case 1:
             if (debug_convergence){debug_print(worker,"Check one over t ");}
-            t_check_convergence.tic();
+            worker.t_check_convergence.tic();
             check_one_over_t(worker);
-            t_check_convergence.toc();
+            worker.t_check_convergence.toc();
             break;
         default:
             cout << "Error: check_convergence has wrong flag" << endl;
@@ -113,7 +97,7 @@ void check_convergence(class_worker &worker, int &finish_line, class_profiling &
     }
 }
 
-void check_global_limits(class_worker &worker, class_profiling & t_check_global_limits){
+void check_global_limits(class_worker &worker){
     timer::check_limits++;
     if (timer::check_limits >= constants::rate_check_limits) {
         timer::check_limits = 0;
@@ -136,7 +120,7 @@ void divide_range(class_worker &worker){
         int min_walks, need_to_resize;
         MPI_Allreduce(&counter::walks, &min_walks, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
         MPI_Allreduce(&worker.need_to_resize_global, &need_to_resize, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-        if (min_walks > constants::min_walks && need_to_resize == 0 &&   counter::merges * counter::merges * constants::max_merges <  min_walks ) {
+        if (min_walks > constants::min_walks && need_to_resize == 0 &&   counter::merges< constants::max_merges ) {
             mpi::merge(worker);
             mpi::divide_global_range_dos_volume(worker);
             worker.rewind_to_lowest_walk();
@@ -215,10 +199,7 @@ void debug_print(class_worker & worker, string input){
     MPI_Barrier(MPI_COMM_WORLD);
 }
 
-void print_status(class_worker &worker, class_profiling &t_sweep,
-                                        class_profiling &t_swap,
-                                        class_profiling &t_check_global_limits,
-                                        class_profiling &t_check_convergence) {
+void print_status(class_worker &worker) {
     timer::print++;
     if (timer::print >= constants::rate_print_status){
         timer::print = 0;
@@ -242,22 +223,31 @@ void print_status(class_worker &worker, class_profiling &t_sweep,
                         << " MCS: "   << left << setw(10) << counter::MCS
                         << " Time: "  << fixed << setprecision(3) << timer::elapsed_time_print.count() << " s ";
                 if(profiling_sweep){
-                    cout << " t_sweep = " << t_sweep;
-                    t_sweep.reset();
+                    cout << " t_sweep = " << worker.t_sweep;
+                    worker.t_sweep.reset();
                 }
                 if(profiling_swap){
-                    cout << " t_swap = " << t_swap;
-                    t_swap.reset();
+                    cout << " t_swap = " << worker.t_swap;
+                    worker.t_swap.reset();
                 }
                 if(profiling_check_global_limits){
-                    cout << " t_glob = " << t_check_global_limits;
-                    t_check_global_limits.reset();
+                    cout << " t_glob = " << worker.t_check_global_limits;
+                    worker.t_check_global_limits.reset();
                 }
                 if(profiling_check_convergence){
-                    cout << " t_conv = " << t_check_convergence;
-                    t_check_convergence.reset();
+                    cout << " t_conv = " << worker.t_check_convergence;
+                    worker.t_check_convergence.reset();
                 }
-
+                if(profiling_make_MC_trial){
+                    cout << " t_mkMC = " << worker.t_make_MC_trial;
+                    worker.t_make_MC_trial.reset();
+                }
+                if(profiling_acceptance_criterion){
+                    cout << " t_accr = " << worker.t_acceptance_criterion;
+                    worker.t_acceptance_criterion.reset();
+                }
+                
+                
 
                 cout << endl;
             }

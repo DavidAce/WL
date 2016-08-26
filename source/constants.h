@@ -40,7 +40,7 @@ namespace constants{
     static const double one_over_t_exponent    = 1.0;
 
     //Parameters for sub-window splitting
-    static const int     min_walks             = 2;
+    static const int     min_walks             = 5;
     static const int     max_merges            = 2;
 }
 

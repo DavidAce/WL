@@ -1,14 +1,7 @@
 //
 // Created by david on 2016-07-24.
 //
-#include <math.h>
-#include <fstream>
-#include <iomanip>
 #include "class_worker.h"
-#include "counters_timers.h"
-#include "math_algorithms.h"
-#include <thread>
-#include <chrono>
 #define debug_divide 1
 #define debug_resize_local_range 1
 using namespace std;
@@ -35,8 +28,16 @@ std::chrono::high_resolution_clock::time_point timer::print_tic;
 std::chrono::high_resolution_clock::time_point timer::print_toc;
 
 
-//Constructor
-class_worker::class_worker(): model(), finish_line(false){
+//Constructors
+class_worker::class_worker(): 	model(),
+                                finish_line 			(false),
+                                t_sweep                (profiling_sweep)                ,
+                                t_swap                 (profiling_swap)                 ,
+                                t_check_convergence    (profiling_check_convergence)    ,
+                                t_check_global_limits  (profiling_check_global_limits)  ,
+                                t_make_MC_trial        (profiling_make_MC_trial)        ,
+                                t_acceptance_criterion (profiling_acceptance_criterion)
+{
     MPI_Comm_rank(MPI_COMM_WORLD, &world_ID);           //Establish thread number of this worker
     MPI_Comm_size(MPI_COMM_WORLD, &world_size);         //Get total number of threads
     rn::rng.seed((unsigned long)world_ID);
@@ -49,7 +50,6 @@ class_worker::class_worker(): model(), finish_line(false){
     start_counters();
     need_to_resize_global = 0;
     cout << "ID: " << world_ID << " Started OK"<<endl;
-
 }
 
 void class_worker::find_current_state(){
@@ -233,13 +233,13 @@ void class_worker::resize_local_bins() {
     bool zero;
 
 
-
     //Check if we need more bins
     int E_old_size = (int) E_bins.size();
     int M_old_size = (int) M_bins.size();
     int E_new_size;
     int M_new_size;
-
+    MatrixXd dos_temp;
+    MatrixXi histogram_temp;
     compute_number_of_bins(E_new_size, M_new_size);
 
     histogram_temp  = MatrixXi::Zero(E_new_size, M_new_size);
@@ -309,9 +309,9 @@ void class_worker::compute_number_of_bins(int & E_new_size, int & M_new_size) {
         }
         int spacing = (int) ceil((E_bins.tail(E_bins.size() - 1) - E_bins.head(E_bins.size()-1)).mean());
         int maxElem = (int) ceil((E_max_local - E_min_local) / spacing);
-        E_new_size = max(constants::bins, (int) E_set.size()); //What if there is a jump in E_set?
-        E_new_size = max(E_new_size, maxElem);
-        M_new_size = max(constants::bins, (int) M_set.size());
+        E_new_size = max(constants::bins , (int) E_set.size()); //What if there is a jump in E_set?
+        E_new_size = max(E_new_size      , maxElem);
+        M_new_size = max(constants::bins , (int) M_set.size());
         MPI_Allreduce(&M_new_size, &M_new_size, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
     }else{
         //Modify this for continuous models later
@@ -326,8 +326,10 @@ bool class_worker::check_in_window(const double &x) {
 }
 
 void class_worker::make_MC_trial()  {
+	t_make_MC_trial.tic();
     model.make_new_state(E,M, E_trial, M_trial);
     update_global_range();
+	t_make_MC_trial.toc();
 }
 
 void class_worker::acceptance_criterion(){
@@ -339,11 +341,12 @@ void class_worker::acceptance_criterion(){
 
     //  4a)in_window = false, E_trial not in_window, E_trial towards window = accept, otherwise accept 50% chance?
     //  5) need_to_resize_global = true (because E_trial out of global bounds) -> accept with 50% chance?
+	
     if (in_window){
-
+        t_acceptance_criterion.tic();
         if (check_in_window(E_trial)){
-            E_idx_trial = math::binary_search(E_bins.data(), E_trial, E_bins.size());
-            M_idx_trial = math::binary_search(M_bins.data(), M_trial, M_bins.size());
+            E_idx_trial = math::binary_search(E_bins.data(), E_trial, E_bins.size(),E, E_idx);
+            M_idx_trial = math::binary_search(M_bins.data(), M_trial, M_bins.size(),M, M_idx);
             accept      = rn::uniform_double_1() < exp(dos(E_idx, M_idx) - dos(E_idx_trial, M_idx_trial));
         }else{
             accept      = false;
@@ -357,6 +360,7 @@ void class_worker::acceptance_criterion(){
             E_set.insert(E);
             M_set.insert(M);
         }
+	    t_acceptance_criterion.toc();
     }else{
         if (check_in_window(E_trial)){
             //Reentering the window
@@ -394,6 +398,7 @@ void class_worker::acceptance_criterion(){
             }
         }
     }
+
 }
 
 void class_worker::accept_MC_trial() {
