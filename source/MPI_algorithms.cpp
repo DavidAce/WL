@@ -242,8 +242,120 @@ namespace mpi {
         }
     }
 
-
     void divide_global_range_dos_volume(class_worker &worker) {
+        //Update limits
+        if (worker.world_ID == 0 && debug_divide) {
+            cout << "Dividing. ";
+            cout.flush();
+            std::this_thread::sleep_for(std::chrono::microseconds(10000));
+        }
+
+        MPI_Barrier(MPI_COMM_WORLD);
+        math::subtract_min_nonzero(worker.dos_total);
+        if (worker.world_ID == 0 && debug_divide) {
+            cout << "Computing Volume ";
+            cout.flush();
+            std::this_thread::sleep_for(std::chrono::microseconds(10000));
+        }
+
+        MPI_Barrier(MPI_COMM_WORLD);
+        double global_volume = math::volume(worker.dos_total, worker.E_bins_total, worker.M_bins_total);
+        double local_volume  = global_volume / worker.world_size;
+        double x = local_volume * constants::overlap_factor / (1 - constants::overlap_factor / 2);
+        cout << x <<" " << local_volume << endl;
+        //Find the boundaries of the DOS domain that gives every worker the  same DOS volume to work on
+        int E_min_local_idx, E_max_local_idx;
+
+        if (worker.world_ID == 0) {
+            E_min_local_idx  = 0;
+            E_max_local_idx     = math::volume_idx(worker.dos_total, worker.E_bins_total, worker.M_bins_total, (worker.world_ID + 1)*local_volume + x/2);
+        }else if (worker.world_ID == worker.world_size - 1){
+            E_min_local_idx     = math::volume_idx(worker.dos_total, worker.E_bins_total, worker.M_bins_total, worker.world_ID      *local_volume - x/2);
+            E_max_local_idx     = (int) worker.E_bins_total.size()-1;
+        }else{
+            E_min_local_idx     = math::volume_idx(worker.dos_total, worker.E_bins_total, worker.M_bins_total, worker.world_ID      *local_volume - x/4);
+            E_max_local_idx     = math::volume_idx(worker.dos_total, worker.E_bins_total, worker.M_bins_total, (worker.world_ID + 1)*local_volume + x/4);
+        }
+        worker.E_min_local = worker.E_bins_total(E_min_local_idx) ;
+        worker.E_max_local = worker.E_bins_total(E_max_local_idx) ;
+        worker.M_min_local = worker.M_min_global;
+        worker.M_max_local = worker.M_max_global;
+        MPI_Barrier(MPI_COMM_WORLD);
+        if (worker.world_ID == 0 && debug_divide) {
+            cout << "...OK. Inherit from dos_total ";
+            cout.flush();
+            std::this_thread::sleep_for(std::chrono::microseconds(10000));
+        }
+        MPI_Barrier(MPI_COMM_WORLD);
+
+
+        //Inherit the corresponding part of the dos
+        int from = E_min_local_idx;
+        int rows = E_max_local_idx - E_min_local_idx + 1;
+
+        if (from+rows > worker.E_bins_total.size()){
+            cout << "TOO MANY ROWS "<< endl;
+            cout << worker << endl;
+            cout.flush();
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            exit(15);
+        }
+
+        MPI_Barrier(MPI_COMM_WORLD);
+
+        if (E_max_local_idx <= E_min_local_idx){
+            cout << "Local range backwards! "<< endl;
+            cout << worker << endl;
+            cout.flush();
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            exit(16);
+        }
+        MPI_Barrier(MPI_COMM_WORLD);
+
+        worker.dos         = worker.dos_total.middleRows(from, rows);
+        worker.E_bins      = worker.E_bins_total.segment(from, rows);
+        worker.in_window   = worker.check_in_window(worker.E);
+        if (worker.in_window){
+            worker.E_idx = math::binary_search(worker.E_bins.data(), worker.E, worker.E_bins.size());
+            worker.M_idx = math::binary_search(worker.M_bins.data(), worker.M, worker.M_bins.size());
+        }
+        worker.histogram.conservativeResize(worker.dos.rows(), worker.dos.cols());
+        if (worker.model.discrete_model) {
+            worker.E_set.clear();
+            for (int i = 0; i < worker.E_bins.size(); i++) {
+                worker.E_set.insert(worker.E_bins(i));
+            }
+        }
+        MPI_Barrier(MPI_COMM_WORLD);
+
+        if (worker.world_ID == 0 && debug_divide) {
+            cout << "...OK " << endl;
+            cout.flush();
+            std::this_thread::sleep_for(std::chrono::microseconds(1000));
+        }
+        MPI_Barrier(MPI_COMM_WORLD);
+        if (debug_divide) {
+            for (int w = 0; w < worker.world_size; w++){
+                if (w == worker.world_ID){
+                    cout << setprecision(2);
+                    cout << "ID: "<< w << " Bounds : " << worker.E_min_local<< " " << worker.E_max_local <<  endl;
+                    cout << worker.E_bins.transpose() << endl;
+                    cout.flush();
+                    std::this_thread::sleep_for(std::chrono::microseconds(1000));
+                }
+                MPI_Barrier(MPI_COMM_WORLD);
+            }
+            cout.flush();
+            std::this_thread::sleep_for(std::chrono::microseconds(1000));
+        }
+        worker.dos_total.resize(1,1);
+        worker.E_bins_total.resize(1);
+        worker.M_bins_total.resize(1);
+
+
+    }
+
+    void divide_global_range_dos_volume2(class_worker &worker) {
         //Update limits
         if (worker.world_ID == 0 && debug_divide) {
             cout << "Dividing. ";

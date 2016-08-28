@@ -3,3 +3,5 @@ bin/
 .literature/
 **/.idea/workspace.xml
 **/.idea/tasks.xml
+**/.idea/WL.iml
+build/

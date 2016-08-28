@@ -35,7 +35,7 @@ namespace math {
                 if (dos(i, j) == 0) { continue; }
                 vol += (E(i + 1) - E(i)) * (M(j + 1) - M(j)) * dos(i, j);
             }
-            if (vol > vol_limit){
+            if (vol >= vol_limit){
                 return i;
             }
         }

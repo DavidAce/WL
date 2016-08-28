@@ -1,12 +1,12 @@
 
-function [ c,T ] = thermo2d( dosEM,E,M,N )
+function [ c,e,T, dos ] = thermo2d( dosEM,E,M,N )
 %THERMO Summary of this function goes here
 %   Detailed explanation goes here
-T = linspace(0,6,500);
-C		= zeros(1,length(T));
-Z		= zeros(1,length(T));
-e		= zeros(1,length(T));
-dos    = zeros(1,length(E));
+T       = linspace(0.01,6,100)';
+C		= zeros(length(T),1);
+Z		= zeros(length(T),1);
+e		= zeros(length(T),1);
+dos     = zeros(length(E),1);
 %Find first lambda to get g(E)
 for j = 1:length(E)
 	lambda = 0;
@@ -17,7 +17,6 @@ for j = 1:length(E)
 	end
 	dos(j) = lambda + log( sum(exp(dosEM(j,:)-lambda))  );
 end
-dos = dos';
 
 for i = 1:length(T)
     t = T(i);
@@ -31,6 +30,5 @@ for i = 1:length(T)
 	C(i) = (eSqAvg - eAvg*eAvg) /t^2 ;
 end
 c		= C/N;
-
 end
 
