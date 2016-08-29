@@ -70,11 +70,6 @@ public:
     //MatrixXd dos_temp;
     VectorXi saturation;                //Measures the histogram saturation
 
-    VectorXd X_bins;                     //Auxiliary spectrum for calculations.
-    VectorXd Y_bins;                     //Auxiliary spectrum for calculations.
-
-
-
     //Holders for total, merged data
     MatrixXd dos_total;
     VectorXd E_bins_total, M_bins_total;

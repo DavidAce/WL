@@ -28,7 +28,7 @@ namespace constants{
     static const int    rate_print_status      = 10000;
 
     //Wang-Landau convergence criteria
-    static const double minimum_lnf            = 1e-7;
+    static const double minimum_lnf            = 1e-6;
     static const double check_saturation_from  = 0.9;
 //    static const double reduce_factor_lnf      = 1-exp(-1.0); // 656 s (check from 0.75)
 //    static const double reduce_factor_lnf      = 1-exp(-1.0); //  641 s (check from 0.75)

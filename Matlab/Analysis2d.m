@@ -6,18 +6,18 @@ N = L^2;
 
 for i = 0:7
     dos = importdata(['../outdata/dos' num2str(i) '.dat']);
-    %dos(dos > 0) = dos(dos>0) + 1*cos(pi* i);
-
     E = importdata(['../outdata/E' num2str(i) '.dat']);
     M = importdata(['../outdata/M' num2str(i) '.dat']);
+    dos(dos==0) = NaN;
+    E = E(any(~isnan(dos')));
+    dos = dos(any(~isnan(dos')) ,:);
     [c,u,T, dosE] = thermo2d(dos,E,M,N);
     figure(1);
     subplot(2,2,1);
     h = mesh(M,E, dos); 
     hold on;
-	dos(dos == 0) = NaN;
-	set(h, 'zdata', dos);
-	%axis vis3d
+    
+ 	set(h, 'zdata', dos);
 	ylabel('E');
 	xlabel('M');
 	zlabel('log(g(E,M))');
@@ -31,17 +31,21 @@ for i = 0:7
     subplot(2,2,3);
     plot(T,u),hold on;
 end
+%%
     figure(2);
     dos = importdata(['../outdata/dos.dat']);
+    dos(dos==0) = NaN;
+    dos = dos - min(min(dos));
     E = importdata(['../outdata/E.dat']);
     M = importdata(['../outdata/M.dat']);
+    E = E(any(~isnan(dos')));
+    dos = dos(any(~isnan(dos')) ,:);
     [c,u,T,dosE] = thermo2d(dos,E,M,N);
     subplot(1,2,1);
     h = mesh(M,E, dos);
     hold on;
-	%dos(dos == 0) = NaN;
-	set(h, 'zdata', dos);
-	%axis vis3d
+ 	set(h, 'zdata', dos);
+	axis vis3d
 	ylabel('E');
 	xlabel('M');
 	zlabel('log(g(E,M))');
@@ -73,8 +77,9 @@ end
     %%
     figure(5)
     [TIsing,eIsing,dosIsing] = dos_ising(L);
-    plot(eIsing,dosIsing),hold on 
-    diff = (max(dosE) - max(dosIsing));
-    dosE_adjusted = dosE - diff;
-    dosE_adjusted(dosE_adjusted < 0) = NaN;
-    plot(E/N,dosE_adjusted);
+    dosIsing = dosIsing + (max(dosE) - max(dosIsing));
+    plot(N*eIsing,dosIsing),hold on 
+    plot(E,dosE);
+    figure(6)
+    plot(E,interp1(N*eIsing,dosIsing,E) - dosE)
+    

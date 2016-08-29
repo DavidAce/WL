@@ -269,13 +269,19 @@ namespace mpi {
         if (worker.world_ID == 0) {
             E_min_local_idx  = 0;
             E_max_local_idx     = math::volume_idx(worker.dos_total, worker.E_bins_total, worker.M_bins_total, (worker.world_ID + 1)*local_volume + x/2);
+            while(E_max_local_idx - E_min_local_idx < 3){E_max_local_idx++;}
+
         }else if (worker.world_ID == worker.world_size - 1){
             E_min_local_idx     = math::volume_idx(worker.dos_total, worker.E_bins_total, worker.M_bins_total, worker.world_ID      *local_volume - x/2);
             E_max_local_idx     = (int) worker.E_bins_total.size()-1;
+            while(E_max_local_idx - E_min_local_idx < 3){E_min_local_idx--;}
+
         }else{
             E_min_local_idx     = math::volume_idx(worker.dos_total, worker.E_bins_total, worker.M_bins_total, worker.world_ID      *local_volume - x/4);
             E_max_local_idx     = math::volume_idx(worker.dos_total, worker.E_bins_total, worker.M_bins_total, (worker.world_ID + 1)*local_volume + x/4);
+            while(E_max_local_idx - E_min_local_idx < 3){E_min_local_idx--; E_max_local_idx++;}
         }
+
         worker.E_min_local = worker.E_bins_total(E_min_local_idx) ;
         worker.E_max_local = worker.E_bins_total(E_max_local_idx) ;
         worker.M_min_local = worker.M_min_global;

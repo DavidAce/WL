@@ -247,8 +247,8 @@ void class_worker::resize_local_bins() {
     dE              = (E_max_local - E_min_local) / (max(E_new_size,E_old_size) * 2.0);
     dM              = (M_max_local - M_min_local) / (max(M_new_size,M_old_size) * 2.0);
     dR              = sqrt(dE * dE + dM * dM);
-    X_bins          = E_bins;
-    Y_bins          = M_bins;
+    VectorXd X_bins = E_bins;
+    VectorXd Y_bins = M_bins;
     E_bins          = VectorXd::LinSpaced(E_new_size, E_min_local, E_max_local);
     M_bins          = VectorXd::LinSpaced(M_new_size, M_min_local, M_max_local);
     //Coarsen the histogram and dos.
