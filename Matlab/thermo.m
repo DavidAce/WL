@@ -1,10 +1,10 @@
-function [ c,T ] = thermo( dos,E,N )
+function [ c,e,T ] = thermo( dos,E,N )
 %THERMO Summary of this function goes here
 %   Detailed explanation goes here
-T = linspace(0,5,100);
-C		= zeros(1,length(T));
-Z		= zeros(1,length(T));
-e		= zeros(1,length(T));
+T = linspace(1e-6,6,500)';
+C		= zeros(length(T),1);
+Z		= zeros(length(T),1);
+e		= zeros(length(T),1);
 
 for i = 1:length(T)
     t = T(i);

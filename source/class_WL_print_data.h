@@ -2,14 +2,14 @@
 // Created by david on 2016-07-26.
 //
 
-#ifndef WL_CLASS_DATA_H
-#define WL_CLASS_DATA_H
+#ifndef WL_CLASS_PRINT_DATA_H
+#define WL_CLASS_PRINT_DATA_H
 #include <Eigen/Core>
 #include <Eigen/Dense>
 
 
 #include <iostream>
-#include "class_worker.h"
+#include "class_WL_worker.h"
 using namespace std;
 using namespace Eigen;
 
@@ -31,10 +31,11 @@ private:
     ofstream    file_dos;
     ofstream    file_E_bins;
     ofstream    file_M_bins;
-    int         world_ID;
+    int   world_ID;
+    int   iteration;
 
 public:
-    outdata(int &);
+    outdata(int &, int &);
     void create_directories();
     //File streams
 
@@ -56,4 +57,4 @@ public:
 
 
 
-#endif //WL_CLASS_DATA_H
+#endif //WL_CLASS_PRINT_DATA_H

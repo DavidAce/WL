@@ -2,8 +2,8 @@
 // Created by david on 2016-08-14.
 //
 
-#ifndef WL_CLASS_PROFILING_H
-#define WL_CLASS_PROFILING_H
+#ifndef WL_CLASS_TIC_TOC_H
+#define WL_CLASS_TIC_TOC_H
 
 #include <chrono>
 #include <iostream>
@@ -39,4 +39,4 @@ public:
 };
 
 
-#endif //WL_CLASS_PROFILING_H
+#endif //WL_CLASS_TIC_TOC_H

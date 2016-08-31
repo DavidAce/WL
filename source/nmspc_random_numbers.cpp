@@ -2,7 +2,7 @@
 // Created by david on 2016-07-24.
 //
 
-#include "randomNumbers.h"
+#include "nmspc_random_numbers.h"
 namespace rn{
     std::mt19937 rng;
 

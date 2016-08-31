@@ -1,19 +1,17 @@
 close all
 clear all
-digits(64)
-L = 10;
+L = 8;
 N = L^2;
 
-for i = 0:7
+for i = 0:3
     dos = importdata(['../outdata/dos' num2str(i) '.dat']);
     E = importdata(['../outdata/E' num2str(i) '.dat']);
     M = importdata(['../outdata/M' num2str(i) '.dat']);
-    dos(dos==0) = NaN;
     E = E(any(~isnan(dos')));
     dos = dos(any(~isnan(dos')) ,:);
     [c,u,T, dosE] = thermo2d(dos,E,M,N);
     figure(1);
-    subplot(2,2,1);
+    subplot(1,2,1);
     h = mesh(M,E, dos); 
     hold on;
     
@@ -26,20 +24,14 @@ for i = 0:7
     
 %     surf(E,M,dos),hold on;
 
-    subplot(2,2,2)
+    subplot(1,2,2)
     plot(T,c),hold on;
-    subplot(2,2,3);
-    plot(T,u),hold on;
 end
 %%
     figure(2);
     dos = importdata(['../outdata/dos.dat']);
-    dos(dos==0) = NaN;
-    dos = dos - min(min(dos));
     E = importdata(['../outdata/E.dat']);
     M = importdata(['../outdata/M.dat']);
-    E = E(any(~isnan(dos')));
-    dos = dos(any(~isnan(dos')) ,:);
     [c,u,T,dosE] = thermo2d(dos,E,M,N);
     subplot(1,2,1);
     h = mesh(M,E, dos);
@@ -56,10 +48,11 @@ end
     UError = ((uIsing - u));
     
     subplot(1,2,2);
-    plot(T,c),hold on;
-    plot(T,cIsing);
+    plot(T,c,'-o', 'DisplayName','c WL'),hold on;
+    plot(T,cIsing,'-o', 'DisplayName','c EX');
     ylabel('c');
 	xlabel('T');
+    legend('show')
     figure(3);
     plot(T,u),hold on;
     plot(T,uIsing);
@@ -77,9 +70,10 @@ end
     %%
     figure(5)
     [TIsing,eIsing,dosIsing] = dos_ising(L);
-    dosIsing = dosIsing + (max(dosE) - max(dosIsing));
+    %dosIsing = dosIsing + (max(dosE) - max(dosIsing));
     plot(N*eIsing,dosIsing),hold on 
     plot(E,dosE);
+    
     figure(6)
     plot(E,interp1(N*eIsing,dosIsing,E) - dosE)
     

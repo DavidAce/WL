@@ -1,16 +1,24 @@
 //
 // Created by david on 2016-07-24.
 //
-#include "wanglandau.h"
+#include "simulation.h"
 using namespace std;
 #define debug_sweep                     0
 #define debug_convergence               0
 #define debug_global_limits             0
 
 
-void WangLandau(class_worker &worker){
+void do_simulations(class_worker &worker){
+    for (int i = 0; i < constants::reps; i++){
+        worker.iteration = i;
+        wanglandau(worker);
+        worker.rewind_to_zero();
+    }
+}
+
+void wanglandau(class_worker &worker){
     int finish_line = 0;
-    outdata out(worker.world_ID);
+    outdata out(worker.world_ID,worker.iteration);
     while(finish_line == 0){
         sweep               (worker)              ;
         mpi::swap           (worker)              ;
@@ -23,8 +31,6 @@ void WangLandau(class_worker &worker){
     out.write_data_worker (worker) ;
     mpi::merge            (worker) ;
     out.write_data_master (worker) ;
-
-
 }
 
 void sweep(class_worker &worker){
@@ -261,6 +267,7 @@ void print_status(class_worker &worker) {
         if (worker.world_ID == 0){
             cout    << "-----"
                     << " MaxWalks: "   << fixed << setprecision(0) << ceil(log(constants::minimum_lnf)/log(constants::reduce_factor_lnf))
+                    << " Iteration: "   << fixed << setprecision(0) << worker.iteration
                     << " Total Time: " << fixed << setprecision(3) << timer::elapsed_time_total.count() << " s "
                     << "  -----"
                     << endl;

@@ -2,11 +2,11 @@
 // Created by david on 2016-07-24.
 //
 
-#ifndef WL_RANDOMNUMBERS_H
-#define WL_RANDOMNUMBERS_H
+#ifndef WL_NMSPC_RANDOM_NUMBERS_H
+#define WL_NMSPC_RANDOM_NUMBERS_H
 #include <random>
 #include <iostream>
-#include "constants.h"
+#include "nmspc_WL_constants.h"
 using namespace std;
 namespace rn{
     //typedef std::mt19937 RNGType;
@@ -33,4 +33,4 @@ namespace rn{
 
 }
 
-#endif //WL_RANDOMNUMBERS_H
+#endif //WL_NMSPC_RANDOM_NUMBERS_H

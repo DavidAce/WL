@@ -25,5 +25,5 @@ SET(CMAKE_CXX_STANDARD 11)
 SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin/${CMAKE_BUILD_TYPE})
 SET(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib/${CMAKE_BUILD_TYPE})
 
-SET(SOURCE_FILES main.cpp source/class_worker.cpp source/class_worker.h source/class_master.cpp source/class_master.h source/class_model.cpp source/class_model.h source/constants.h source/randomNumbers.h source/randomNumbers.cpp source/wanglandau.cpp source/wanglandau.cpp source/wanglandau.h source/counters_timers.h source/class_data.cpp source/class_data.h source/math_algorithms.h source/math_algorithms.cpp source/MPI_algorithms.cpp source/MPI_algorithms.h source/class_profiling.cpp source/class_profiling.h)
+SET(SOURCE_FILES main.cpp source/class_WL_worker.cpp source/class_WL_worker.h source/class_model.cpp source/class_model.h source/nmspc_WL_constants.h source/nmspc_random_numbers.h source/nmspc_random_numbers.cpp source/simulation.cpp source/simulation.cpp source/simulation.h source/nmspc_WL_counters_timers.h source/class_WL_print_data.cpp source/class_WL_print_data.h source/nmspc_math_algorithms.h source/nmspc_math_algorithms.cpp source/nmspc_WL_parallel_algorithms.cpp source/nmspc_WL_parallel_algorithms.h source/class_tic_toc.cpp source/class_tic_toc.h source/class_WL_bootstrap.cpp source/class_WL_bootstrap.h)
 add_executable(WL ${SOURCE_FILES})

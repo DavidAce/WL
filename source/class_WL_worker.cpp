@@ -1,7 +1,7 @@
 //
 // Created by david on 2016-07-24.
 //
-#include "class_worker.h"
+#include "class_WL_worker.h"
 #define debug_divide 1
 #define debug_resize_local_range 1
 using namespace std;
@@ -53,8 +53,19 @@ class_worker::class_worker(): 	model(),
 }
 
 void class_worker::find_current_state(){
-    E_idx = math::binary_search(E_bins.data(), E, E_bins.size());
-    M_idx = math::binary_search(M_bins.data(), M, M_bins.size());
+    switch(constants::rw_dims){
+        case 1:
+            E_idx = math::binary_search(E_bins.data(), E, E_bins.size());
+            M_idx = 0;
+            break;
+        case 2:
+            E_idx = math::binary_search(E_bins.data(), E, E_bins.size());
+            M_idx = math::binary_search(M_bins.data(), M, M_bins.size());
+            break;
+        default:
+            cout << "Wrong rw-dimension  constants::rw_dims" << endl;
+    }
+
 	in_window = check_in_window(E);
 }
 
@@ -62,18 +73,38 @@ void class_worker::find_initial_limits(){
     //Measure, randomize and measure again to get 2 states
     double E0 = model.get_E();
     double M0 = model.get_M();
-    E = E0;
-    M = M0;
 
-    while (E == E0 || M == M0){
-        model.randomize_lattice();
-        E = model.get_E();
-        M = model.get_M();
+    switch (constants::rw_dims){
+        case 1:
+            E = E0;
+            M = 0;
+            while (E == E0){
+                model.randomize_lattice();
+                E = model.get_E();
+            }
+            E_min_global = fmin(E0,E);
+            E_max_global = fmax(E0,E);
+            M_min_global = 0;
+            M_max_global = 0;
+            break;
+        case 2:
+            E = E0;
+            M = M0;
+            while (E == E0 || M == M0){
+                model.randomize_lattice();
+                E = model.get_E();
+                M = model.get_M();
+            }
+            E_min_global = fmin(E0,E);
+            E_max_global = fmax(E0,E);
+            M_min_global = fmin(M0,M);
+            M_max_global = fmax(M0,M);
+            break;
+        default:
+            cout << "Error: Wrong dimension  constants::rw_dims" << endl;
+            exit(5);
     }
-    E_min_global = fmin(E0,E);
-    E_max_global = fmax(E0,E);
-    M_min_global = fmin(M0,M);
-    M_max_global = fmax(M0,M);
+
 }
 
 void class_worker::start_counters() {
@@ -125,6 +156,7 @@ void class_worker::update_global_range() {
         E_max_global  = E_trial;
         need_to_resize_global = 1;
     }
+    if (constants::rw_dims == 1){return;}
     if (M_trial < M_min_global){
         M_min_global = M_trial;
         need_to_resize_global = 1;
@@ -134,7 +166,6 @@ void class_worker::update_global_range() {
         need_to_resize_global = 1;
     }
 }
-
 
 void class_worker::resize_global_range() {
     //Compare to the other workers to find global limits
@@ -161,14 +192,14 @@ void class_worker::divide_global_range(){
     //Update limits
     double global_range     = fabs(E_max_global - E_min_global);
     double local_range      = global_range / (world_size);
-    double overlap_range    = local_range * constants::overlap_factor;
+    double overlap_range    = local_range * constants::overlap_factor/2;
 
     if (world_ID == 0){
         E_min_local = E_min_global;
-        E_max_local = E_min_local + local_range + overlap_range;
+        E_max_local = E_min_local + local_range + overlap_range*2;
     }else if (world_ID == world_size - 1){
         E_max_local = E_max_global;
-        E_min_local = E_max_local - local_range - overlap_range;
+        E_min_local = E_max_local - local_range - overlap_range*2;
     }else{
         E_min_local = E_min_global + world_ID*local_range - overlap_range;
         E_max_local = E_min_global + (world_ID +1)*local_range + overlap_range;
@@ -177,52 +208,51 @@ void class_worker::divide_global_range(){
     M_max_local = M_max_global;
     in_window = check_in_window(E);
     if (in_window){
-        E_idx = math::binary_search(E_bins.data(), E, E_bins.size());
-        M_idx = math::binary_search(M_bins.data(), M, M_bins.size());
+        find_current_state();
     }
 }
 
-void class_worker::resize_local_range(){
-    //Scenarios
-    //  1) E_bins.maxCoeff() < E_max_local, E_max_local = *E_set.end()
-    //  2) E_bins.minCoeff() > E_min_local, E_min_local = *E_set.begin()
-    need_to_resize_local = 0;
-    if (model.discrete_model) {
-        for (int w = 0; w < world_size; w++) {
-            if (w == world_ID) {
-                if (E_bins.maxCoeff() != E_max_local && E_bins.size() <= E_set.size()) {
-                    if (debug_resize_local_range) {
-                        cout << "E_max_local = " << E_max_local << " adjusted to " << fmax(E_bins.maxCoeff(),*E_set.rbegin())
-                             << endl;
-                        cout << "E_bins: " << E_bins.transpose() << endl;
-                        cout << "E_set:  ";
-                        for (auto it = E_set.begin(); it != E_set.end(); it++) {
-                            if (*it == E) { cout << "["; }
-                            cout << *it;
-                            if (*it == E) { cout << "]"; }
-                            cout << " ";
-                        }
-                        cout << endl;
-                    }
-                    E_max_local =  fmax(E_bins.maxCoeff(),*E_set.rbegin());
-                    need_to_resize_local = 1;
-                }
-                if (E_bins.minCoeff() != E_min_local && E_bins.size() <= E_set.size()) {
-                    if (debug_resize_local_range) {
-
-                        cout << "E_min_local = " << E_min_local << " adjusted to " <<  fmin(E_bins.minCoeff(),*E_set.begin())
-                             << endl;
-
-                    }
-                    E_min_local = fmin(E_bins.minCoeff(),*E_set.begin());
-                    need_to_resize_local = 1;
-                }
-            }
-            MPI_Barrier(MPI_COMM_WORLD);
-        }
-    }
-
-}
+//void class_worker::resize_local_range(){
+//    //Scenarios
+//    //  1) E_bins.maxCoeff() < E_max_local, E_max_local = *E_set.end()
+//    //  2) E_bins.minCoeff() > E_min_local, E_min_local = *E_set.begin()
+//    need_to_resize_local = 0;
+//    if (model.discrete_model) {
+//        for (int w = 0; w < world_size; w++) {
+//            if (w == world_ID) {
+//                if (E_bins.maxCoeff() != E_max_local && E_bins.size() <= E_set.size()) {
+//                    if (debug_resize_local_range) {
+//                        cout << "E_max_local = " << E_max_local << " adjusted to " << fmax(E_bins.maxCoeff(),*E_set.rbegin())
+//                             << endl;
+//                        cout << "E_bins: " << E_bins.transpose() << endl;
+//                        cout << "E_set:  ";
+//                        for (auto it = E_set.begin(); it != E_set.end(); it++) {
+//                            if (*it == E) { cout << "["; }
+//                            cout << *it;
+//                            if (*it == E) { cout << "]"; }
+//                            cout << " ";
+//                        }
+//                        cout << endl;
+//                    }
+//                    E_max_local =  fmax(E_bins.maxCoeff(),*E_set.rbegin());
+//                    need_to_resize_local = 1;
+//                }
+//                if (E_bins.minCoeff() != E_min_local && E_bins.size() <= E_set.size()) {
+//                    if (debug_resize_local_range) {
+//
+//                        cout << "E_min_local = " << E_min_local << " adjusted to " <<  fmin(E_bins.minCoeff(),*E_set.begin())
+//                             << endl;
+//
+//                    }
+//                    E_min_local = fmin(E_bins.minCoeff(),*E_set.begin());
+//                    need_to_resize_local = 1;
+//                }
+//            }
+//            MPI_Barrier(MPI_COMM_WORLD);
+//        }
+//    }
+//
+//}
 
 void class_worker::resize_local_bins() {
     // This function does rebinning of dos and histograms.
@@ -307,11 +337,34 @@ void class_worker::compute_number_of_bins(int & E_new_size, int & M_new_size) {
                 ++it;
             }
         }
-        int spacing = (int) ceil((E_bins.tail(E_bins.size() - 1) - E_bins.head(E_bins.size()-1)).mean());
-        int maxElem = (int) ceil((E_max_local - E_min_local) / spacing);
+//        int spacing = (int) ceil((E_bins.tail(E_bins.size() - 1) - E_bins.head(E_bins.size()-1)).mean());
+        double spacing  =  math::typical_spacing(E_bins);
+        int maxElem     = (int) ceil((E_max_local - E_min_local) / spacing);
+        for (int i = 0; i < world_size ; i++){
+            if (i == world_ID){
+                cout << "ID: " << world_ID
+                     << " Spacing = " << spacing
+                     << " maxElem = " << maxElem
+                     << " Emin = " << E_min_local
+                     << " Emax = " << E_max_local << endl
+                     << "E_bins: " << E_bins.transpose() << endl;
+            }
+            MPI_Barrier(MPI_COMM_WORLD);
+        }
+
         E_new_size = max(constants::bins , (int) E_set.size()); //What if there is a jump in E_set?
         E_new_size = max(E_new_size      , maxElem);
-        M_new_size = max(constants::bins , (int) M_set.size());
+        switch(constants::rw_dims){
+            case 1 :
+                M_new_size = 1;
+                break;
+            case 2 :
+                M_new_size = max(constants::bins , (int) M_set.size());
+                break;
+            default:
+                cout << "Error wrong rw-dimension  constants::rw_dims" << endl;
+                break;
+        }
         MPI_Allreduce(&M_new_size, &M_new_size, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
     }else{
         //Modify this for continuous models later
@@ -345,8 +398,18 @@ void class_worker::acceptance_criterion(){
     if (in_window){
         t_acceptance_criterion.tic();
         if (check_in_window(E_trial)){
-            E_idx_trial = math::binary_search(E_bins.data(), E_trial, E_bins.size(),E, E_idx);
-            M_idx_trial = math::binary_search(M_bins.data(), M_trial, M_bins.size(),M, M_idx);
+            switch(constants::rw_dims) {
+                case 1:
+                    E_idx_trial = math::binary_search(E_bins.data(), E_trial, E_bins.size(),E, E_idx);
+                    M_idx_trial = 0;
+                    break;
+                case 2:
+                    E_idx_trial = math::binary_search(E_bins.data(), E_trial, E_bins.size(),E, E_idx);
+                    M_idx_trial = math::binary_search(M_bins.data(), M_trial, M_bins.size(),M, M_idx);
+                    break;
+                default:
+                    cout << "Wrong dimension:  constants::rw_dims" << endl;
+            }
             accept      = rn::uniform_double_1() < exp(dos(E_idx, M_idx) - dos(E_idx_trial, M_idx_trial));
         }else{
             accept      = false;
@@ -354,9 +417,6 @@ void class_worker::acceptance_criterion(){
         if (model.discrete_model){
             E_bins(E_idx) = E;
             M_bins(M_idx) = M;
-//            if (E_bins(0) < E_min_local || E_bins(E_bins.size()  - 1 ) > E_max_local){
-//                need_to_resize_global = 1;
-//            }
             E_set.insert(E);
             M_set.insert(M);
         }
@@ -366,8 +426,18 @@ void class_worker::acceptance_criterion(){
             //Reentering the window
             accept      = true;
             in_window   = true;
-            E_idx_trial = math::binary_search(E_bins.data(), E_trial, E_bins.size());
-            M_idx_trial = math::binary_search(M_bins.data(), M_trial, M_bins.size());
+            switch(constants::rw_dims) {
+                case 1:
+                    E_idx_trial = math::binary_search(E_bins.data(), E_trial, E_bins.size());
+                    M_idx_trial = 0;
+                    break;
+                case 2:
+                    E_idx_trial = math::binary_search(E_bins.data(), E_trial, E_bins.size());
+                    M_idx_trial = math::binary_search(M_bins.data(), M_trial, M_bins.size());
+                    break;
+                default:
+                    cout << "Wrong dimension:  constants::rw_dims" << endl;
+            }
         }else{
             //Still out of window... prefer to move towards window.
             in_window   = false;
@@ -391,10 +461,12 @@ void class_worker::acceptance_criterion(){
             }else if(E_trial < E && E_trial <= E_max_local){
                 accept = true;
             }
-            if (M_trial > M && M_trial >= M_max_global){
-                accept = true;
-            }else if(M_trial < M && M_trial <= M_min_global){
-                accept = true;
+            if (constants::rw_dims == 2) {
+                if (M_trial > M && M_trial >= M_max_global) {
+                    accept = true;
+                } else if (M_trial < M && M_trial <= M_min_global) {
+                    accept = true;
+                }
             }
         }
     }
@@ -439,12 +511,24 @@ void class_worker::rewind_to_lowest_walk(){
     timer::add_hist_volume  = 0;
     timer::check_finish_line= 0;
     timer::check_saturation = 0;
+    histogram.fill(0);
+    saturation.fill(0);
 //    counter::MCS            = (int) ( constants::one_over_t_factor / pow(lnf, constants::one_over_t_exponent));
-    counter::MCS            = (int) 1.0/lnf;
+    counter::MCS            = (int) (1.0/lnf);
     cout << "New MCS = " << counter::MCS << endl;
     finish_line = lnf > constants::minimum_lnf ? 0 : 1;
+}
 
 
+void class_worker::rewind_to_zero(){
+    counter::walks = 0;
+    lnf = 1;
+    start_counters();
+    counter::merges = 1;
+    finish_line = 0;
+    dos.fill(0);
+    histogram.fill(0);
+    saturation.fill(0);
 }
 
 void class_worker::prev_WL_iteration() {

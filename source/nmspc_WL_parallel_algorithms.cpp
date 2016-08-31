@@ -2,7 +2,7 @@
 // Created by david on 2016-08-11.
 //
 
-#include "MPI_algorithms.h"
+#include "nmspc_WL_parallel_algorithms.h"
 
 using namespace std;
 
@@ -114,11 +114,8 @@ namespace mpi {
             std::this_thread::sleep_for(std::chrono::microseconds(1000));
         }
         MPI_Barrier(MPI_COMM_WORLD);
-        MatrixXd dos_total, dos_temp;
-        VectorXd E_total, M_total, E_temp, M_temp;
-        MatrixXd dos_recv;
-        VectorXd E_recv;
-        VectorXd M_recv;
+        MatrixXd dos_total, dos_temp, dos_recv;
+        VectorXd E_total, M_total, E_temp, M_temp, E_recv, M_recv;
         int E_sizes[worker.world_size];
         int M_sizes[worker.world_size];
         int E_size = (int)worker.E_bins.size();
@@ -214,6 +211,13 @@ namespace mpi {
             std::this_thread::sleep_for(std::chrono::microseconds(10));
         }
         if(worker.world_ID == 0){
+//            E_size              = (int)E_total.size();
+//            M_size              = (int)M_total.size();
+//            dos_total.conservativeResize(E_size,M_size);
+//            E_total.conservativeResize(E_size);
+//            M_total.conservativeResize(M_size);
+            math::subtract_min_nonzero_nan(dos_total);
+            math::remove_nan_rows(dos_total, E_total);
             worker.dos_total    = dos_total;
             worker.E_bins_total = E_total;
             worker.M_bins_total = M_total;
@@ -237,6 +241,7 @@ namespace mpi {
             cout << "Merge OK " << endl;
             cout << "E_bins_total = " << worker.E_bins_total.transpose() << endl;
             cout << "Diff         = " << (worker.E_bins_total.tail(E_size - 1) - worker.E_bins_total.head(E_size-1)).transpose() << endl;
+            cout << endl;
             cout.flush();
             std::this_thread::sleep_for(std::chrono::microseconds(10000));
         }
@@ -262,7 +267,6 @@ namespace mpi {
         double global_volume = math::volume(worker.dos_total, worker.E_bins_total, worker.M_bins_total);
         double local_volume  = global_volume / worker.world_size;
         double x = local_volume * constants::overlap_factor / (1 - constants::overlap_factor / 2);
-        cout << x <<" " << local_volume << endl;
         //Find the boundaries of the DOS domain that gives every worker the  same DOS volume to work on
         int E_min_local_idx, E_max_local_idx;
 

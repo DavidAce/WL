@@ -6,9 +6,9 @@
 #define WL_CLASS_MODEL_H
 #include <Eigen/Core>
 #include <Eigen/Dense>
-#include "randomNumbers.h"
-#include "math_algorithms.h"
-#include "constants.h"
+#include "nmspc_random_numbers.h"
+#include "nmspc_math_algorithms.h"
+#include "nmspc_WL_constants.h"
 using namespace Eigen;
 using namespace std;
 
@@ -44,8 +44,18 @@ public:
         randI = rn::uniform_integer_L();
         randJ = rn::uniform_integer_L();
         //Is this correct?
-        E_trial = E + J * 2*lattice(randI,randJ)*sum_neighbours(randI,randJ);
-        M_trial = M - 2*lattice(randI,randJ);
+        switch(constants::rw_dims){
+            case 1:
+                E_trial = E + J * 2 * lattice(randI, randJ) * sum_neighbours(randI, randJ);
+                M_trial = 0;
+                break;
+            case 2:
+                E_trial = E + J * 2 * lattice(randI, randJ) * sum_neighbours(randI, randJ);
+                M_trial = M - 2 * lattice(randI, randJ);
+                break;
+            default:
+                cout << "Error, wrong rw-dimension   constants::rw_dims" << endl;
+        }
     }
 
     friend std::ostream &operator<<(std::ostream &, const class_model &);

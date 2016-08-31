@@ -4,8 +4,12 @@
       <w>eigen</w>
       <w>emax</w>
       <w>emin</w>
+      <w>mdir</w>
+      <w>mkdir</w>
       <w>mmax</w>
       <w>mmin</w>
+      <w>outdata</w>
+      <w>wanglandau</w>
     </words>
   </dictionary>
 </component>

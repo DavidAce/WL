@@ -2,7 +2,7 @@
 // Created by david on 2016-08-14.
 //
 
-#include "class_profiling.h"
+#include "class_tic_toc.h"
 
 class_profiling::class_profiling(const int & p): profiling(p) {
     if (profiling) {

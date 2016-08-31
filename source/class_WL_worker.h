@@ -2,8 +2,8 @@
 // Created by david on 2016-07-24.
 //
 
-#ifndef WL_CLASS_WORKER_H
-#define WL_CLASS_WORKER_H
+#ifndef WL_CLASS_WL_WORKER_H
+#define WL_CLASS_WL_WORKER_H
 #include <mpi.h>
 #include <random>
 #include <fstream>
@@ -11,11 +11,11 @@
 #include <Eigen/Dense>
 #include <set>
 #include "class_model.h"
-#include "class_profiling.h"
-#include "constants.h"
-#include "counters_timers.h"
-#include "math_algorithms.h"
-#include "randomNumbers.h"
+#include "class_tic_toc.h"
+#include "nmspc_WL_constants.h"
+#include "nmspc_WL_counters_timers.h"
+#include "nmspc_math_algorithms.h"
+#include "nmspc_random_numbers.h"
 static const int profiling_sweep                =	1;
 static const int profiling_swap                 =	0;
 static const int profiling_check_global_limits  =	0;
@@ -30,7 +30,9 @@ private:
 public:
     class_worker();                 //Constructor
     //Main data structures of the WL algorithm. Needed very often.
-    MatrixXd dos; 
+    double   lnf;                         //Modification factor of WL-algorithm
+    //WL DOS and Histograms
+    MatrixXd dos;
     MatrixXi histogram;
     VectorXd E_bins, M_bins;
     //Model with lattice etc
@@ -52,8 +54,8 @@ public:
     double E_min_local , M_min_local ;    //Local minimum
     double E_max_local , M_max_local ;    //Local maximum
     //Sets containing discrete spectrums
-    std::set<double> E_set;              //Set of found energies, used in discrete simulations.
-    std::set<double> M_set;              //Set of found energies, used in discrete simulations.
+    std::set<double> E_set;              //Set of found energies, used in discrete do_simulations.
+    std::set<double> M_set;              //Set of found energies, used in discrete do_simulations.
 
 
     //WL acceptance criterion
@@ -64,10 +66,7 @@ public:
     //WL convergence parameters
     int     flag_one_over_t;             //turns to 1 when 1/t algorithm starts
     int     finish_line;                 //turns to 1 when converged
-    double  lnf;                         //Modification factor of WL-algorithm
-    //WL DOS and Histograms
-    //MatrixXi histogram_temp;
-    //MatrixXd dos_temp;
+
     VectorXi saturation;                //Measures the histogram saturation
 
     //Holders for total, merged data
@@ -81,6 +80,7 @@ public:
 					t_check_convergence 	,
 					t_make_MC_trial 		,
 					t_acceptance_criterion 	;
+    int iteration;
     //Functions
     void find_current_state();           //Compute current E and M (and their indices)
     void find_initial_limits();
@@ -100,10 +100,10 @@ public:
     void next_WL_iteration();
     void prev_WL_iteration();
     void rewind_to_lowest_walk();
-
+    void rewind_to_zero();
     friend std::ostream &operator<<(std::ostream &, const class_worker &);
 
 };
 
 
-#endif //WL_CLASS_WO<Down>RKER_H
+#endif //WL_CLASS_WL_WORKER_H
