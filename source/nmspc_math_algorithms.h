@@ -106,9 +106,6 @@ namespace math{
         VectorXd  vec_temp;
         mat_temp = mat;
         vec_temp = vec;
-//        MatrixXd temp (mat.rows(), 2);
-//        temp << mat, vec;
-//        std::cout <<  std::endl <<  temp << std::endl;
         int k = 0;
         for (int j = 0; j < mat.rows(); j++){
             if ((mat.row(j).array() == mat.row(j).array()).any()){
@@ -120,16 +117,43 @@ namespace math{
         }
         mat = mat_temp.topRows(k);
         vec = vec_temp.head(k);
-//        temp.resize(k,2);
-//        temp << mat, vec;
-//        std::cout <<std::endl << temp << std::endl;
     }
+
+    template <typename Derived>
+    inline double nansquared(const ArrayBase<Derived> & array)  {
+        const auto& no_nan_this = (array == array).select(0, array);
+        return no_nan_this.dot(no_nan_this);
+    }
+
+    template <typename Derived>
+    inline double nansum(const ArrayBase<Derived> & array)  {
+        const auto& no_nan_this = (array == array).select(0, array);
+        return no_nan_this.sum();
+    }
+
+    template <typename Derived>
+    inline double nansum(const MatrixBase<Derived> & matrix)  {
+        const auto& no_nan_this = (matrix.array() == matrix.array()).select(0, matrix);
+        return no_nan_this.sum();
+    }
+
+    template <typename Derived>
+    inline double nanmaxCoeff(const ArrayBase<Derived> & array)  {
+        const auto& no_nan_this = (array == array).select(0, array);
+        return no_nan_this.maxCoeff();
+    }
+
+    template <typename Derived>
+    inline double nanmaxCoeff(const MatrixBase<Derived> & matrix)  {
+        const auto& no_nan_this = (matrix.array() == matrix.array()).select(0, matrix);
+        return no_nan_this.maxCoeff();
+    }
+
 
     //Finds the element nearest x in a C-style array
     template <typename List_type, typename T, typename size_type>
     inline int binary_search(const List_type &list , const T& x, const size_type &size){
         //Now find the point in list closest to x, from below
-//        if (size <= 1){return 0;}
         auto low  = std::lower_bound(list, list + size, x);
         if (low-list >= size ){
             low--;
@@ -137,8 +161,8 @@ namespace math{
        return  low-list;
 
     }
-    template<typename T> struct TD;
 
+    template<typename T> struct TD;
     template <typename List_type, typename T, typename T_idx, typename size_type>
     inline int binary_search(const List_type &list , const T& x, const size_type &size, const T &y, const T_idx &y_idx){
         //Now find the point in list closest to x, from below
@@ -154,39 +178,9 @@ namespace math{
         while (low-list >= size ){
             low--;
         }
-
-//        if (x == 128){
-////            if (y != list[low-list]){
-////                std::cout << "Value mismatch in Binary search!" << std::endl;
-////            }
-//            std::cout << std::setprecision(0);
-//            std::cout <<"Found " << x << " at idx = " << low-list << " out of " << size-1
-//                      <<"   Last elems: [... " <<  list[size-2] << " " << list[size-1]  << "]"
-//                      <<"   from " << y << std::endl;
-//        }
         return  low-list;
 
     }
-//
-    
-//
-//    //Finds the element nearest x FROM ABOVE in a C-style array
-//    template <typename List_type, typename T, typename size_type>
-//    int upper_bound(const List_type &list , const T& x, const size_type &size){
-//        //Now find the point in list closest to x, from below.
-//        if (size <= 1){return 0;}
-//        auto low  = std::upper_bound (list, list + size, x);
-//        return  low-list-1;
-//    }
-//
-//    template <typename List_type, typename T, typename size_type>
-//    int lower_bound(const List_type &list , const T& x, const size_type &size){
-//        //Now find the point in list closest to x, from below.
-//        if (size <= 1){return 0;}
-//        auto low  = std::lower_bound(list, list + size, x);
-//        return  low-list-1;
-//    }
-
 
 
 }

@@ -9,11 +9,17 @@
 namespace constants{
 
     //WL boostrap properties
-    static const int reps = 3;      //Number of independent do_simulations
+    static const int simulation_reps = 3;      //Number of independent do_simulations
+    static const int bootstrap_reps  = 10;
+
+    //WL thermodynamics properties
+    static const int    T_num = 500;             //Number of temperatures for thermodynamic quantities
+    static const double T_min = 0;               //Minimum temperature for thermodynamic quantities
+    static const double T_max = 6;               //Maximum temperature for thermodynamic quantities
 
     //Lattice Properties
     static const int d = 2;         //Dimension
-    static const int L = 8;        //Linear size
+    static const int L = 6;        //Linear size
     static const int N = (int)pow(L,d);  //Number of spins/particles
 
     //DOS and Histogram properties
@@ -31,7 +37,7 @@ namespace constants{
     static const int    rate_print_status      = 10000;
 
     //Wang-Landau convergence criteria
-    static const double minimum_lnf            = 1e-5;
+    static const double minimum_lnf            = 1e-4;
     static const double check_saturation_from  = 0.9;
 //    static const double reduce_factor_lnf      = 1-exp(-1.0); // 656 s (check from 0.75)
 //    static const double reduce_factor_lnf      = 1-exp(-1.0); //  641 s (check from 0.75)

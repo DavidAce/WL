@@ -10,6 +10,8 @@
 
 #include <iostream>
 #include "class_WL_worker.h"
+#include "class_WL_thermo.h"
+#include "class_WL_statistics.h"
 using namespace std;
 using namespace Eigen;
 
@@ -24,25 +26,38 @@ namespace patch{
 class outdata {
 private:
     string      folder;
-    string      name_dos;
-    string      name_E_bins;
-    string      name_M_bins;
 
-    ofstream    file_dos;
-    ofstream    file_E_bins;
-    ofstream    file_M_bins;
     int   world_ID;
     int   iteration;
-
+    int   precision = 10;
 public:
-    outdata(int &, int &);
-    void create_directories();
+    outdata(const int &id, const int &iter);
+    outdata(const int &id);
+    void create_folder(const int &iter);
+    void set_folder(const int &iter);
+    void create_and_set_folder(const int &iter);
+
     //File streams
 
     void write_data_worker(class_worker &);
     void write_data_master(class_worker &);
+    void write_data_thermo(class_thermodynamics &, const int &iter);
+    void write_final_data(class_stats &stats);
+//    void write_data_worker_binary(class_worker &);
+//    void write_data_master_binary(class_worker &);
     template<typename Derived>
-    void print_to_file(const Eigen::MatrixBase<Derived>& data, ofstream &file){
+    void write_to_file(const MatrixBase<Derived> &data, string &filename){
+        ofstream file(filename,ios::out | ios::trunc);
+        file << fixed << showpoint << setprecision(precision);
+        string      _coeffSeparator = "	";
+        IOFormat fmt(StreamPrecision, DontAlignCols, _coeffSeparator);;
+        file << data.format(fmt) << endl;
+        file.close();
+    }
+    template<typename Derived>
+    void write_to_file(const ArrayBase<Derived> &data, string &filename){
+        ofstream file(filename,ios::out | ios::trunc);
+        file << fixed << showpoint << setprecision(precision);
         string      _coeffSeparator = "	";
         IOFormat fmt(StreamPrecision, DontAlignCols, _coeffSeparator);;
         file << data.format(fmt) << endl;

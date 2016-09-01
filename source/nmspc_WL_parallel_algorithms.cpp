@@ -203,29 +203,26 @@ namespace mpi {
             MPI_Barrier(MPI_COMM_WORLD);
         }
 
-        MPI_Barrier(MPI_COMM_WORLD);
 
-        if (worker.world_ID == 0 && debug_merge) {
-            cout << "Sending back to workers " << endl;
-            cout.flush();
-            std::this_thread::sleep_for(std::chrono::microseconds(10));
-        }
+
         if(worker.world_ID == 0){
-//            E_size              = (int)E_total.size();
-//            M_size              = (int)M_total.size();
-//            dos_total.conservativeResize(E_size,M_size);
-//            E_total.conservativeResize(E_size);
-//            M_total.conservativeResize(M_size);
             math::subtract_min_nonzero_nan(dos_total);
             math::remove_nan_rows(dos_total, E_total);
             worker.dos_total    = dos_total;
             worker.E_bins_total = E_total;
             worker.M_bins_total = M_total;
-            E_size              = (int)E_total.size();
-            M_size              = (int)M_total.size();
         }
+    }
 
+    void broadcast(class_worker &worker){
+        if (worker.world_ID == 0 && debug_bcast) {
+            cout << "Sending back to workers " << endl;
+            cout.flush();
+            std::this_thread::sleep_for(std::chrono::microseconds(10));
+        }
         MPI_Barrier(MPI_COMM_WORLD);
+        int E_size              = (int) worker.E_bins_total.size();
+        int M_size              = (int) worker.M_bins_total.size();
         MPI_Bcast(&E_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
         MPI_Bcast(&M_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
         worker.dos_total.conservativeResize(E_size,M_size);
@@ -237,7 +234,7 @@ namespace mpi {
         counter::merges++;
         MPI_Barrier(MPI_COMM_WORLD);
 
-        if (worker.world_ID == 0 && debug_merge) {
+        if (worker.world_ID == 0 && debug_bcast) {
             cout << "Merge OK " << endl;
             cout << "E_bins_total = " << worker.E_bins_total.transpose() << endl;
             cout << "Diff         = " << (worker.E_bins_total.tail(E_size - 1) - worker.E_bins_total.head(E_size-1)).transpose() << endl;

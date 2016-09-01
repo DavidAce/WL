@@ -1,6 +1,7 @@
 #include <iostream>
 #include <mpi.h>
 #include "source/simulation.h"
+#include "source/bootstrap.h"
 using namespace std;
 
 int main() {
@@ -9,10 +10,7 @@ int main() {
     MPI_Init(NULL, NULL);
     class_worker worker;
     do_simulations(worker);
-
-    MPI_Barrier(MPI_COMM_WORLD);
-
-    // Finalize the MPI environment.
+    do_bootstrap  (worker);
     MPI_Finalize();
     return 0;
 }

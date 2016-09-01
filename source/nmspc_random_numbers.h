@@ -17,9 +17,7 @@ namespace rn{
     extern std::uniform_int_distribution<>  rand_int_1;
     extern std::uniform_real_distribution<> rand_real_1;
 
-    inline double uniform_double_1(){
-        return rand_real_1(rng);
-    }
+
 
     inline int uniform_integer_L(){
         return rand_int_L(rng);
@@ -28,6 +26,16 @@ namespace rn{
     inline int uniform_integer_1(){
         return rand_int_1(rng);
     }
+
+    inline int uniform_integer(const int &min, const int &max){
+        std::uniform_int_distribution<>  rand_int(min,max);
+        return rand_int(rng);
+    }
+
+    inline double uniform_double_1(){
+        return rand_real_1(rng);
+    }
+
 
     extern double gaussian_truncated(const double &lowerLimit, const double &upperLimit, const double &mean, const double &std) ;
 
