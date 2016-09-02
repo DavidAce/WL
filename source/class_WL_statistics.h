@@ -6,6 +6,9 @@
 #define WL_CLASS_WL_STATISTICS_H
 #include <Eigen/Dense>
 #include <Eigen/Core>
+#include <thread>
+#include "class_WL_worker.h"
+static const int debug_compute           =	0;
 
 using namespace Eigen;
 class class_stats {
@@ -14,8 +17,8 @@ private:
     int world_size;
 public:
     class_stats(const int &id, const int &size);
-    void load_thermo_data();
-    void compute();
+    void load_thermo_data(class_worker &worker);
+    void compute(class_worker &worker);
     MatrixXd T;
     MatrixXd s;
     MatrixXd c;
@@ -23,6 +26,9 @@ public:
     MatrixXd f;
     MatrixXd x;
     MatrixXd dos1D;
+
+    MatrixXd E;
+    MatrixXd M;
 
     ArrayXd s_avg;
     ArrayXd c_avg;

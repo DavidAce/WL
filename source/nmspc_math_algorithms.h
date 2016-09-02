@@ -34,6 +34,9 @@ namespace math{
     template <typename Derived>
     double typical_spacing(const MatrixBase<Derived> &matrix){
         //Compute the median of the differences to get a typical spacing
+        if (matrix.size() < 2){
+            return 1;
+        }
         ArrayXd arr  = matrix.array();
         VectorXd diff = arr.tail(arr.size() - 1) - arr.head(arr.size()-1);
         std::sort(diff.data(), diff.data()+diff.size());
@@ -53,9 +56,10 @@ namespace math{
 
     template <typename Derived>
     double find_min_positive(const MatrixBase<Derived> &matrix){
-        auto min = matrix.maxCoeff();
+        auto min = 1000000000;
         for (int j = 0; j < matrix.cols(); j++) {
             for (int i = 0; i < matrix.rows(); i++) {
+                if (isnan(matrix(i,j))){continue;}
                 if (matrix(i, j) < min) {
                     if (matrix(i, j) > 0) {
                         min = matrix(i, j);
@@ -81,6 +85,7 @@ namespace math{
     void subtract_min_nonzero_nan(MatrixBase<Derived> &matrix){
         matrix = (matrix.array() <= 0).select(std::numeric_limits<double>::quiet_NaN(), matrix);
         auto min_positive = find_min_positive(matrix);
+        std::cout << std::endl << "min Positive " << min_positive << std::endl<<std::endl;
         for (int j = 0; j < matrix.cols();j++){
             for(int i = 0; i < matrix.rows(); i++){
                 if (isnan(matrix(i,j))){continue;}
@@ -106,6 +111,7 @@ namespace math{
         VectorXd  vec_temp;
         mat_temp = mat;
         vec_temp = vec;
+
         int k = 0;
         for (int j = 0; j < mat.rows(); j++){
             if ((mat.row(j).array() == mat.row(j).array()).any()){

@@ -47,28 +47,32 @@ void indata::load_full(class_worker &worker) {
     worker.dos_total   = read_file(name_dos);
     worker.E_bins_total = read_file(name_E_bins);
     worker.M_bins_total = read_file(name_M_bins);
+    cout <<" Size " << worker.E_bins_total.size() << endl;
 }
 
-void indata::load_full(class_stats &stats) {
+void indata::load_full(class_stats &stats, class_worker &worker) {
     int reps = constants::bootstrap_reps + constants::simulation_reps;
-    stats.T.resize(constants::T_num, reps);
+    stats.T.resize(constants::T_num, 1);
     stats.s.resize(constants::T_num, reps);
     stats.f.resize(constants::T_num, reps);
     stats.c.resize(constants::T_num, reps);
     stats.u.resize(constants::T_num, reps);
     stats.x.resize(constants::T_num, reps);
-    stats.dos1D.resize(constants::T_num, reps);
+    stats.dos1D.resize(worker.E_bins_total.size(), reps);
+
+    cout << worker.E_bins_total.size() << endl;
     if (world_ID == 0) {
         string name_T, name_s, name_f, name_c, name_u, name_x, name_dos1D;
+        name_T = folder + to_string(0) + string("/T.dat");
+        stats.T = read_file(name_T);
+
         for (int i = 0; i < reps; i++) {
-            name_T = folder + to_string(i) + string("/T.dat");
             name_s = folder + to_string(i) + string("/s.dat");
             name_f = folder + to_string(i) + string("/f.dat");
             name_c = folder + to_string(i) + string("/c.dat");
             name_u = folder + to_string(i) + string("/u.dat");
             name_x = folder + to_string(i) + string("/x.dat");
             name_dos1D = folder + to_string(i) + string("/dos1D.dat");
-            stats.T.col(i) = read_file(name_T);
             stats.s.col(i) = read_file(name_s);
             stats.f.col(i) = read_file(name_f);
             stats.c.col(i) = read_file(name_c);
@@ -77,6 +81,9 @@ void indata::load_full(class_stats &stats) {
             stats.dos1D.col(i) = read_file(name_dos1D);
         }
     }
+    stats.E = worker.E_bins_total;
+    stats.M = worker.M_bins_total;
+
     MPI_Bcast(stats.T.data(),(int)stats.T.size(),MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Bcast(stats.s.data(),(int)stats.s.size(),MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Bcast(stats.f.data(),(int)stats.f.size(),MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -97,14 +104,18 @@ MatrixXd indata::read_file(string filename) {
     ifstream infile;
     infile.open(filename);
     if (!infile.is_open()){cout << "Could not open file with name: " << filename << endl;}
+    string line;
     while (! infile.eof()){
-        string line;
         getline(infile, line);
-
         int temp_cols = 0;
+        double num;
         stringstream stream(line);
+        string number;
+        char* end;
+
         while(! stream.eof()) {
-            stream >> buff[cols * rows + temp_cols++];
+            stream >> number;
+            buff[cols * rows + temp_cols++] = strtod(number.c_str(),&end);
         }
         if (temp_cols == 0) {
             continue;
@@ -115,6 +126,7 @@ MatrixXd indata::read_file(string filename) {
         rows++;
     }
     infile.close();
+
     rows--;
     // Populate matrix with numbers.
     MatrixXd result(rows,cols);
@@ -123,6 +135,7 @@ MatrixXd indata::read_file(string filename) {
             result(i, j) = buff[cols * i + j];
         }
     }
+
     return result;
 };
 

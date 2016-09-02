@@ -9,7 +9,7 @@
 namespace constants{
 
     //WL boostrap properties
-    static const int simulation_reps = 3;      //Number of independent do_simulations
+    static const int simulation_reps = 4;      //Number of independent do_simulations
     static const int bootstrap_reps  = 10;
 
     //WL thermodynamics properties
@@ -19,11 +19,11 @@ namespace constants{
 
     //Lattice Properties
     static const int d = 2;         //Dimension
-    static const int L = 6;        //Linear size
+    static const int L = 4;        //Linear size
     static const int N = (int)pow(L,d);  //Number of spins/particles
 
     //DOS and Histogram properties
-    static const int rw_dims    = 1;      //Dimension of random walks (1D or 2D WL)
+    static const int rw_dims    = 2;      //Dimension of random walks (1D or 2D WL)
     static const int bins       = 3;      //No lower than 3!
 
     //Rates for checking and printing (MCS units)
@@ -37,7 +37,7 @@ namespace constants{
     static const int    rate_print_status      = 10000;
 
     //Wang-Landau convergence criteria
-    static const double minimum_lnf            = 1e-4;
+    static const double minimum_lnf            = 1e-6;
     static const double check_saturation_from  = 0.9;
 //    static const double reduce_factor_lnf      = 1-exp(-1.0); // 656 s (check from 0.75)
 //    static const double reduce_factor_lnf      = 1-exp(-1.0); //  641 s (check from 0.75)

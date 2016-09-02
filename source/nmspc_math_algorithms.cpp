@@ -24,7 +24,7 @@ namespace math {
             case 1:
                 for (int j = 0; j < M.size(); j++) {
                     for (int i = 0; i < E.size() - 1; i++) {
-                        if (dos(i, j) == 0) { continue; }
+                        if (dos(i, j) == 0 || dos(i,j) == std::numeric_limits<double>::quiet_NaN()) { continue; }
                         vol += (E(i + 1) - E(i)) * dos(i, j);
                     }
                 }

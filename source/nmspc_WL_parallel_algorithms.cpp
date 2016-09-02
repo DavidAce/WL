@@ -181,7 +181,7 @@ namespace mpi {
                 rows_up    = E_sizes[w] - E_merge_idx_up - 1;
 
                 E_temp.resize(E_total.segment(from_total,rows_total).size() + E_recv.segment(from_up, rows_up).size());
-                dos_temp.resize(dos_total.middleRows(from_total, rows_total).size() + dos_recv.middleRows(from_up,rows_up).size()  , M_size);
+                dos_temp.resize(dos_total.middleRows(from_total, rows_total).rows() + dos_recv.middleRows(from_up,rows_up).rows()  , M_size);
 
                 dos_temp << dos_total.middleRows(from_total, rows_total),
                         dos_recv.middleRows(from_up,rows_up);
@@ -189,7 +189,6 @@ namespace mpi {
                         E_recv.segment(from_up, rows_up);
                 dos_total = dos_temp;
                 E_total   = E_temp  ;
-
                 if (debug_merge) {
                     cout << "OK ";
                     cout.flush();
@@ -211,6 +210,7 @@ namespace mpi {
             worker.dos_total    = dos_total;
             worker.E_bins_total = E_total;
             worker.M_bins_total = M_total;
+
         }
     }
 
@@ -232,6 +232,8 @@ namespace mpi {
         MPI_Bcast(worker.E_bins_total.data(), E_size       , MPI_DOUBLE, 0, MPI_COMM_WORLD);
         MPI_Bcast(worker.M_bins_total.data(), M_size       , MPI_DOUBLE, 0, MPI_COMM_WORLD);
         counter::merges++;
+//        cout << endl <<  " dos before: " << endl << worker.dos_total << endl << endl;
+
         MPI_Barrier(MPI_COMM_WORLD);
 
         if (worker.world_ID == 0 && debug_bcast) {
