@@ -4,7 +4,6 @@
 
 #include "class_WL_thermo.h"
 
-
 class_thermodynamics::class_thermodynamics(){
     u.resize(T_num);
     m.resize(T_num);
@@ -24,22 +23,21 @@ void class_thermodynamics::compute(class_worker &worker) {
         dos_total1D.resize(worker.E_bins_total.size());
         for (int i = 0; i < worker.E_bins_total.size(); i++){
             lambda = 0;
-            for (int j = 0; j < worker.M_bins_total.size();j++){
-                if(isnan(worker.dos_total(i,j))){continue;}
-                lambda = fmax(worker.dos_total(i,j), lambda);
-            }
+//            for (int j = 0; j < worker.M_bins_total.size();j++){
+//                if(isnan(worker.dos_total(i,j))){continue;}
+//                lambda = fmax(worker.dos_total(i,j), lambda);
+//            }
+            lambda = math::nanmaxCoeff(worker.dos_total);
             dos_total1D(i) = lambda;
             for (int j = 0; j < worker.M_bins_total.size(); j++){
                 if(isnan(worker.dos_total(i,j))){continue;}
                 dos_total1D(i) += exp(worker.dos_total(i,j) - lambda);
             }
             dos_total1D(i) = log(dos_total1D(i));
-//           dos_total1D(i) = lambda + log(math::nansum((worker.dos_total.row(i).array() - lambda).exp()));
         }
     }else{
        dos_total1D = worker.dos_total;
     }
-    cout << dos_total1D << endl;
     T = VectorXd::LinSpaced(T_num, T_min, T_max).array();
 
     for (int t = 0; t < T_num; t++) {
@@ -90,6 +88,6 @@ void class_thermodynamics::compute(class_worker &worker) {
     }
 
     s = s - s.minCoeff();
-    f = u - T * s;
+    f = u - T.cwiseProduct(s);
 
 }

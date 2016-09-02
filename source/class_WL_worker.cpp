@@ -130,16 +130,16 @@ void class_worker::start_counters() {
 void class_worker::set_initial_local_bins(){
     switch(constants::rw_dims){
         case 1:
-            E_bins  = VectorXd::LinSpaced(constants::bins, E_min_local, E_max_local);
-            M_bins  = VectorXd::Zero(1);
-            histogram.conservativeResizeLike(MatrixXi::Zero(constants::bins,1));
-            dos.conservativeResizeLike(MatrixXd::Zero(constants::bins,1));
+            E_bins  = ArrayXd::LinSpaced(constants::bins, E_min_local, E_max_local);
+            M_bins  = ArrayXd::Zero(1);
+            histogram.conservativeResizeLike(ArrayXXi::Zero(constants::bins,1));
+            dos.conservativeResizeLike(ArrayXXd::Zero(constants::bins,1));
             break;
         case 2:
-            E_bins  = VectorXd::LinSpaced(constants::bins, E_min_local, E_max_local);
-            M_bins  = VectorXd::LinSpaced(constants::bins, M_min_local, M_max_local);
-            histogram.conservativeResizeLike(MatrixXi::Zero(constants::bins,constants::bins));
-            dos.conservativeResizeLike(MatrixXd::Zero(constants::bins,constants::bins));
+            E_bins  = ArrayXd::LinSpaced(constants::bins, E_min_local, E_max_local);
+            M_bins  = ArrayXd::LinSpaced(constants::bins, M_min_local, M_max_local);
+            histogram.conservativeResizeLike(ArrayXXi::Zero(constants::bins,constants::bins));
+            dos.conservativeResizeLike(ArrayXXd::Zero(constants::bins,constants::bins));
             break;
         default:
             cout << "Error in class_worker::set_initial_local_bins. Wrong dimension for WL-random walk (rw_dims = ?)" << endl;
@@ -212,47 +212,6 @@ void class_worker::divide_global_range(){
     }
 }
 
-//void class_worker::resize_local_range(){
-//    //Scenarios
-//    //  1) E_bins.maxCoeff() < E_max_local, E_max_local = *E_set.end()
-//    //  2) E_bins.minCoeff() > E_min_local, E_min_local = *E_set.begin()
-//    need_to_resize_local = 0;
-//    if (model.discrete_model) {
-//        for (int w = 0; w < world_size; w++) {
-//            if (w == world_ID) {
-//                if (E_bins.maxCoeff() != E_max_local && E_bins.size() <= E_set.size()) {
-//                    if (debug_resize_local_range) {
-//                        cout << "E_max_local = " << E_max_local << " adjusted to " << fmax(E_bins.maxCoeff(),*E_set.rbegin())
-//                             << endl;
-//                        cout << "E_bins: " << E_bins.transpose() << endl;
-//                        cout << "E_set:  ";
-//                        for (auto it = E_set.begin(); it != E_set.end(); it++) {
-//                            if (*it == E) { cout << "["; }
-//                            cout << *it;
-//                            if (*it == E) { cout << "]"; }
-//                            cout << " ";
-//                        }
-//                        cout << endl;
-//                    }
-//                    E_max_local =  fmax(E_bins.maxCoeff(),*E_set.rbegin());
-//                    need_to_resize_local = 1;
-//                }
-//                if (E_bins.minCoeff() != E_min_local && E_bins.size() <= E_set.size()) {
-//                    if (debug_resize_local_range) {
-//
-//                        cout << "E_min_local = " << E_min_local << " adjusted to " <<  fmin(E_bins.minCoeff(),*E_set.begin())
-//                             << endl;
-//
-//                    }
-//                    E_min_local = fmin(E_bins.minCoeff(),*E_set.begin());
-//                    need_to_resize_local = 1;
-//                }
-//            }
-//            MPI_Barrier(MPI_COMM_WORLD);
-//        }
-//    }
-//
-//}
 
 void class_worker::resize_local_bins() {
     // This function does rebinning of dos and histograms.
@@ -268,19 +227,19 @@ void class_worker::resize_local_bins() {
     int M_old_size = (int) M_bins.size();
     int E_new_size;
     int M_new_size;
-    MatrixXd dos_temp;
-    MatrixXi histogram_temp;
+    ArrayXXd dos_temp;
+    ArrayXXi histogram_temp;
     compute_number_of_bins(E_new_size, M_new_size);
 
-    histogram_temp  = MatrixXi::Zero(E_new_size, M_new_size);
-    dos_temp        = MatrixXd::Zero(E_new_size, M_new_size);
+    histogram_temp  = ArrayXXi::Zero(E_new_size, M_new_size);
+    dos_temp        = ArrayXXd::Zero(E_new_size, M_new_size);
     dE              = (E_max_local - E_min_local) / (max(E_new_size,E_old_size) * 2.0);
     dM              = (M_max_local - M_min_local) / (max(M_new_size,M_old_size) * 2.0);
     dR              = sqrt(dE * dE + dM * dM);
-    VectorXd X_bins = E_bins;
-    VectorXd Y_bins = M_bins;
-    E_bins          = VectorXd::LinSpaced(E_new_size, E_min_local, E_max_local);
-    M_bins          = VectorXd::LinSpaced(M_new_size, M_min_local, M_max_local);
+    ArrayXd X_bins = E_bins;
+    ArrayXd Y_bins = M_bins;
+    E_bins          = ArrayXd::LinSpaced(E_new_size, E_min_local, E_max_local);
+    M_bins          = ArrayXd::LinSpaced(M_new_size, M_min_local, M_max_local);
     //Coarsen the histogram and dos.
     for (j = 0; j < M_new_size; j++) {
         for (i = 0; i < E_new_size; i++) {
@@ -340,7 +299,7 @@ void class_worker::compute_number_of_bins(int & E_new_size, int & M_new_size) {
 
 
         int i = 0;
-        VectorXd E_set_2_vector(E_set.size());
+        ArrayXd E_set_2_vector(E_set.size());
         for (auto it = E_set.begin(); it != E_set.end(); it++) {
             E_set_2_vector(i) = *it;
             i++;

@@ -8,7 +8,7 @@
 #include <Eigen/Core>
 #include <thread>
 #include "class_WL_worker.h"
-static const int debug_compute           =	0;
+static const int debug_compute           =	1;
 
 using namespace Eigen;
 class class_stats {
@@ -19,16 +19,16 @@ public:
     class_stats(const int &id, const int &size);
     void load_thermo_data(class_worker &worker);
     void compute(class_worker &worker);
-    MatrixXd T;
-    MatrixXd s;
-    MatrixXd c;
-    MatrixXd u;
-    MatrixXd f;
-    MatrixXd x;
-    MatrixXd dos1D;
+    ArrayXXd T;
+    ArrayXXd s;
+    ArrayXXd c;
+    ArrayXXd u;
+    ArrayXXd f;
+    ArrayXXd x;
+    ArrayXXd dos1D;
 
-    MatrixXd E;
-    MatrixXd M;
+    ArrayXXd E;
+    ArrayXXd M;
 
     ArrayXd s_avg;
     ArrayXd c_avg;

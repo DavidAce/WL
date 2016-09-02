@@ -5,8 +5,8 @@
 #include "nmspc_math_algorithms.h"
 #include "nmspc_WL_constants.h"
 
-namespace math {
 
+namespace math {
     int mod2(const int &a, const int &b) {
         if (b < 0) {
             return mod(-a, -b);
@@ -18,7 +18,7 @@ namespace math {
         return ret;
     }
 
-    double volume(const MatrixXd &dos, const MatrixXd &E, const MatrixXd &M) {
+    double volume(const ArrayXXd &dos, const ArrayXd &E, const ArrayXd &M) {
         double vol = 0;
         switch (constants::rw_dims){
             case 1:
@@ -46,7 +46,7 @@ namespace math {
     }
 
 
-    int volume_idx(const MatrixXd &dos, const MatrixXd &E, const MatrixXd &M, const double &vol_limit) {
+    int volume_idx(const ArrayXXd &dos, const ArrayXd &E, const ArrayXd &M, const double &vol_limit) {
         double vol = 0;
         switch(constants::rw_dims){
             case 1:
@@ -79,7 +79,7 @@ namespace math {
         return (int)E.size() - 1;
     }
 
-    Vector3d gradient_vector(const MatrixXd &dos, const VectorXd &E, const VectorXd &M, const int &i, const int &j){
+    Vector3d gradient_vector(const ArrayXXd &dos, const ArrayXd &E, const ArrayXd &M, const int &i, const int &j){
         Vector3d v_up, v_rt, v_dn, v_lf; //Vectors connecting adjacent 3 orthogonal points on DOS
         switch(constants::rw_dims){
             case 1:
@@ -96,12 +96,12 @@ namespace math {
         }
     }
 
-    int  find_matching_slope(const MatrixXd &dos1, const MatrixXd &dos2,
-                             const VectorXd &E1  , const VectorXd &E2,
-                             const VectorXd &M1  , const VectorXd &M2){
+    int  find_matching_slope(const ArrayXXd &dos1, const ArrayXXd &dos2,
+                             const ArrayXd &E1  , const ArrayXd &E2,
+                             const ArrayXd &M1  , const ArrayXd &M2){
         Vector3d u1, u2;                //Vectors connecting adjacent 3 orthogonal points on DOS
         //Vector3d v_up, v_rt, v_dn, v_lf; //Vectors connecting adjacent 3 orthogonal points on DOS
-        VectorXd sum(E1.size());
+        ArrayXd sum(E1.size());
         sum.fill(0);
         int col = 1, num;
         int E_merge_idx;    //Index of merging point

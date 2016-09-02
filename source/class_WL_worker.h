@@ -32,9 +32,9 @@ public:
     //Main data structures of the WL algorithm. Needed very often.
     double   lnf;                         //Modification factor of WL-algorithm
     //WL DOS and Histograms
-    MatrixXd dos;
-    MatrixXi histogram;
-    VectorXd E_bins, M_bins;
+    ArrayXXd dos;
+    ArrayXXi histogram;
+    ArrayXd E_bins, M_bins;
     //Model with lattice etc
     class_model lattice;
 
@@ -67,11 +67,11 @@ public:
     int     flag_one_over_t;             //turns to 1 when 1/t algorithm starts
     int     finish_line;                 //turns to 1 when converged
 
-    VectorXi saturation;                //Measures the histogram saturation
+    ArrayXi saturation;                //Measures the histogram saturation
 
     //Holders for total, merged data
-    MatrixXd dos_total;
-    VectorXd E_bins_total, M_bins_total;
+    ArrayXXd dos_total;
+    ArrayXd E_bins_total, M_bins_total;
 
 	//Used for profiling functions in worker
     class_profiling t_sweep 				,
