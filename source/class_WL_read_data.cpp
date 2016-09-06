@@ -47,7 +47,6 @@ void indata::load_full(class_worker &worker) {
     worker.dos_total   = read_file(name_dos);
     worker.E_bins_total = read_file(name_E_bins);
     worker.M_bins_total = read_file(name_M_bins);
-    cout <<" Size " << worker.E_bins_total.size() << endl;
 }
 
 void indata::load_full(class_stats &stats, class_worker &worker) {
@@ -59,10 +58,11 @@ void indata::load_full(class_stats &stats, class_worker &worker) {
     stats.u.resize(constants::T_num, reps);
     stats.x.resize(constants::T_num, reps);
     stats.dos1D.resize(worker.E_bins_total.size(), reps);
+    stats.c_peak.resize(2, reps);
 
     cout << worker.E_bins_total.size() << endl;
     if (world_ID == 0) {
-        string name_T, name_s, name_f, name_c, name_u, name_x, name_dos1D;
+        string name_T, name_s, name_f, name_c, name_u, name_x, name_dos1D, name_c_peak;
         name_T = folder + to_string(0) + string("/T.dat");
         stats.T = read_file(name_T);
 
@@ -72,13 +72,15 @@ void indata::load_full(class_stats &stats, class_worker &worker) {
             name_c = folder + to_string(i) + string("/c.dat");
             name_u = folder + to_string(i) + string("/u.dat");
             name_x = folder + to_string(i) + string("/x.dat");
-            name_dos1D = folder + to_string(i) + string("/dos1D.dat");
+            name_dos1D  = folder + to_string(i) + string("/dos1D.dat");
+            name_c_peak = folder + to_string(i) + string("/c_peak.dat");
             stats.s.col(i) = read_file(name_s);
             stats.f.col(i) = read_file(name_f);
             stats.c.col(i) = read_file(name_c);
             stats.u.col(i) = read_file(name_u);
             stats.x.col(i) = read_file(name_x);
             stats.dos1D.col(i) = read_file(name_dos1D);
+            stats.c_peak.col(i) = read_file(name_c_peak);
         }
     }
     stats.E = worker.E_bins_total;
@@ -91,6 +93,7 @@ void indata::load_full(class_stats &stats, class_worker &worker) {
     MPI_Bcast(stats.u.data(),(int)stats.u.size(),MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Bcast(stats.x.data(),(int)stats.x.size(),MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Bcast(stats.dos1D.data(),(int)stats.dos1D.size(),MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(stats.c_peak.data(),(int)stats.c_peak.size(),MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
 }
 

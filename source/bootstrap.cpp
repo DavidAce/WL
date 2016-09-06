@@ -34,12 +34,10 @@ void do_thermodynamics(class_worker &worker){
     while (worker.iteration < (constants::bootstrap_reps + constants::simulation_reps)){
         in.load_full(worker);
         thermo.compute(worker);
+        thermo.get_peak(worker);
         out.write_data_thermo(thermo, worker.iteration);
         worker.iteration += worker.world_size ;
     }
-
-    MPI_Barrier(MPI_COMM_WORLD);
-
 
 }
 

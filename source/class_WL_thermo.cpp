@@ -11,6 +11,7 @@ class_thermodynamics::class_thermodynamics(){
     f.resize(T_num);
     c.resize(T_num);
     x.resize(T_num);
+    peak.resize(2);
 
 }
 
@@ -79,15 +80,69 @@ void class_thermodynamics::compute(class_worker &worker) {
         mAvg    = mag / Z;
         mSqAvg  = mSq / Z;
 
-        u(t)    = (eAvg) / N;
-        m(t)    = (mAvg) / N;
-        s(t)    = (log(Z) + lambda + beta * eAvg) / N;
-        c(t)    = (beta * beta * (eSqAvg - eAvg*eAvg)) / N;
-        x(t)    = (mSqAvg - mAvg*mAvg)/N;
+        u(t)    = (eAvg) / constants::N;
+        m(t)    = (mAvg) /  constants::N;
+        s(t)    = (log(Z) + lambda + beta * eAvg) /  constants::N;
+        c(t)    = (beta * beta * (eSqAvg - eAvg*eAvg)) /  constants::N;
+        x(t)    = (mSqAvg - mAvg*mAvg)/constants::N;
 
     }
 
     s = s - s.minCoeff();
     f = u - T.cwiseProduct(s);
+}
+
+double temperature_to_specific_heat(objective_function &obj_fun, ArrayXd &input){
+    int i, j;
+    double beta, E, weight, ene, eSq, eAvg, eSqAvg, Z, lambda;
+
+    ene = 0;
+    eSq = 0;
+
+    Z   = 0;
+    beta = 1 / input(0);
+    lambda = 0;
+    //Find lambda
+    for (i = 0; i < obj_fun.aux[1].size(); i++) {
+        for (j = 0; j < obj_fun.aux[2].size(); j++) {
+            if(isnan(obj_fun.aux[0](i,j))){continue;}
+            lambda = fmax(lambda ,obj_fun.aux[0](i, j) - obj_fun.aux[1](i) * beta);
+        }
+    }
+
+    for (j = 0; j < obj_fun.aux[2].size(); j++) {
+        for (i = 0; i < obj_fun.aux[1].size(); i++) {
+            if(isnan(obj_fun.aux[0](i,j))){continue;}
+            E = obj_fun.aux[1](i);//- obj_fun.aux[1][0];
+            weight  = exp(obj_fun.aux[0](i, j) - beta*E - lambda);  //// g(E)*exp(-E/T) = the weight of this energy
+            ene     += weight*E;
+            eSq     += weight*E*E;
+            Z       += weight;
+        }
+    }
+
+    eAvg    = ene / Z;
+    eSqAvg  = eSq / Z;
+    return -(beta * beta * (eSqAvg - eAvg*eAvg)) / constants::N;
+
+}
+
+
+void class_thermodynamics::get_peak(class_worker &worker){
+    ArrayXd lower_bound(1);
+    ArrayXd upper_bound(1);
+    lower_bound << constants::T_min;
+    upper_bound << constants::T_max;
+    double tolerance = 1e-12;
+    objective_function obj_fun(lower_bound, upper_bound, tolerance, worker.dos_total, worker.E_bins_total,
+                               worker.M_bins_total);
+    obj_fun.providedFunction = temperature_to_specific_heat;
+    cout << "starting minimization" << endl;
+    minimize(obj_fun);
+
+    double c_peak;
+    c_peak = obj_fun.providedFunction(obj_fun, obj_fun.optimum);
+    peak << obj_fun.optimum(0), -c_peak;
+
 
 }

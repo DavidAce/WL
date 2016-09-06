@@ -29,13 +29,15 @@ void class_stats::compute(class_worker &worker){
         f_avg = f.rowwise().mean();
         x_avg = x.rowwise().mean();
         dos1D_avg = dos1D.rowwise().mean();
+        c_peak_avg= c_peak.rowwise().mean();
 
         s_err = ((s.colwise() - s_avg).cwiseAbs2().rowwise().sum()/(B-1)).cwiseSqrt();
         c_err = ((c.colwise() - c_avg).cwiseAbs2().rowwise().sum()/(B-1)).cwiseSqrt();
         u_err = ((u.colwise() - u_avg).cwiseAbs2().rowwise().sum()/(B-1)).cwiseSqrt();
         f_err = ((f.colwise() - f_avg).cwiseAbs2().rowwise().sum()/(B-1)).cwiseSqrt();
         x_err = ((x.colwise() - x_avg).cwiseAbs2().rowwise().sum()/(B-1)).cwiseSqrt();
-        dos1D_err = ((dos1D.colwise() - dos1D_avg).cwiseAbs2().rowwise().sum()/(B-1)).cwiseSqrt();
+        dos1D_err  = ((dos1D.colwise() -       dos1D_avg).cwiseAbs2().rowwise().sum()/(B-1)).cwiseSqrt();
+        c_peak_err = ((c_peak.colwise() - c_peak_avg).cwiseAbs2().rowwise().sum()/(B-1)).cwiseSqrt();
     }
 }
 

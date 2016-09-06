@@ -26,6 +26,7 @@ public:
     ArrayXXd f;
     ArrayXXd x;
     ArrayXXd dos1D;
+    ArrayXXd c_peak;
 
     ArrayXXd E;
     ArrayXXd M;
@@ -43,6 +44,10 @@ public:
     ArrayXd f_err;
     ArrayXd x_err;
     ArrayXd dos1D_err;
+
+    ArrayXd c_peak_avg; //peak in c(T) vs T
+    ArrayXd c_peak_err;
+
 
 };
 

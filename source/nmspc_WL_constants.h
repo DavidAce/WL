@@ -9,8 +9,8 @@
 namespace constants{
 
     //WL boostrap properties
-    static const int simulation_reps = 2;      //Number of independent do_simulations
-    static const int bootstrap_reps  = 2;
+    static const int simulation_reps = 4;      //Number of independent do_simulations
+    static const int bootstrap_reps  = 4;
 
     //WL thermodynamics properties
     static const int    T_num = 500;             //Number of temperatures for thermodynamic quantities
@@ -19,7 +19,7 @@ namespace constants{
 
     //Lattice Properties
     static const int d = 2;         //Dimension
-    static const int L = 4;        //Linear size
+    static const int L = 6;        //Linear size
     static const int N = (int)pow(L,d);  //Number of spins/particles
 
     //DOS and Histogram properties
@@ -30,7 +30,7 @@ namespace constants{
     static const int    rate_add_hist_volume   = 500;
     static const int    rate_check_finish_line = 5000;
     static const int    rate_check_saturation  = 5000;
-    static const int    rate_check_limits      = 500;
+    static const int    rate_check_limits      = 1000;
     static const int    rate_split_windows     = 50000;
     static const int    rate_swap              = 500;
     static const int    rate_backup_data       = 500000;

@@ -46,6 +46,7 @@ void outdata::write_data_thermo(class_thermodynamics &thermo, const int &iter){
     string name_f     = folder + string("f.dat");
     string name_x     = folder + string("x.dat");
     string name_dos1D = folder + string("dos1D.dat");
+    string name_peak  = folder + string("c_peak.dat");
     write_to_file(thermo.T, name_T);
     write_to_file(thermo.s, name_s);
     write_to_file(thermo.c, name_c);
@@ -53,6 +54,7 @@ void outdata::write_data_thermo(class_thermodynamics &thermo, const int &iter){
     write_to_file(thermo.f, name_f);
     write_to_file(thermo.x, name_x);
     write_to_file(thermo.dos_total1D, name_dos1D);
+    write_to_file(thermo.peak, name_peak);
 }
 
 void outdata::write_final_data(class_stats &stats){
@@ -67,7 +69,8 @@ void outdata::write_final_data(class_stats &stats){
         string name_u = folder + string("u.dat");
         string name_f = folder + string("f.dat");
         string name_x = folder + string("x.dat");
-        string name_dos1D = folder + string("dos1D.dat");
+        string name_dos1D  = folder + string("dos1D.dat");
+        string name_c_peak = folder + string("c_peak.dat");
 
         write_to_file(stats.E, name_E);
         write_to_file(stats.M, name_M);
@@ -78,6 +81,7 @@ void outdata::write_final_data(class_stats &stats){
         write_to_file(stats.f_avg, name_f);
         write_to_file(stats.x_avg, name_x);
         write_to_file(stats.dos1D_avg, name_dos1D);
+        write_to_file(stats.c_peak_avg, name_c_peak);
 
 
         name_s = folder + string("s_err.dat");
@@ -86,6 +90,7 @@ void outdata::write_final_data(class_stats &stats){
         name_f = folder + string("f_err.dat");
         name_x = folder + string("x_err.dat");
         name_dos1D = folder + string("dos1D_err.dat");
+        name_c_peak = folder + string("c_peak_err.dat");
 
         write_to_file(stats.s_err, name_s);
         write_to_file(stats.c_err, name_c);
@@ -93,6 +98,7 @@ void outdata::write_final_data(class_stats &stats){
         write_to_file(stats.f_err, name_f);
         write_to_file(stats.x_err, name_x);
         write_to_file(stats.dos1D_err, name_dos1D);
+        write_to_file(stats.c_peak_err, name_c_peak);
     }
 }
 

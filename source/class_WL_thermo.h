@@ -10,6 +10,7 @@
 #include <Eigen/Core>
 #include "class_WL_worker.h"
 #include "nmspc_math_algorithms.h"
+#include "../EMC-Lib/EMC.h"
 using namespace Eigen;
 using namespace std;
 using namespace constants;
@@ -26,7 +27,9 @@ public:
     ArrayXd c; //Specific heat
     ArrayXd x; //Susceptibility
     ArrayXd dos_total1D; //Density of states in Energy space only
+    ArrayXd peak;
     void compute(class_worker &worker);
+    void get_peak(class_worker &worker);
 };
 
 
