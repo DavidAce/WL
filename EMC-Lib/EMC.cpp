@@ -3,13 +3,13 @@
 #include "EMC.h"
 
 
-RNGType rng;
 //boundaries bounds;
 void minimize(objective_function & obj_fun){
 	//Start up some files and folder for saving out
+    obj_fun.tolerance           = fmax(1e-18, obj_fun.tolerance);
     EMC_constants::nGenes 	   	= obj_fun.parameters;
+    EMC_constants::geneLength   = 2+min(58,(int)ceil(-log(obj_fun.tolerance)/log(2)));
     EMC_constants::genomeLength = EMC_constants::nGenes * EMC_constants::geneLength;
-
 	omp_set_num_threads(EMC_constants::M);
     Eigen::initParallel();
     species sp(obj_fun);
@@ -22,9 +22,10 @@ void minimize(objective_function & obj_fun){
 	while (sp.count.generation < EMC_constants::max_generations &&  !sp.below_tolerance()) {
 		#pragma omp single nowait
 		{
+
             sp.print_progress();
             sp.store_best_fitness();
-		if (uniform_double(&rng, 0, 1) < qmig) {
+		if (uniform_double_1() < qmig) {
 			migration(sp);
 		}
 		}
@@ -37,7 +38,8 @@ void minimize(objective_function & obj_fun){
 		
 	}
 	//Print final parameters
-	cout << endl << "Best Parameters: " 
+    sp.print_progress(true);
+    cout << endl << "Best Parameters: "
 		 << sp.pop[sp.champion_number()].bestguys[N_best - 1].genome.parameters.transpose() << endl;
 	//Print timing to console
 	sp.count.simulation_toc = high_resolution_clock::now();

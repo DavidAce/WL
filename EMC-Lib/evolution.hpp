@@ -20,7 +20,7 @@
 using namespace std;
 using namespace Eigen;
 using namespace EMC_constants;
-
+using namespace EMC_rnd;
 class population;	//Forward declaration
 class personality;	//Forward declaration
 

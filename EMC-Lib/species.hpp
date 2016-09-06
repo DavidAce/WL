@@ -20,6 +20,7 @@ typedef std::chrono::high_resolution_clock Clock;
 class counters {
 public:
 	int store_counter;
+    int store_last_since;
 	int generation;
 	double simulation_time;
 	Clock::time_point simulation_tic;
@@ -42,14 +43,15 @@ public:
     vector<population> pop;		//Array of separate populations to evolve independently
 	counters count;
 
-    double champion_fitness();
-	ArrayXd champion_value();
+    long double champion_fitness();
+	Array<long double, Dynamic,1> champion_value();
 	int champion_number();
-	double latest_history_diff(const int& num);
-    ArrayXd fitness_history;
+	long double latest_history_diff();
+    Array<long double,Dynamic,1> fitness_history;
     void store_best_fitness();
     bool below_tolerance();
     void print_progress();
+    void print_progress(bool);
 	void copy(personality &, personality &);
 };
 

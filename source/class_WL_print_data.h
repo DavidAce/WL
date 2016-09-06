@@ -50,7 +50,7 @@ public:
         ofstream file(filename,ios::out | ios::trunc);
         file << fixed << showpoint << setprecision(precision);
         string      _coeffSeparator = "	";
-        IOFormat fmt(StreamPrecision, DontAlignCols, _coeffSeparator);;
+        IOFormat fmt(StreamPrecision, DontAlignCols, _coeffSeparator);
         file << data.format(fmt) << endl;
         file.close();
     }

@@ -6,6 +6,7 @@
 #include <bitset>
 #include <iostream>
 #include <random>
+#include <cfloat>
 #include "constants.hpp"
 #include "DNA.hpp"
 #include "objective_function.hpp"
@@ -29,9 +30,9 @@ public:
             born(0),
             genome(ref,toggle) {
 	};
-	double H;							//Fitness, or energy
+	long double H;					//Fitness, or energy
 	double t; 							//temperature
-	double value;						//Actual fitting-value
+	long double value;				//Actual fitting-value
 	int born;							//Generation when DNA first emerged
 	DNA genome;							//Contains binary and real representation of parameters
 	friend ostream &operator<<(std::ostream &os, personality const &);

@@ -29,7 +29,7 @@ public:
     void load_full(class_worker &worker);
     void load_full(class_stats &stats, class_worker &worker);
 
-    MatrixXd read_file(string file);
+    ArrayXXd read_file(string file);
 
 };
 

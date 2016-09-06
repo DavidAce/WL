@@ -4,9 +4,12 @@
 #include <iostream>
 #include <Eigen/Dense>
 #include <Eigen/Core>
+#include <set>
+
 #include "personality.hpp"
 #include "objective_function.hpp"
 #include "constants.hpp"
+#include "mymath.hpp"
 using namespace std;
 using namespace EMC_constants;
 using namespace Eigen;
@@ -15,36 +18,39 @@ using namespace Eigen;
 class paramLine{
 	private:
         objective_function &obj_fun;
-        ArrayXd o;
-        ArrayXd d;
+        ArrayXd  o;
+        ArrayXd  d;
 	public:
 		paramLine(objective_function &ref)
                 :obj_fun(ref),
                  o(nGenes),
                  d(nGenes){};
 		//Always use "Through" first, to set "o" and "d".
-		void Through(ArrayXd &p1, ArrayXd &p2){ //Points in parameter space p1 and p2
-			for(int i = 0;i < nGenes; i++){
-				o(i) = p1(i);
-				d(i) = p2(i) - p1(i);
+		void Through(Array<long double, Dynamic, 1> &p1, Array<long double, Dynamic, 1>  &p2){ //Points in parameter space p1 and p2
+            ArrayXd p1_temp = p1.cast<double>().array();
+            ArrayXd p2_temp = p2.cast<double>().array();
+            for(int i = 0;i < nGenes; i++){
+				o(i) = p1_temp(i);
+				d(i) = p2_temp(i) - p1_temp(i);
 			}
 		}
-		ArrayXd pointAt(double r){
-			ArrayXd v(nGenes);
+        template<typename type>
+        Array<type,Dynamic,1>  pointAt(const type r){
+            Array<type,Dynamic,1>  v(nGenes);
 			for(int i = 0;i < nGenes; i++){
 				v(i) = o(i)+d(i)*r;
 			}
 			return v;
 		}
-		double distance(ArrayXd &p1, ArrayXd &p2){
-			return sqrt((p2-p1).square().sum());
+		double distance(Array<long double, Dynamic, 1>  &p1, Array<long double, Dynamic, 1>  &p2){
+			return sqrt((p2.cast<double>()-p1.cast<double>()).square().sum());
 		}
 		double line_max() { //Get the largest r within upper boundary Bu and lower boundary Bl
-			return (obj_fun.upper_bound - o).cwiseQuotient(d).minCoeff();
+			return (obj_fun.upper_bound.cast<double>() - o).cwiseQuotient(d).minCoeff();
 		}
-	double line_min() { //Get the largest r within upper boundary Bu and lower boundary Bl
-		return -(obj_fun.lower_bound - o).cwiseQuotient(-d).minCoeff();
-	}
+	    double line_min() { //Get the largest r within upper boundary Bu and lower boundary Bl
+		    return  (-(obj_fun.lower_bound.cast<double>() - o).cwiseQuotient((-d).eval()).minCoeff());
+	    }
 };
 
 class population{
@@ -75,7 +81,7 @@ public:
     int generation;  //Number of generations for this population
 
     void getFitness(personality &guy);
-    void getFitness(const ArrayXd &point, personality &guy);
+    void getFitness(const Array<long double, Dynamic, 1> &point, personality &guy);
 
     void copy(personality &destination, const personality & source);
     void copy(DNA& destination, const DNA& source);

@@ -10,7 +10,7 @@ namespace rn{
     std::uniform_int_distribution<>  rand_int_1(0, 1);
 
     std::uniform_real_distribution<> rand_real_1(0,1);
-    double gaussian_truncated(const double &lowerLimit, const double &upperLimit, const double &mean, const double &std) {
+    double gaussian_truncated(const double lowerLimit, const double upperLimit, const double mean, const double std) {
         std::normal_distribution<double> distribution(mean,std);
         double ul = fmax(lowerLimit, upperLimit);
         double ll = fmin(lowerLimit, upperLimit);

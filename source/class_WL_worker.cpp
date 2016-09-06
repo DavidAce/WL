@@ -33,8 +33,8 @@ class_worker::class_worker(): 	model(),
                                 finish_line 			(false),
                                 t_sweep                (profiling_sweep)                ,
                                 t_swap                 (profiling_swap)                 ,
-                                t_check_convergence    (profiling_check_convergence)    ,
                                 t_check_global_limits  (profiling_check_global_limits)  ,
+                                t_check_convergence    (profiling_check_convergence)    ,
                                 t_make_MC_trial        (profiling_make_MC_trial)        ,
                                 t_acceptance_criterion (profiling_acceptance_criterion)
 {

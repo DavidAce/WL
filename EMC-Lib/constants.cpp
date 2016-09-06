@@ -7,4 +7,5 @@
 namespace EMC_constants{
     int nGenes;
     int genomeLength;
+    int geneLength;
 }

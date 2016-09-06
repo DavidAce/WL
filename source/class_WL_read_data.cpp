@@ -100,7 +100,7 @@ void indata::load_full(class_stats &stats, class_worker &worker) {
 
 
 
-MatrixXd indata::read_file(string filename) {
+ArrayXXd indata::read_file(string filename) {
     int cols = 0, rows = 0;
     double buff[MAXBUFSIZE];
     // Read numbers from file into buffer.
@@ -108,14 +108,13 @@ MatrixXd indata::read_file(string filename) {
     infile.open(filename);
     if (!infile.is_open()){cout << "Could not open file with name: " << filename << endl;}
     string line;
+    int temp_cols;
     while (! infile.eof()){
         getline(infile, line);
-        int temp_cols = 0;
-        double num;
+        temp_cols = 0;
         stringstream stream(line);
         string number;
         char* end;
-
         while(! stream.eof()) {
             stream >> number;
             buff[cols * rows + temp_cols++] = strtod(number.c_str(),&end);
@@ -132,7 +131,7 @@ MatrixXd indata::read_file(string filename) {
 
     rows--;
     // Populate matrix with numbers.
-    MatrixXd result(rows,cols);
+    ArrayXXd result(rows,cols);
     for (int i = 0; i < rows; i++) {
         for (int j = 0; j < cols; j++) {
             result(i, j) = buff[cols * i + j];

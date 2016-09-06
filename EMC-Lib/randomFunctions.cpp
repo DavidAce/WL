@@ -1,29 +1,34 @@
-#include <random>
 #include "randomFunctions.hpp"
 
-using namespace std;
 
-double uniform_double(RNGType *rn, const double lowerLimit, const double upperLimit) {
-	uniform_real_distribution<> dice(lowerLimit, upperLimit);
-	return dice(*rn);
-}
-int uniform_integer(RNGType *rn, const int lowerLimit, const int upperLimit) {
-	uniform_int_distribution<> dice(lowerLimit, upperLimit);
-	return dice(*rn);
-}
+namespace EMC_rnd{
+	std::mt19937 rng;
+	std::uniform_int_distribution<>  rand_int_1(0, 1);
+	std::uniform_real_distribution<> rand_real_1(0,1);
+};
 
-double gaussian_truncated(RNGType *rn, const double lowerLimit, const double upperLimit, const double mean, const double std) {
-	normal_distribution<double> distribution(mean,std);
-	double ul = fmax(lowerLimit, upperLimit);
-	double ll = fmin(lowerLimit, upperLimit);
-	double number;
-	while (true) {
-		number = distribution(*rn);
-		if (number >= ll && number <= ul) {
-			return number;
-		}
-	}
-}
+
+//double uniform_double(RNGType *rn, const double lowerLimit, const double upperLimit) {
+//	uniform_real_distribution<> dice(lowerLimit, upperLimit);
+//	return dice(*rn);
+//}
+//int uniform_integer(RNGType *rn, const int lowerLimit, const int upperLimit) {
+//	uniform_int_distribution<> dice(lowerLimit, upperLimit);
+//	return dice(*rn);
+//}
+
+//long double gaussian_truncated(RNGType *rn, const long double lowerLimit, const long double upperLimit, const double mean, const double std) {
+//	normal_distribution<long double> distribution(mean,std);
+//	long double ul = fmax(lowerLimit, upperLimit);
+//	long double ll = fmin(lowerLimit, upperLimit);
+//	long double number;
+//	while (true) {
+//		number = distribution(*rn);
+//		if (number >= ll && number <= ul) {
+//			return number;
+//		}
+//	}
+//}
 //class gaussian_truncated {
 //	std::default_random_engine generator;
 //	std::normal_distribution<double> distribution;

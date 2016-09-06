@@ -19,7 +19,7 @@ void population::getFitness(personality& guy){
 	guy.H = obj_fun.fitness(guy.genome.parameters);
 }
 
-void population::getFitness(const ArrayXd &p, personality &guy){
+void population::getFitness(const Array<long double, Dynamic, 1> &p, personality &guy){
     //Set all parameters at once with an ArrayXd
     guy.genome.set_parameters(p);
     guy.H = obj_fun.fitness(guy.genome.parameters);
@@ -44,7 +44,7 @@ void population::wakeUpPop(){
 void population::wakeUpGuys() {
 	ArrayXd T(N);
 	//Initialize some temperature ladder, here logarithmic.
-	logspace( T,Tmax, Tmin, N);
+	T = LogSpaced(N,Tmax, Tmin);
     for (int i = 0; i < N; i++) {
 		guys[i].t = T(i); 		//Assign temperatures produced above
     }
@@ -54,26 +54,27 @@ void population::wakeUpGuys() {
 void population::wakeUpBest() {
 	int i;
 	int j = 0;
-	int copied_guys[N_best];
-	double lowest_H;
+//	ArrayXi copied_guys(N_best);
+    std::set<int> copied_guys;
+	long double lowest_H;
 	int lowest_i = 0; //The position i on the temperature ladder of the guy with lowest H
-	while (j < N_best) {
-		lowest_H = 1e10;
-		//Find the best guy yet among guys
-		for (i = 0; i < N; i++) {
-			//Check if i is in skip-list
-			if (isvalueinarray(i, copied_guys, N_best) == 1) { continue; }
-			if (guys[i].H < lowest_H) {
-				lowest_H = guys[i].H;
-				lowest_i = i;
-			}
-		}
-		//By now we should have a winner, copy him to bestguys and add him to skiplist
-		copy(bestguys[N_best - j - 1], guys[lowest_i]);
-		copied_guys[j] = lowest_i;
+    while (copied_guys.size() < N_best) {
+        lowest_H = 1e10;
+        //Find the best guy yet among guys
+        for (i = 0; i < N; i++) {
+            //Check if i is in skip-list
+            if (copied_guys.find(i) != copied_guys.end()){continue;}
+            if (guys[i].H < lowest_H) {
+                lowest_H = guys[i].H;
+                lowest_i = i;
+            }
+        }
+        //By now we should have a winner, copy him to bestguys and add him to skiplist
+        copy(bestguys[N_best - j - 1], guys[lowest_i]);
+        copied_guys.insert(lowest_i);
         j++;
 
-	}
+    }
 }
 
 

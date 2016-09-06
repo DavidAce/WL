@@ -4,6 +4,8 @@
 
 #ifndef EMC_CLION_EMC_H
 #define EMC_CLION_EMC_H
+#include <Eigen/Dense>
+#include <Eigen/Core>
 #include <stdio.h>
 #include <iostream>
 #include <fstream>

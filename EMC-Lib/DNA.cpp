@@ -10,8 +10,11 @@ using namespace Eigen;
 
 std::ostream &operator<<(std::ostream &os, DNA const &genome) {
 	for (int i = 0; i < nGenes; i++) {
-		os << genome.chromosomes[i] << endl;
-	}
+//		os << genome.chromosomes[i] << endl;
+        for (size_t nIndex = 0; nIndex < genome.chromosomes[i].size (); ++ nIndex) {
+            os << genome.chromosomes[i][nIndex];
+        }
+    }
 	return os;
 }
 
@@ -32,7 +35,8 @@ void DNA::flip_loci(const int a) {
 	//(loci)
 	int gene = a / geneLength;
 	int locus = a%geneLength;
-	chromosomes[gene].flip(geneLength - locus - 1);
+    chromosomes[gene][geneLength - locus - 1]  =  !chromosomes[gene][geneLength - locus - 1];
+//    chromosomes[gene].flip(geneLength - locus - 1);
 }
 
 //void DNA::flip_loci(Ref<ArrayXi> loci) {
@@ -53,8 +57,10 @@ void DNA::flip_loci(ArrayXi &loci) {
 	for (int i = 0; i < loci.size(); i++) {
 		gene = loci(i)/geneLength;
 		locus = loci(i) % geneLength;
-		chromosomes[gene].flip(geneLength - locus - 1);
-	}
+//		chromosomes[gene].flip(geneLength - locus - 1);
+        chromosomes[gene][geneLength - locus - 1]  =  !chromosomes[gene][geneLength - locus - 1];
+
+    }
 }
 
 void DNA::copy_loci(const int a, const int bit) {
@@ -62,21 +68,21 @@ void DNA::copy_loci(const int a, const int bit) {
 	bool b = bit == 1;
 	int gene = a / geneLength;
 	int locus = a%geneLength;
-	chromosomes[gene].set(geneLength - locus - 1, b);
+//	chromosomes[gene].set(geneLength - locus - 1, b);
+    chromosomes[gene][geneLength - locus - 1] = b;
 }
 
 double DNA::bin2dec(const int i) {
-	auto value = chromosomes[i].to_ulong();
+    auto value = chromosomes[i].to_ulong();
 	return value / (pow(2.0, geneLength) - 1) * (obj_fun.upper_bound(i) - obj_fun.lower_bound(i)) + obj_fun.lower_bound(i);
 }
 
-bitset<geneLength> DNA::dec2bin(const int i) {
-	double value = parameters(i);
-	bitset <geneLength> A = (long long unsigned int) ((value - obj_fun.lower_bound(i)) / (obj_fun.upper_bound(i) - obj_fun.lower_bound(i))*(pow(2.0, geneLength) - 1));
-	return A;
+bitset<maxbits> DNA::dec2bin(const int i) {
+	return bitset <maxbits>( (unsigned long long int)((parameters(i) - obj_fun.lower_bound(i)) / (obj_fun.upper_bound(i) - obj_fun.lower_bound(i))*(pow(2.0, geneLength) - 1)));
 }
 
-void DNA::set_parameter(const int i, const double p) {
+
+void DNA::set_parameter(const int i, const long double p) {
 	//Set one parameter with a double
 	parameters(i) = p;
 	chromosomes[i] = dec2bin(i);
@@ -88,7 +94,7 @@ void DNA::update_parameters() {
 	}
 }
 
-void DNA::set_parameters(const ArrayXd &p) {
+void DNA::set_parameters(const Array<long double, Dynamic, 1> &p) {
 	//Set all parameters at once with an ArrayXd
 	parameters = p;
 	for (int i = 0; i < nGenes; i++) {
@@ -97,10 +103,10 @@ void DNA::set_parameters(const ArrayXd &p) {
 }
 
 void DNA::randomize_dna(){
-    chromosomes.resize(nGenes);
+    chromosomes.resize((unsigned long)nGenes);
     parameters.resize(nGenes);
     for (int i = 0; i < nGenes; i++) {
-        parameters(i) = uniform_double(&rng, obj_fun.lower_bound(i),obj_fun.upper_bound(i));
+        parameters(i) = uniform_double(obj_fun.lower_bound(i), obj_fun.upper_bound(i));
         chromosomes[i] = dec2bin(i);
     }
 }
@@ -108,10 +114,10 @@ void DNA::randomize_dna(){
 
 
 DNA::DNA(objective_function &ref):obj_fun(ref) {
-    chromosomes.resize(nGenes);
+    chromosomes.resize((unsigned long)nGenes);
 	parameters.resize(nGenes);
 	for (int i = 0; i < nGenes; i++) {
-		parameters(i) = uniform_double(&rng, obj_fun.lower_bound(i),obj_fun.upper_bound(i));
+		parameters(i) = uniform_double(obj_fun.lower_bound(i),obj_fun.upper_bound(i));
 		chromosomes[i] = dec2bin(i);
 
 	}
@@ -119,6 +125,6 @@ DNA::DNA(objective_function &ref):obj_fun(ref) {
 }
 
 DNA::DNA(objective_function &ref,bool ):obj_fun(ref) {
-    chromosomes.resize(nGenes);
+    chromosomes.resize((unsigned long)nGenes);
     parameters.resize(nGenes);
 }

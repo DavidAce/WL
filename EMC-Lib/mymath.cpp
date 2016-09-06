@@ -1,29 +1,25 @@
-#include <math.h>
-#include <iostream>
-#include "randomFunctions.hpp"
 #include "mymath.hpp"
-#include <Eigen/Dense>
-#include <Eigen/Core>
+
 using namespace Eigen;
 using namespace std;
-void linspace(ArrayXd & array, double xi, double xf, int n) {
-	int i;
-	double dx, range = xf - xi;
-	dx = range / (n - 1);
-	array(0) = xi;
-	for (i = 1; i < n; i++) {
-		array(i) = array(i - 1) + dx;
-	}
-}
-void logspace(ArrayXd & array, double xi, double xf, int n) {
+//void linspace(ArrayXd & array, double xi, double xf, int n) {
+//	int i;
+//	double dx, range = xf - xi;
+//	dx = range / (n - 1);
+//	array(0) = xi;
+//	for (i = 1; i < n; i++) {
+//		array(i) = array(i - 1) + dx;
+//	}
+//}
+ArrayXd LogSpaced(int n, double xi, double xf) {
 	int i;
 	double s = log(xi);
 	double f = log(xf);
-	linspace(array, s, f, n);
+	ArrayXd arr = ArrayXd::LinSpaced(n,s,f);
 	for (i = 0; i < n; i++) {
-		array(i) = exp(array(i));
-		//array[i] = pow(10, array[i]);
+		arr(i) = exp(arr(i));
 	}
+	return arr;
 }
 int get_sign(double value)
 {
@@ -42,7 +38,7 @@ void rndChoice(int randomArray[], int nn, int NN) {
 	for (in = 0; in < NN && im < nn; in++) {
 		rn = NN - in;
 		rm = nn - im;
-		if (uniform_double(&rng, 0, 1)*rn < rm) {
+		if (uniform_double_1() * rn < rm) {
 			randomArray[im] = in;
 			im += 1;
 		}
@@ -50,11 +46,11 @@ void rndChoice(int randomArray[], int nn, int NN) {
 }
 int tri_randint(int a, int b) {
 	//Returns number between a and b with triangular distribution
-	return (int)(a + pow(uniform_double(&rng, 0, 1), 0.5)*(b - a));
+	return (int)(a + pow(uniform_double_1(), 0.5)*(b - a));
 }
 int tri_inv_randint(int a, int b) {
 	//Returns number between a and b with triangular distribution, sloping downwards
-	return (int)(b - pow(1 - uniform_double(&rng, 0, 1), 0.5)*(b - a));
+	return (int)(b - pow(1 - uniform_double_1(), 0.5)*(b - a));
 }
 double mean(double array[], int len) {
 	double sum = 0;
@@ -74,14 +70,7 @@ int mod(int a, int b) {
 	return ret;
 
 }
-int isvalueinarray(int val, int *arr, int size) {
-	int i;
-	for (i = 0; i < size; i++) {
-		if (arr[i] == val)
-			return 1;
-	}
-	return 0;
-}
+
 int heaviside(double x) {
 	if (x > 0) {
 		return 1;

@@ -92,7 +92,7 @@ void class_thermodynamics::compute(class_worker &worker) {
     f = u - T.cwiseProduct(s);
 }
 
-double temperature_to_specific_heat(objective_function &obj_fun, ArrayXd &input){
+long double temperature_to_specific_heat(objective_function &obj_fun, Array<long double, Dynamic,1> &input){
     int i, j;
     double beta, E, weight, ene, eSq, eAvg, eSqAvg, Z, lambda;
 
@@ -133,15 +133,14 @@ void class_thermodynamics::get_peak(class_worker &worker){
     ArrayXd upper_bound(1);
     lower_bound << constants::T_min;
     upper_bound << constants::T_max;
-    double tolerance = 1e-12;
-    objective_function obj_fun(lower_bound, upper_bound, tolerance, worker.dos_total, worker.E_bins_total,
+    double tolerance = 1e-8;
+    objective_function obj_fun(temperature_to_specific_heat,lower_bound, upper_bound, tolerance, worker.dos_total, worker.E_bins_total,
                                worker.M_bins_total);
-    obj_fun.providedFunction = temperature_to_specific_heat;
     cout << "starting minimization" << endl;
     minimize(obj_fun);
 
     double c_peak;
-    c_peak = obj_fun.providedFunction(obj_fun, obj_fun.optimum);
+    c_peak = (double) obj_fun.fitness(obj_fun.optimum);
     peak << obj_fun.optimum(0), -c_peak;
 
 
