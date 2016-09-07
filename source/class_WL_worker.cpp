@@ -308,18 +308,20 @@ void class_worker::compute_number_of_bins(int & E_new_size, int & M_new_size) {
         double spacing_set = math::typical_spacing(E_set_2_vector);
         double spacing  =  fmax(spacing_set,math::typical_spacing(E_bins));
         int maxElem     = (int) ceil((E_max_local - E_min_local) / spacing);
-        for (i = 0; i < world_size ; i++){
-            if (i == world_ID){
-                cout << "ID: " << world_ID
-                     << " Spacing = " << spacing
-                     << " Spacing set = " << spacing_set
-                     << " maxElem = " << maxElem
-                     << " E_set.size() = " << E_set.size()
-                     << " Emin = " << E_min_local
-                     << " Emax = " << E_max_local << endl
-                     << "E_bins: " << E_bins.transpose() << endl;
+        if (debug_comp_numb_bins) {
+            for (i = 0; i < world_size; i++) {
+                if (i == world_ID) {
+                    cout << "ID: " << world_ID
+                         << " Spacing = " << spacing
+                         << " Spacing set = " << spacing_set
+                         << " maxElem = " << maxElem
+                         << " E_set.size() = " << E_set.size()
+                         << " Emin = " << E_min_local
+                         << " Emax = " << E_max_local << endl
+                         << "E_bins: " << E_bins.transpose() << endl;
+                }
+                MPI_Barrier(MPI_COMM_WORLD);
             }
-            MPI_Barrier(MPI_COMM_WORLD);
         }
 
         E_new_size = max(constants::bins , (int) E_set.size()); //What if there is a jump in E_set?

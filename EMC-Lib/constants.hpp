@@ -16,7 +16,7 @@ namespace EMC_constants {
 
     const  int max_generations 	= (int)1e5;			//Number of generations to run the simulation
 
-    const int print_freq        = 100;
+    const int print_freq        = 500;
 	const int store_freq        = 10;
     const int check_freq        = 100;
 	const int num_check_history = 20;

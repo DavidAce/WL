@@ -19,7 +19,7 @@ public:
     class_stats(const int &id, const int &size);
     void load_thermo_data(class_worker &worker);
     void compute(class_worker &worker);
-    ArrayXXd T;
+    ArrayXd T;
     ArrayXXd s;
     ArrayXXd c;
     ArrayXXd u;
@@ -27,6 +27,9 @@ public:
     ArrayXXd x;
     ArrayXXd dos1D;
     ArrayXXd c_peak;
+    vector<ArrayXXd> D;
+    vector<ArrayXXd> F;
+    vector<ArrayXXd> dos;
 
     ArrayXXd E;
     ArrayXXd M;
@@ -37,6 +40,11 @@ public:
     ArrayXd f_avg;
     ArrayXd x_avg;
     ArrayXd dos1D_avg;
+    ArrayXd c_peak_avg; //peak in c(T) vs T
+
+    ArrayXXd D_avg;
+    ArrayXXd F_avg;
+    ArrayXXd dos_avg;
 
     ArrayXd s_err;
     ArrayXd c_err;
@@ -44,8 +52,12 @@ public:
     ArrayXd f_err;
     ArrayXd x_err;
     ArrayXd dos1D_err;
+    ArrayXXd D_err;
+    ArrayXXd F_err;
+    ArrayXXd dos_err;
 
-    ArrayXd c_peak_avg; //peak in c(T) vs T
+
+
     ArrayXd c_peak_err;
 
 

@@ -159,3 +159,7 @@ outdata::outdata(const int &id, const int &iter): world_ID(id), iteration(iter) 
 outdata::outdata(const int &id): world_ID(id) {
 
 }
+//Default constructor (does not set folder! make sure to set it yourself!
+outdata::outdata() {
+
+}

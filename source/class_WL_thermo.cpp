@@ -4,17 +4,6 @@
 
 #include "class_WL_thermo.h"
 
-class_thermodynamics::class_thermodynamics(){
-    u.resize(T_num);
-    m.resize(T_num);
-    s.resize(T_num);
-    f.resize(T_num);
-    c.resize(T_num);
-    x.resize(T_num);
-    peak.resize(2);
-
-}
-
 void class_thermodynamics::compute(class_worker &worker) {
     int i, j;// , j;
     double beta, E, M, weight, ene, eSq, eAvg, eSqAvg, mag, mSq, mAvg, mSqAvg, Z;
@@ -31,7 +20,14 @@ void class_thermodynamics::compute(class_worker &worker) {
     for (i = 0; i < T.size(); i++) {
         F.row(i) = (dos_total1D - worker.E_bins_total * beta_vec(i) - lambdaT).exp();
     }
-    cout << "D: " << D << endl;
+//    cout << "D: " << D << endl;
+
+    u.resize(T_num);
+    m.resize(T_num);
+    s.resize(T_num);
+    f.resize(T_num);
+    c.resize(T_num);
+    x.resize(T_num);
     for (int t = 0; t < T_num; t++) {
         ene = 0;
         eSq = 0;
@@ -127,11 +123,11 @@ void class_thermodynamics::get_peak(class_worker &worker){
     double tolerance = 1e-8;
     objective_function obj_fun(temperature_to_specific_heat,lower_bound, upper_bound, tolerance, worker.dos_total, worker.E_bins_total,
                                worker.M_bins_total);
-    cout << "starting minimization" << endl;
     minimize(obj_fun);
 
     double c_peak;
     c_peak = (double) obj_fun.fitness(obj_fun.optimum);
+    peak.resize(2);
     peak << obj_fun.optimum(0), -c_peak;
 
 

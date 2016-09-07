@@ -8,8 +8,13 @@ void do_bootstrap(class_worker &worker){
     //Each worker loads its segment from random iteration
     //Then merge, then write out new bootstrapped DOS.
     outdata out(worker.world_ID);
-    indata  in (worker.world_ID, worker.world_size);
-    cout << "Bootstrap... " << endl;
+    indata  in;
+    if (worker.world_ID == 0 && debug_boot) {
+        cout << "Bootstrap: Starting" << endl;
+        cout.flush();
+        std::this_thread::sleep_for(std::chrono::microseconds(1000));
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
     for (int i = 0; i < constants::bootstrap_reps; i++){
         worker.iteration = i + constants::simulation_reps;
         in.load_random_section(worker);
@@ -28,59 +33,63 @@ void do_bootstrap(class_worker &worker){
 
 void do_thermodynamics(class_worker &worker){
     outdata out(worker.world_ID);
-    indata  in (worker.world_ID, worker.world_size);
+    indata  in;
     class_thermodynamics thermo;
     worker.iteration = worker.world_ID;
     while (worker.iteration < (constants::bootstrap_reps + constants::simulation_reps)){
+        if (debug_stats) {
+            cout << "ID: "<< worker.world_ID << " Thermo: Loading..." << endl;
+            cout.flush();
+            std::this_thread::sleep_for(std::chrono::microseconds(1000));
+        }
         in.load_full(worker);
+        if (debug_stats) {
+            cout << "ID: "<< worker.world_ID << " Thermo: Computing avgs..." << endl;
+            cout.flush();
+            std::this_thread::sleep_for(std::chrono::microseconds(1000));
+        }
         thermo.compute(worker);
+        if (debug_stats) {
+            cout << "ID: "<< worker.world_ID << " Thermo: Computing Peaks..." << endl;
+            cout.flush();
+            std::this_thread::sleep_for(std::chrono::microseconds(1000));
+        }
         thermo.get_peak(worker);
+
+        if (debug_stats) {
+            cout << "ID: "<< worker.world_ID << " Thermo: Writing Data..." << endl;
+            cout.flush();
+            std::this_thread::sleep_for(std::chrono::microseconds(1000));
+        }
         out.write_data_thermo(thermo, worker.iteration);
         worker.iteration += worker.world_size ;
     }
+    MPI_Barrier(MPI_COMM_WORLD);
 
 }
 
 void do_statistics(class_worker &worker){
-    if (worker.world_ID == 0 && debug_stats) {
-        cout << "Initializing Stats" << endl;
-        cout.flush();
-        std::this_thread::sleep_for(std::chrono::microseconds(1000));
+    //This is a single threaded operation
+    if(worker.world_ID == 0) {
+        class_stats stats(worker.world_ID, worker.world_size);
+        if (debug_stats) {
+            cout << "Stats: Loading thermodynamic files" << endl;
+            cout.flush();
+            std::this_thread::sleep_for(std::chrono::microseconds(1000));
+        }
+        stats.load_thermo_data(worker);
+        if (debug_stats) {
+            cout << "Stats: Computing statistics" << endl;
+            cout.flush();
+            std::this_thread::sleep_for(std::chrono::microseconds(1000));
+        }
+        stats.compute(worker);
+        if (debug_stats) {
+            cout << "Writing final" << endl;
+            cout.flush();
+            std::this_thread::sleep_for(std::chrono::microseconds(1000));
+        }
+        outdata out;
+        out.write_final_data(stats);
     }
-    MPI_Barrier(MPI_COMM_WORLD);
-    class_stats stats(worker.world_ID, worker.world_size);
-    if (worker.world_ID == 0 && debug_stats) {
-        cout << "Loading thermodynamic files" << endl;
-        cout.flush();
-        std::this_thread::sleep_for(std::chrono::microseconds(10000));
-    }
-    MPI_Barrier(MPI_COMM_WORLD);
-    stats.load_thermo_data(worker);
-    MPI_Barrier(MPI_COMM_WORLD);
-
-    if (worker.world_ID == 0 && debug_stats) {
-        cout << "Computing statistics" << endl;
-        cout.flush();
-        std::this_thread::sleep_for(std::chrono::microseconds(10000));
-    }
-    MPI_Barrier(MPI_COMM_WORLD);
-    stats.compute(worker);
-    MPI_Barrier(MPI_COMM_WORLD);
-
-    if (worker.world_ID == 0 && debug_stats) {
-        cout << "loading output files" << endl;
-        cout.flush();
-        std::this_thread::sleep_for(std::chrono::microseconds(10000));
-    }
-    MPI_Barrier(MPI_COMM_WORLD);
-
-    outdata out(worker.world_ID);
-    if (worker.world_ID == 0 && debug_stats) {
-        cout << "Writing final" << endl;
-        cout.flush();
-        std::this_thread::sleep_for(std::chrono::microseconds(10000));
-    }
-    MPI_Barrier(MPI_COMM_WORLD);
-
-    out.write_final_data(stats);
 }

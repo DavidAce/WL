@@ -33,6 +33,7 @@ private:
 public:
     outdata(const int &id, const int &iter);
     outdata(const int &id);
+    outdata();
     void create_folder();
     void set_folder(const int &iter);
     void create_and_set_folder(const int &iter);

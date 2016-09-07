@@ -8,27 +8,25 @@
 #include <Eigen/Core>
 #include <iostream>
 #include <fstream>
+#include <string>
 #include "nmspc_random_numbers.h"
 #include "nmspc_WL_constants.h"
+#include "nmspc_WL_parallel_algorithms.h"
 #include "class_WL_worker.h"
 #include "class_WL_statistics.h"
-#define MAXBUFSIZE  ((int) 1e6)
+
+const int debug_load_full_thermo = 1;
 
 using namespace Eigen;
 using namespace std;
 class indata {
 private:
     string folder;
-    int   world_ID;
-    int   world_size;
-//    int   iteration;
-
 public:
-    indata(int &id, int &size);
+    indata();
     void load_random_section(class_worker &worker);
     void load_full(class_worker &worker);
     void load_full(class_stats &stats, class_worker &worker);
-
     ArrayXXd read_file(string file);
 
 };
