@@ -125,23 +125,37 @@ namespace math{
 
     template <typename Derived>
     inline double nansquared(const ArrayBase<Derived> & array)  {
-        const auto& no_nan_this = (array == array).select(0, array);
+        const auto& no_nan_this = (array == array).select(array,0);
         return no_nan_this.dot(no_nan_this);
     }
 
     template <typename Derived>
     inline double nansum(const ArrayBase<Derived> & array)  {
-        const auto& no_nan_this = (array == array).select(0, array);
+        const auto& no_nan_this = (array == array).select(array,0);
         return no_nan_this.sum();
+    }
+    template <typename Derived>
+    inline ArrayXd nansum_rowwise(const ArrayBase<Derived> & array)  {
+        const auto& no_nan_this = (array == array).select(array,0);
+        return no_nan_this.rowwise().sum();
     }
 
     template <typename Derived>
+    inline ArrayXd nansum_colwise(const ArrayBase<Derived> & array)  {
+        const auto& no_nan_this = (array == array).select(array,0);
+        return no_nan_this.colwise().sum();
+    }
+    template <typename Derived>
     inline double nanmaxCoeff(const ArrayBase<Derived> & array)  {
-        const auto& no_nan_this = (array == array).select(0, array);
+        const auto& no_nan_this = (array == array).select(array,0);
         return no_nan_this.maxCoeff();
     }
 
-
+    template <typename Derived>
+    inline ArrayXd nanmaxCoeff_rowwise(const ArrayBase<Derived> & array)  {
+        const auto& no_nan_this = (array == array).select(array,0);
+        return no_nan_this.rowwise().maxCoeff();
+    }
 
     //Finds the element nearest x in a C-style array
     template <typename List_type, typename T, typename size_type>

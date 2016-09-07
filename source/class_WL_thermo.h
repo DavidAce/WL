@@ -28,6 +28,8 @@ public:
     ArrayXd x; //Susceptibility
     ArrayXd dos_total1D; //Density of states in Energy space only
     ArrayXd peak;
+    ArrayXXd D; //Canonical Distribution
+    ArrayXXd F; //Free energy as a function of order parameter
     void compute(class_worker &worker);
     void get_peak(class_worker &worker);
 };

@@ -3,10 +3,10 @@ clear all
 L = 8;
 N = L^2;
 
-for i = 0:3
-    dos = importdata(['../outdata/dos' num2str(i) '.dat']);
-    E = importdata(['../outdata/E' num2str(i) '.dat']);
-    M = importdata(['../outdata/M' num2str(i) '.dat']);
+for i = 0:1
+    dos = importdata(['../outdata/0/dos' num2str(i) '.dat']);
+    E = importdata(['../outdata/0/E' num2str(i) '.dat']);
+    M = importdata(['../outdata/0/M' num2str(i) '.dat']);
     E = E(any(~isnan(dos')));
     dos = dos(any(~isnan(dos')) ,:);
     [c,u,T, dosE] = thermo2d(dos,E,M,N);
@@ -29,9 +29,9 @@ for i = 0:3
 end
 %%
     figure(2);
-    dos = importdata(['../outdata/dos.dat']);
-    E = importdata(['../outdata/E.dat']);
-    M = importdata(['../outdata/M.dat']);
+    dos = importdata(['../outdata/0/dos.dat']);
+    E = importdata(['../outdata/0/E.dat']);
+    M = importdata(['../outdata/0/M.dat']);
     [c,u,T,dosE] = thermo2d(dos,E,M,N);
     subplot(1,2,1);
     h = mesh(M,E, dos);

@@ -17,30 +17,21 @@ class_thermodynamics::class_thermodynamics(){
 
 void class_thermodynamics::compute(class_worker &worker) {
     int i, j;// , j;
-    double beta, E, M, weight, ene, eSq, eAvg, eSqAvg, mag, mSq, mAvg, mSqAvg, Z, lambda;
+    double beta, E, M, weight, ene, eSq, eAvg, eSqAvg, mag, mSq, mAvg, mSqAvg, Z;
+    T = ArrayXd::LinSpaced(T_num, T_min, T_max);
+    ArrayXd beta_vec = T.cwiseInverse();
+    double lambda = math::nanmaxCoeff(worker.dos_total); //For each energy
+    dos_total1D = lambda + math::nansum_rowwise((worker.dos_total-lambda).exp()).log();
+    ArrayXd lambdaT = math::nanmaxCoeff_rowwise((-beta_vec.matrix()*worker.E_bins_total.matrix().transpose()).array().rowwise() + dos_total1D.transpose() );
+    D = (((-beta_vec.matrix()*worker.E_bins_total.matrix().transpose()).array().colwise() - lambdaT).rowwise() + dos_total1D.transpose() ).exp();
 
 
-    if(constants::rw_dims == 2){
-        dos_total1D.resize(worker.E_bins_total.size());
-        for (int i = 0; i < worker.E_bins_total.size(); i++){
-            lambda = 0;
-//            for (int j = 0; j < worker.M_bins_total.size();j++){
-//                if(isnan(worker.dos_total(i,j))){continue;}
-//                lambda = fmax(worker.dos_total(i,j), lambda);
-//            }
-            lambda = math::nanmaxCoeff(worker.dos_total);
-            dos_total1D(i) = lambda;
-            for (int j = 0; j < worker.M_bins_total.size(); j++){
-                if(isnan(worker.dos_total(i,j))){continue;}
-                dos_total1D(i) += exp(worker.dos_total(i,j) - lambda);
-            }
-            dos_total1D(i) = log(dos_total1D(i));
-        }
-    }else{
-       dos_total1D = worker.dos_total;
+
+    F.resize(T_num,worker.E_bins_total.size());
+    for (i = 0; i < T.size(); i++) {
+        F.row(i) = (dos_total1D - worker.E_bins_total * beta_vec(i) - lambdaT).exp();
     }
-    T = VectorXd::LinSpaced(T_num, T_min, T_max).array();
-
+    cout << "D: " << D << endl;
     for (int t = 0; t < T_num; t++) {
         ene = 0;
         eSq = 0;

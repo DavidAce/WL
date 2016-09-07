@@ -11,6 +11,7 @@ s    = importdata(['../outdata/final/s.dat']);
 f    = importdata(['../outdata/final/f.dat']);
 x    = importdata(['../outdata/final/x.dat']);
 c_peak= importdata(['../outdata/final/c_peak.dat']);
+% D     = importdata(['../outdata/final/D.dat']);
 
 c_err    = importdata(['../outdata/final/c_err.dat']);
 u_err    = importdata(['../outdata/final/u_err.dat']);
@@ -78,15 +79,14 @@ legend('x WL')
 xlabel('T');
 ylabel('x(T)')
 
-[TIsing,eIsing,dosIsing] = dos_ising(E,L);
-dosIsing = dosIsing - (max(dosIsing) - max(dos));
+% [TIsing,eIsing,dosIsing] = dos_ising(E,L);
+% dosIsing = dosIsing - (max(dosIsing) - max(dos));
 figure(6)
-subplot(1,2,1)
 shadedErrorBar(E/N,dos,dos_err, '-o', 1),hold all;
-plot(E/N,dosIsing);
-subplot(1,2,2)
-dosError = (abs((dosIsing - dos)./(dosIsing)));
-semilogy(E/N,dosError),hold all;
+% plot(E/N,dosIsing);
+% subplot(1,2,2)
+% dosError = (abs((dosIsing - dos)./(dosIsing)));
+% semilogy(E/N,dosError),hold all;
 
 
 

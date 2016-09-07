@@ -47,6 +47,8 @@ void outdata::write_data_thermo(class_thermodynamics &thermo, const int &iter){
     string name_x     = folder + string("x.dat");
     string name_dos1D = folder + string("dos1D.dat");
     string name_peak  = folder + string("c_peak.dat");
+    string name_D  = folder + string("D.dat");
+    string name_F  = folder + string("F.dat");
     write_to_file(thermo.T, name_T);
     write_to_file(thermo.s, name_s);
     write_to_file(thermo.c, name_c);
@@ -55,6 +57,8 @@ void outdata::write_data_thermo(class_thermodynamics &thermo, const int &iter){
     write_to_file(thermo.x, name_x);
     write_to_file(thermo.dos_total1D, name_dos1D);
     write_to_file(thermo.peak, name_peak);
+    write_to_file(thermo.D, name_D);
+    write_to_file(thermo.F, name_F);
 }
 
 void outdata::write_final_data(class_stats &stats){
