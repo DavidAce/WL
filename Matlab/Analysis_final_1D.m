@@ -95,7 +95,7 @@ shadedErrorBar(E/N,dos1D,dos1D_err, '-o', 1),hold all;
 % dosError = (abs((dosIsing - dos)./(dosIsing)));
 % semilogy(E/N,dosError),hold all;
 
-
+%%
 figure(7)
 h = mesh(M,E, dos);
 hold on;

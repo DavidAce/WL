@@ -136,7 +136,7 @@ namespace mpi {
         MPI_Gather(&M_size, 1, MPI_INT, M_sizes, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
         if (worker.world_ID == 0 && debug_merge) {
-            cout << "Receiving from ";
+            cout << "Gathering dos" << endl;
             cout.flush();
             std::this_thread::sleep_for(std::chrono::microseconds(1000));
         }
@@ -152,7 +152,7 @@ namespace mpi {
         for (int w = 1; w < worker.world_size; w++) {
             if (worker.world_ID == 0) {
                 if (debug_merge) {
-                    cout << w << " ";
+                    cout << "Receiving from " << w << endl;
                     cout.flush();
                     std::this_thread::sleep_for(std::chrono::microseconds(1000));
                 }
@@ -166,21 +166,27 @@ namespace mpi {
 
                 //Find coordinates on dos_total
                 E_merge_idx = math::find_matching_slope(dos_total, dos_recv, E_total, E_recv, M_total, M_recv);
-                dos_total.row(E_merge_idx).maxCoeff(&M_merge_idx);
+                M_merge_idx = math::nanmaxCoeff_idx(dos_total.row(E_merge_idx));
+
+//                dos_total.row(E_merge_idx).maxCoeff(&M_merge_idx);
                 //Find coordinates on received dos;
                 E_merge_idx_up = math::binary_search(E_recv.data(), E_total(E_merge_idx), E_sizes[w]);
-                dos_recv.row(E_merge_idx_up).maxCoeff(&M_merge_idx_up);
+                M_merge_idx_up = math::nanmaxCoeff_idx(dos_recv.row(E_merge_idx_up));
+//                dos_recv.row(E_merge_idx_up).maxCoeff(&M_merge_idx_up);
                 //Find difference between heights at these points
                 diff = dos_total(E_merge_idx, M_merge_idx) - dos_recv(E_merge_idx_up, M_merge_idx_up);
                 //Add that difference to the next
                 math::add_to_nonzero(dos_recv, diff);
                 //Now now all doses should be the same height
                 if (debug_merge) {
-                    cout << "Concatenating ID: " << w << endl;
+                    cout << "Concatenating " << w-1 << " and "<< w << endl;
                     cout << "E_bins_up      " << E_recv(E_merge_idx_up) << " [" << E_merge_idx_up << "]" << "    = "
                          << E_recv.transpose() << endl;
                     cout << "E_bins_total   " << E_total(E_merge_idx) << " [" << E_merge_idx << "]" << "    = "
                          << E_total.transpose() << endl;
+                    cout << "dos_tot" <<endl << dos_total << endl;
+                    cout << "dos_rec" <<endl << dos_recv << endl;
+
                     cout.flush();
                     std::this_thread::sleep_for(std::chrono::microseconds(1000));
                 }
@@ -219,6 +225,7 @@ namespace mpi {
         if (worker.world_ID == 0) {
             math::subtract_min_nonzero_nan(dos_total);
             math::remove_nan_rows(dos_total, E_total);
+            worker.find_current_state();
             worker.dos_total = dos_total;
             worker.E_bins_total = E_total;
             worker.M_bins_total = M_total;
@@ -233,26 +240,16 @@ namespace mpi {
             std::this_thread::sleep_for(std::chrono::microseconds(10));
         }
         MPI_Barrier(MPI_COMM_WORLD);
-        int E_size = (int) worker.E_bins_total.size();
-        int M_size = (int) worker.M_bins_total.size();
-        MPI_Bcast(&E_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
-        MPI_Bcast(&M_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
-        worker.dos_total.conservativeResize(E_size, M_size);
-        worker.E_bins_total.conservativeResize(E_size);
-        worker.M_bins_total.conservativeResize(M_size);
-        MPI_Bcast(worker.dos_total.data(), E_size * M_size, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-        MPI_Bcast(worker.E_bins_total.data(), E_size, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-        MPI_Bcast(worker.M_bins_total.data(), M_size, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+        mpi::bcast_dynamic(worker.dos_total, MPI_DOUBLE, 0, worker.world_ID );
+        mpi::bcast_dynamic(worker.E_bins_total, MPI_DOUBLE, 0, worker.world_ID );
+        mpi::bcast_dynamic(worker.M_bins_total, MPI_DOUBLE, 0, worker.world_ID );
         counter::merges++;
-//        cout << endl <<  " dos before: " << endl << worker.dos_total << endl << endl;
-
         MPI_Barrier(MPI_COMM_WORLD);
-
         if (worker.world_ID == 0 && debug_bcast) {
             cout << "Merge OK " << endl;
             cout << "E_bins_total = " << worker.E_bins_total.transpose() << endl;
             cout << "Diff         = "
-                 << (worker.E_bins_total.tail(E_size - 1) - worker.E_bins_total.head(E_size - 1)).transpose() << endl;
+                 << (worker.E_bins_total.tail(worker.E_bins_total.size() - 1) - worker.E_bins_total.head(worker.E_bins_total.size() - 1)).transpose() << endl;
             cout << endl;
             cout.flush();
             std::this_thread::sleep_for(std::chrono::microseconds(10000));
@@ -268,7 +265,11 @@ namespace mpi {
         }
 
         MPI_Barrier(MPI_COMM_WORLD);
-        math::subtract_min_nonzero(worker.dos_total);
+        math::subtract_min_nonnan(worker.dos_total);
+        if (worker.world_ID == 0){
+            cout << "dos size " << worker.dos_total.rows()    << " x " << worker.dos_total.cols() << endl;
+            cout << "E   size " << worker.E_bins_total.rows() << " x " << worker.E_bins_total.cols() << endl;
+        }
         if (worker.world_ID == 0 && debug_divide) {
             cout << "Computing Volume ";
             cout.flush();
@@ -281,7 +282,9 @@ namespace mpi {
         double x = local_volume * constants::overlap_factor / (1 - constants::overlap_factor / 2);
         //Find the boundaries of the DOS domain that gives every worker the  same DOS volume to work on
         int E_min_local_idx, E_max_local_idx;
-
+        if (worker.world_ID == 0){
+            cout << "dos volume " << global_volume << endl;
+        }
         if (worker.world_ID == 0) {
             E_min_local_idx = 0;
             E_max_local_idx = math::volume_idx(worker.dos_total, worker.E_bins_total, worker.M_bins_total,
@@ -323,7 +326,7 @@ namespace mpi {
         int rows = E_max_local_idx - E_min_local_idx + 1;
 
         if (from + rows > worker.E_bins_total.size()) {
-            cout << "TOO MANY ROWS " << endl;
+            cout << "TOO MANY ROWS   |  from + rows = " << from+rows << " E_bins_total.size() = " << worker.E_bins_total.size() << endl;
             cout << worker << endl;
             cout.flush();
             std::this_thread::sleep_for(std::chrono::seconds(1));

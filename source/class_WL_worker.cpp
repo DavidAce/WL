@@ -156,13 +156,14 @@ void class_worker::update_global_range() {
         E_max_global  = E_trial;
         need_to_resize_global = 1;
     }
-    if (constants::rw_dims == 1){return;}
     if (M_trial < M_min_global){
         M_min_global = M_trial;
+        M_min_local  = M_trial;
         need_to_resize_global = 1;
     }
     if (M_trial > M_max_global){
         M_max_global = M_trial;
+        M_max_local = M_trial;
         need_to_resize_global = 1;
     }
 }
@@ -230,7 +231,6 @@ void class_worker::resize_local_bins() {
     ArrayXXd dos_temp;
     ArrayXXi histogram_temp;
     compute_number_of_bins(E_new_size, M_new_size);
-
     histogram_temp  = ArrayXXi::Zero(E_new_size, M_new_size);
     dos_temp        = ArrayXXd::Zero(E_new_size, M_new_size);
     dE              = (E_max_local - E_min_local) / (max(E_new_size,E_old_size) * 2.0);
@@ -369,15 +369,24 @@ void class_worker::acceptance_criterion(){
 	
     if (in_window){
         t_acceptance_criterion.tic();
+        if (model.discrete_model && counter::merges == 0){
+            E_bins(E_idx) = E;
+            M_bins(M_idx) = M;
+            E_set.insert(E);
+            M_set.insert(M);
+        }
         if (check_in_window(E_trial)){
             switch(constants::rw_dims) {
                 case 1:
+//                    E_idx_trial = math::binary_search(E_bins.data(), E_trial, E_bins.size());
                     E_idx_trial = math::binary_search(E_bins.data(), E_trial, E_bins.size(),E, E_idx);
                     M_idx_trial = 0;
                     break;
                 case 2:
                     E_idx_trial = math::binary_search(E_bins.data(), E_trial, E_bins.size(),E, E_idx);
                     M_idx_trial = math::binary_search(M_bins.data(), M_trial, M_bins.size(),M, M_idx);
+//                    E_idx_trial = math::binary_search(E_bins.data(), E_trial, E_bins.size());
+//                    M_idx_trial = math::binary_search(M_bins.data(), M_trial, M_bins.size());
                     break;
                 default:
                     cout << "Wrong dimension:  constants::rw_dims" << endl;
@@ -386,12 +395,7 @@ void class_worker::acceptance_criterion(){
         }else{
             accept      = false;
         }
-        if (model.discrete_model){
-            E_bins(E_idx) = E;
-            M_bins(M_idx) = M;
-            E_set.insert(E);
-            M_set.insert(M);
-        }
+
 	    t_acceptance_criterion.toc();
     }else{
         if (check_in_window(E_trial)){

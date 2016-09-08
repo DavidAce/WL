@@ -117,14 +117,15 @@ ArrayXXd indata::read_file(string filename) {
     }
     //Now make your matrix and fill it with the contents of line[].
     ArrayXXd result(rows, cols);
+    int j;
     for (unsigned long int i = 0; i < rows; i++) {
-        stream.clear();
-        stream << lines[i];
-        for (unsigned long int j = 0; j < cols; j++) {
-            stream >> number;
-            result(i, j) = std::stod(number);
+        stringstream new_stream;
+        new_stream << lines[i];
+        j = 0;
+        while (!new_stream.eof()) {
+            new_stream >> number;
+            result(i, j++) = std::stod(number);
         }
     }
     return result;
 }
-
