@@ -7,6 +7,8 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 
+#include <experimental/filesystem>
+#include <cstdlib>
 
 #include <iostream>
 #include "class_WL_worker.h"
@@ -14,19 +16,12 @@
 #include "class_WL_statistics.h"
 using namespace std;
 using namespace Eigen;
-
-namespace patch{
-    template < typename T > std::string to_string( const T& n ){
-        std::ostringstream stm ;
-        stm << n ;
-        return stm.str() ;
-    }
-}
+namespace fs = std::experimental::filesystem;
 
 class outdata {
 private:
     string      folder;
-
+    fs::path path;
     int   world_ID;
     int   iteration;
     int   precision = 10;

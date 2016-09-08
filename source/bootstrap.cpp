@@ -15,6 +15,7 @@ void do_bootstrap(class_worker &worker){
         std::this_thread::sleep_for(std::chrono::microseconds(1000));
     }
     MPI_Barrier(MPI_COMM_WORLD);
+
     for (int i = 0; i < constants::bootstrap_reps; i++){
         worker.iteration = i + constants::simulation_reps;
         in.load_random_section(worker);
@@ -23,6 +24,7 @@ void do_bootstrap(class_worker &worker){
         out.create_and_set_folder(worker.iteration);
         out.write_data_master(worker) ;
     }
+    MPI_Barrier(MPI_COMM_WORLD);
 
     //Now we want to compute thermodynamic quantities
     do_thermodynamics(worker);

@@ -36,15 +36,15 @@ void class_thermodynamics::compute(class_worker &worker) {
         Z   = 0;
         beta = 1 / T(t);
         lambda = 0;
-        //Find lambda
+//        Find lambda
         for (i = 0; i < worker.E_bins_total.size(); i++) {
             for (j = 0; j < worker.M_bins_total.size(); j++) {
                 if(isnan(worker.dos_total(i,j))){continue;}
-                lambda = fmax(lambda ,worker.dos_total(i, j) - worker.E_bins_total(i) * beta);
+                lambda = fmax(lambda , worker.dos_total(i, j) - worker.E_bins_total(i) * beta);
             }
         }
 
-
+//        lambda = lambdaT(t);
         for (j = 0; j < worker.M_bins_total.size(); j++) {
             //w = 0;
             //w = exp(worker.dos_total(i,j) - beta*E - lambda);  //// g(E)*exp(-E/T) = the weight of this energy
@@ -72,7 +72,6 @@ void class_thermodynamics::compute(class_worker &worker) {
         s(t)    = (log(Z) + lambda + beta * eAvg) /  constants::N;
         c(t)    = (beta * beta * (eSqAvg - eAvg*eAvg)) /  constants::N;
         x(t)    = (mSqAvg - mAvg*mAvg)/constants::N;
-
     }
 
     s = s - s.minCoeff();

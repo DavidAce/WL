@@ -30,6 +30,10 @@ namespace math{
                                        const ArrayXd &E1  , const ArrayXd &E2,
                                        const ArrayXd &M1  , const ArrayXd &M2);
 
+    extern ArrayXXd mean_depthwise(std::vector<ArrayXXd> &array3D) ;
+    extern ArrayXXd err_depthwise(std::vector<ArrayXXd> &array3D, ArrayXXd &avg) ;
+
+
     template <typename Derived>
     double typical_spacing(const ArrayBase<Derived> &array){
         //Compute the median of the differences to get a typical spacing
@@ -53,25 +57,82 @@ namespace math{
 
     }
 
+
     template <typename Derived>
-    double find_min_positive(const ArrayBase<Derived> &array){
-        auto min = 1000000000;
-        for (int j = 0; j < array.cols(); j++) {
-            for (int i = 0; i < array.rows(); i++) {
-                if (isnan(array(i,j))){continue;}
-                if (array(i, j) < min) {
-                    if (array(i, j) > 0) {
-                        min = array(i, j);
-                    }
-                }
-            }
-        }
-        return min;
+    typename Derived::Scalar nansquared(const ArrayBase<Derived> & array)  {
+        const auto& no_nan_this = (array == array).select(array,0);
+        return no_nan_this.dot(no_nan_this);
+    }
+
+    template <typename Derived>
+    typename Derived::Scalar nansum(const ArrayBase<Derived> & array)  {
+        const auto& no_nan_this = (array == array).select(array,0);
+        return no_nan_this.sum();
+    }
+    template <typename Derived>
+    Array<typename Derived::Scalar,Dynamic,Dynamic> nansum_rowwise(const ArrayBase<Derived> & array)  {
+        const auto& no_nan_this = (array == array).select(array,0);
+        return no_nan_this.rowwise().sum();
+    }
+
+    template <typename Derived>
+    Array<typename Derived::Scalar,Dynamic,Dynamic> nansum_colwise(const ArrayBase<Derived> & array)  {
+        const auto& no_nan_this = (array == array).select(array,0);
+        return no_nan_this.colwise().sum();
+    }
+    template <typename Derived>
+    typename Derived::Scalar nanmaxCoeff(const ArrayBase<Derived> & array)  {
+        const auto& no_nan_this = (array == array).select(array,0);
+        return no_nan_this.maxCoeff();
+    }
+
+    template <typename Derived>
+    typename Derived::Scalar nanminCoeff(const ArrayBase<Derived> & array)  {
+        const auto& no_nan_this = (array == array).select(array,nanmaxCoeff(array));
+        return no_nan_this.minCoeff();
+    }
+
+    template <typename Derived>
+    Array<typename Derived::Scalar,Dynamic,Dynamic> nanmaxCoeff_rowwise(const ArrayBase<Derived> & array)  {
+        const auto& no_nan_this = (array == array).select(array,0);
+        return no_nan_this.rowwise().maxCoeff();
+    }
+
+    template <typename Derived>
+    typename Derived::Scalar nanmean(const ArrayBase<Derived> & array)  {
+        const auto& no_nan_this = (array == array).select(array,0);
+        return no_nan_this.mean();
+    }
+
+    template <typename Derived>
+    Array<typename Derived::Scalar,Dynamic,Dynamic> zeros_to_NaN(const ArrayBase<Derived> &array){
+        const auto& nan_this = (array <= 0).select(std::numeric_limits<typename Derived::Scalar>::quiet_NaN(), array);
+        std::cout <<std::endl << nan_this << std::endl;
+        return nan_this;
+    }
+
+    template <typename Derived>
+    typename Derived::Scalar find_min_positive(const ArrayBase<Derived> &array){
+        return nanminCoeff(zeros_to_NaN(array));
+//
+//        auto min = 1000000000;
+//        for (int j = 0; j < array.cols(); j++) {
+//            for (int i = 0; i < array.rows(); i++) {
+//                if (isnan(array(i,j))){continue;}
+//                if (array(i, j) < min) {
+//                    if (array(i, j) > 0) {
+//                        min = array(i, j);
+//                    }
+//                }
+//            }
+//        }
+//        return min;
     }
 
     template <typename Derived>
     void subtract_min_nonzero(ArrayBase<Derived> &array){
         auto min_positive = find_min_positive(array);
+        std::cout << min_positive << std::endl;
         for (int j = 0; j < array.cols();j++){
             for(int i = 0; i < array.rows(); i++){
                 if (array(i,j) == 0){continue;}
@@ -80,9 +141,10 @@ namespace math{
         }
     }
 
+
     template <typename Derived>
     void subtract_min_nonzero_nan(ArrayBase<Derived> &array){
-        array = (array <= 0).select(std::numeric_limits<double>::quiet_NaN(), array);
+        array = zeros_to_NaN(array);
         auto min_positive = find_min_positive(array);
         for (int j = 0; j < array.cols();j++){
             for(int i = 0; i < array.rows(); i++){
@@ -91,6 +153,9 @@ namespace math{
             }
         }
     }
+
+
+
 
     template <typename Derived, typename T>
     void add_to_nonzero(ArrayBase<Derived> &array, const T &x){
@@ -123,39 +188,7 @@ namespace math{
         vec = vec_temp.head(k);
     }
 
-    template <typename Derived>
-    inline double nansquared(const ArrayBase<Derived> & array)  {
-        const auto& no_nan_this = (array == array).select(array,0);
-        return no_nan_this.dot(no_nan_this);
-    }
 
-    template <typename Derived>
-    inline double nansum(const ArrayBase<Derived> & array)  {
-        const auto& no_nan_this = (array == array).select(array,0);
-        return no_nan_this.sum();
-    }
-    template <typename Derived>
-    inline ArrayXd nansum_rowwise(const ArrayBase<Derived> & array)  {
-        const auto& no_nan_this = (array == array).select(array,0);
-        return no_nan_this.rowwise().sum();
-    }
-
-    template <typename Derived>
-    inline ArrayXd nansum_colwise(const ArrayBase<Derived> & array)  {
-        const auto& no_nan_this = (array == array).select(array,0);
-        return no_nan_this.colwise().sum();
-    }
-    template <typename Derived>
-    inline double nanmaxCoeff(const ArrayBase<Derived> & array)  {
-        const auto& no_nan_this = (array == array).select(array,0);
-        return no_nan_this.maxCoeff();
-    }
-
-    template <typename Derived>
-    inline ArrayXd nanmaxCoeff_rowwise(const ArrayBase<Derived> & array)  {
-        const auto& no_nan_this = (array == array).select(array,0);
-        return no_nan_this.rowwise().maxCoeff();
-    }
 
     //Finds the element nearest x in a C-style array
     template <typename List_type, typename T, typename size_type>

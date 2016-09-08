@@ -3,10 +3,10 @@ clear all
 L = 8;
 N = L^2;
 
-for i = 0:1
-    dos = importdata(['../outdata/0/dos' num2str(i) '.dat']);
-    E = importdata(['../outdata/0/E' num2str(i) '.dat']);
-    M = importdata(['../outdata/0/M' num2str(i) '.dat']);
+for i = 0:5
+    dos = importdata(['../outdata/1/dos' num2str(i) '.dat']);
+    E = importdata(['../outdata/1/E' num2str(i) '.dat']);
+    M = importdata(['../outdata/1/M' num2str(i) '.dat']);
     E = E(any(~isnan(dos')));
     dos = dos(any(~isnan(dos')) ,:);
     [c,u,T, dosE] = thermo2d(dos,E,M,N);
@@ -69,7 +69,7 @@ end
 	xlabel('T');
     %%
     figure(5)
-    [TIsing,eIsing,dosIsing] = dos_ising(L);
+    [TIsing,eIsing,dosIsing] = dos_ising(E,L);
     %dosIsing = dosIsing + (max(dosE) - max(dosIsing));
     plot(N*eIsing,dosIsing),hold on 
     plot(E,dosE);

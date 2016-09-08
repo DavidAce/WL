@@ -2,8 +2,9 @@ close all
 clear all;
 L = 6;
 N = L^2;
-dos  = importdata(['../outdata/final/dos1D.dat']);
+dos1D= importdata(['../outdata/final/dos1D.dat']);
 E    = importdata(['../outdata/final/E.dat']);
+M    = importdata(['../outdata/final/M.dat']);
 T    = importdata(['../outdata/final/T.dat']);
 c    = importdata(['../outdata/final/c.dat']);
 u    = importdata(['../outdata/final/u.dat']);
@@ -11,15 +12,21 @@ s    = importdata(['../outdata/final/s.dat']);
 f    = importdata(['../outdata/final/f.dat']);
 x    = importdata(['../outdata/final/x.dat']);
 c_peak= importdata(['../outdata/final/c_peak.dat']);
-% D     = importdata(['../outdata/final/D.dat']);
+dos   = importdata(['../outdata/final/dos.dat']);
+D     = importdata(['../outdata/final/D.dat']);
+F     = importdata(['../outdata/final/F.dat']);
+
 
 c_err    = importdata(['../outdata/final/c_err.dat']);
 u_err    = importdata(['../outdata/final/u_err.dat']);
 s_err    = importdata(['../outdata/final/s_err.dat']);
 f_err    = importdata(['../outdata/final/f_err.dat']);
 x_err    = importdata(['../outdata/final/x_err.dat']);
-dos_err  = importdata(['../outdata/final/dos1D_err.dat']);
+dos1D_err = importdata(['../outdata/final/dos1D_err.dat']);
 c_peak_err= importdata(['../outdata/final/c_peak_err.dat']);
+dos_err   = importdata(['../outdata/final/dos_err.dat']);
+D_err     = importdata(['../outdata/final/D_err.dat']);
+F_err     = importdata(['../outdata/final/F_err.dat']);
 
 
 %[c,u,T] = thermo(dos,E,N);
@@ -82,13 +89,18 @@ ylabel('x(T)')
 % [TIsing,eIsing,dosIsing] = dos_ising(E,L);
 % dosIsing = dosIsing - (max(dosIsing) - max(dos));
 figure(6)
-shadedErrorBar(E/N,dos,dos_err, '-o', 1),hold all;
+shadedErrorBar(E/N,dos1D,dos1D_err, '-o', 1),hold all;
 % plot(E/N,dosIsing);
 % subplot(1,2,2)
 % dosError = (abs((dosIsing - dos)./(dosIsing)));
 % semilogy(E/N,dosError),hold all;
 
 
-
-
-
+figure(7)
+h = mesh(M,E, dos);
+hold on;
+set(h, 'zdata', dos);
+axis vis3d
+ylabel('E');
+xlabel('M');
+zlabel('log(g(E,M))');
