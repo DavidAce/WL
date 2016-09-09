@@ -146,7 +146,7 @@ namespace math {
     }
 
     Vector3d gradient_vector(const ArrayXXd &dos, const ArrayXd &E, const ArrayXd &M, const int &i, const int &j){
-        Vector3d v_up, v_rt, v_dn, v_lf; //Vectors connecting adjacent 3 orthogonal points on DOS
+        Vector3d v_up, v_rt, v_dn, v_lf, v_tot; //Vectors connecting adjacent 3 orthogonal points on DOS
         switch(constants::rw_dims){
             case 1:
                 v_dn << E(i + 1) - E(i), 0, dos(i + 1, j) - dos(i, j);
@@ -157,8 +157,12 @@ namespace math {
                 if (on_the_edge_dn(dos,E,M,i,j)){v_dn << 0,0,0;}else{v_dn << E(i + 1) - E(i), 0, dos(i + 1, j) - dos(i, j);} //Detect if on edge
                 if (on_the_edge_rt(dos,E,M,i,j)){v_rt << 0,0,0;}else{v_rt << 0, M(j + 1) - M(j), dos(i, j + 1) - dos(i, j);} //Detect if on edge
                 if (on_the_edge_lf(dos,E,M,i,j)){v_lf << 0,0,0;}else{v_lf << 0, M(j - 1) - M(j), dos(i, j - 1) - dos(i, j);} //Detect if on edge
-                return (v_up.cross(v_rt) + v_rt.cross(v_dn) + v_dn.cross(v_lf) + v_lf.cross(v_dn)).normalized();
-
+                v_tot = v_up.cross(v_rt) + v_rt.cross(v_dn) + v_dn.cross(v_lf) + v_lf.cross(v_dn);
+                if (v_tot.norm() == 0){
+                    return v_tot;
+                }else{
+                    return v_tot.normalized();
+                }
         }
     }
 

@@ -9,9 +9,9 @@
 #include "class_tic_toc.h"
 #include <Eigen/Dense>
 #define debug_swap 0
-#define debug_merge 1
-#define debug_bcast 1
-#define debug_divide 1
+#define debug_merge 0
+#define debug_bcast 0
+#define debug_divide 0
 
 #include "class_WL_worker.h"
 namespace mpi {

@@ -158,12 +158,13 @@ void class_worker::update_global_range() {
     }
     if (M_trial < M_min_global){
         M_min_global = M_trial;
-        M_min_local  = M_trial;
+        M_min_local = M_trial;
         need_to_resize_global = 1;
     }
     if (M_trial > M_max_global){
         M_max_global = M_trial;
         M_max_local = M_trial;
+
         need_to_resize_global = 1;
     }
 }
@@ -230,6 +231,7 @@ void class_worker::resize_local_bins() {
     int M_new_size;
     ArrayXXd dos_temp;
     ArrayXXi histogram_temp;
+
     compute_number_of_bins(E_new_size, M_new_size);
     histogram_temp  = ArrayXXi::Zero(E_new_size, M_new_size);
     dos_temp        = ArrayXXd::Zero(E_new_size, M_new_size);
@@ -278,6 +280,12 @@ void class_worker::resize_local_bins() {
     dos             = dos_temp;
     histogram       = histogram_temp;
     find_current_state();
+    for (int w = 0 ; w < world_size; w++){
+        if (w == world_ID){
+            cout << *this << endl;
+        }
+        MPI_Barrier(MPI_COMM_WORLD);
+    }
 }
 
 void class_worker::compute_number_of_bins(int & E_new_size, int & M_new_size) {
@@ -300,44 +308,68 @@ void class_worker::compute_number_of_bins(int & E_new_size, int & M_new_size) {
 
         int i = 0;
         ArrayXd E_set_2_vector(E_set.size());
+        ArrayXd M_set_2_vector(M_set.size());
         for (auto it = E_set.begin(); it != E_set.end(); it++) {
             E_set_2_vector(i) = *it;
             i++;
         }
+        i = 0;
+        for (auto it = M_set.begin(); it != M_set.end(); it++) {
+            M_set_2_vector(i) = *it;
+            i++;
+        }
 
-        double spacing_set = math::typical_spacing(E_set_2_vector);
-        double spacing  =  fmax(spacing_set,math::typical_spacing(E_bins));
-        int maxElem     = (int) ceil((E_max_local - E_min_local) / spacing);
+        MPI_Allreduce(&M_min_global, &M_min_global, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+        MPI_Allreduce(&M_max_global, &M_max_global, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+        M_min_local = M_min_global;
+        M_max_local = M_max_global;
+        double E_spacing_set =  math::typical_spacing(E_set_2_vector);
+        double M_spacing_set =  math::typical_spacing(M_set_2_vector);
+        double E_spacing     =  fmax(E_spacing_set,math::typical_spacing(E_bins));
+        double M_spacing     =  fmax(M_spacing_set,math::typical_spacing(M_bins));
+        int E_maxElem     = (int) ceil((E_max_local - E_min_local + E_spacing) / E_spacing);
+        int M_maxElem     = (int) ceil((M_max_global - M_min_global + M_spacing) / M_spacing);
         if (debug_comp_numb_bins) {
             for (i = 0; i < world_size; i++) {
                 if (i == world_ID) {
                     cout << "ID: " << world_ID
-                         << " Spacing = " << spacing
-                         << " Spacing set = " << spacing_set
-                         << " maxElem = " << maxElem
-                         << " E_set.size() = " << E_set.size()
-                         << " Emin = " << E_min_local
-                         << " Emax = " << E_max_local << endl
-                         << "E_bins: " << E_bins.transpose() << endl;
+                            << " E_Spacing = " << E_spacing
+                            << " M_Spacing = " << M_spacing
+                            << " E_Spacing set = " << E_spacing_set
+                            << " M_Spacing set = " << M_spacing_set
+                            << " E_maxElem = " << E_maxElem
+                            << " M_maxElem = " << M_maxElem
+                            << " E_set.size() = " << E_set.size()
+                            << " M_set.size() = " << M_set.size()
+                            << " Emin = " << E_min_local
+                            << " Emax = " << E_max_local
+                            << " Emin = " << M_min_global
+                            << " Emin = " << E_min_global
+                            << endl
+                            << "E_bins: " << E_bins.transpose() << endl
+                            << "M_bins: " << M_bins.transpose() << endl;
                 }
                 MPI_Barrier(MPI_COMM_WORLD);
             }
         }
 
         E_new_size = max(constants::bins , (int) E_set.size()); //What if there is a jump in E_set?
-        E_new_size = max(E_new_size      , maxElem);
-        switch(constants::rw_dims){
-            case 1 :
-                M_new_size = 1;
-                break;
-            case 2 :
-                M_new_size = max(constants::bins , (int) M_set.size());
-                break;
-            default:
-                cout << "Error wrong rw-dimension  constants::rw_dims" << endl;
-                break;
-        }
-        MPI_Allreduce(&M_new_size, &M_new_size, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+        E_new_size = max(E_new_size      , E_maxElem);
+        M_new_size = max(constants::bins , (int) M_set.size()); //What if there is a jump in E_set?
+        M_new_size = max(M_new_size      , M_maxElem);
+        M_new_size = constants::rw_dims == 1 ? 1 : M_new_size;
+//        switch(constants::rw_dims){
+//            case 1 :
+//                M_new_size = 1;
+//                break;
+//            case 2 :
+//                M_new_size = max(constants::bins , (int) M_set.size());
+//                break;
+//            default:
+//                cout << "Error wrong rw-dimension  constants::rw_dims" << endl;
+//                break;
+//        }
+//        MPI_Allreduce(&M_new_size, &M_new_size, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
     }else{
         //Modify this for continuous models later
         E_new_size = (int) E_bins.size();
@@ -538,7 +570,8 @@ void class_worker::prev_WL_iteration() {
 std::ostream &operator<<(std::ostream &os, const class_worker &worker) {
     os << setprecision(2);
     os << "ID: " << worker.world_ID
-       << " Current State: " << endl
+       << " Current State: "
+       << " Need to resize: " << worker.need_to_resize_global << endl
        << "     E = " << worker.E << " (" << worker.E_idx << ")"
        << "     M = " << worker.M << " (" << worker.M_idx << ")" << endl
        << "     E_trial = " << worker.E_trial << " (" << worker.E_idx_trial << ")"
@@ -562,9 +595,9 @@ std::ostream &operator<<(std::ostream &os, const class_worker &worker) {
        << worker.M_min_global << " "
        << worker.M_max_global << "]"
        << std::endl
-       << "     E_bins: " << worker.E_bins.transpose() << endl
-       << "     M_bins: " << worker.M_bins.transpose() << endl
-       << "     E_set : ";
+       << "     E_bins " << "[" << worker.E_bins.size() << "] "<< worker.E_bins.transpose() << endl
+       << "     M_bins " << "[" << worker.M_bins.size() << "] "<< worker.M_bins.transpose() << endl
+       << "     E_set  " << "[" << worker.E_set.size() << "] ";
         for (auto it = worker.E_set.begin(); it != worker.E_set.end(); it++) {
             if (*it == worker.E){ os << "[";}
             os << *it ;
@@ -573,7 +606,7 @@ std::ostream &operator<<(std::ostream &os, const class_worker &worker) {
 
         }
         os << endl
-        << "     M_set : ";
+        << "     M_set : " << "[" << worker.M_set.size() << "] ";
         for (auto it = worker.M_set.begin(); it != worker.M_set.end(); it++) {
             if (*it == worker.M){ os << "[";}
             os << *it;

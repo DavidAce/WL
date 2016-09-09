@@ -6,9 +6,9 @@ using namespace std;
 using namespace Eigen;
 namespace EMC_constants {
 	//Evolutionary parameters
-	const int M 				= 4;  				//Number of populations in a species (= threads in OpenMP)
+	const int M 				= 2;  				//Number of populations in a species (= threads in OpenMP)
 	const int N 				= 20;				//Number of individuals per population
-	const int N_best			= 5;				//Number of individuals in "hall of fame". Best individuals of all time (per population)
+	const int N_best			= 4;				//Number of individuals in "hall of fame". Best individuals of all time (per population)
 	extern int geneLength;          				//Number of bits per gene (The number of possible values for a parameter is 2^geneLength-1)
 	extern int nGenes;								//Number of parameters in your model. This is set in datafiles.cpp, inData::inData
 	extern int genomeLength;						//Number of bits for all genes, This is set in datafiles.cpp, inData::inData
@@ -30,7 +30,7 @@ namespace EMC_constants {
 	const double qmig = 0.1;						//The migration probability vs evolution probability
 	const double qm = 0.1;							//The mutation probability vs crossover (1-qm for crossover)
 	const double qma = 0.1;//0.005;					//elite mutation rate (qm*(1-qma) for regular mutation)
-	const int r_num = 20;							//Number of points to sample on snooker crossover (10-100 is ok, higher is slower but more thorough)
+	const int r_num = 10;							//Number of points to sample on snooker crossover (10-100 is ok, higher is slower but more thorough)
 	
 	//Probabilities for smart copy crossover
 	const double P0 = 0.1;							//If parents have the  SAME bit, reverse with probability p0

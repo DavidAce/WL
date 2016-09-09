@@ -1,6 +1,6 @@
 close all
 clear all;
-L = 6;
+L = 12;
 N = L^2;
 dos1D= importdata(['../outdata/final/dos1D.dat']);
 E    = importdata(['../outdata/final/E.dat']);
@@ -104,3 +104,8 @@ axis vis3d
 ylabel('E');
 xlabel('M');
 zlabel('log(g(E,M))');
+%%
+figure(8)
+Tc_idx = nearestpoint(c_peak(1), T);
+plot(E, D(Tc_idx, :))
+
