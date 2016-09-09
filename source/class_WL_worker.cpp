@@ -44,7 +44,7 @@ class_worker::class_worker(): 	model(),
     lnf = 1.0;
     find_initial_limits();
     resize_global_range();
-    divide_global_range();
+    divide_global_range_energy();
     set_initial_local_bins();
     find_current_state();
     start_counters();
@@ -190,11 +190,14 @@ void class_worker::resize_global_range() {
     }
 }
 
-void class_worker::divide_global_range(){
+void class_worker::divide_global_range_energy(){
     //Update limits
     double global_range     = fabs(E_max_global - E_min_global);
     double local_range      = global_range / (world_size);
-    double overlap_range    = local_range * constants::overlap_factor/2;
+    double x    =  constants::overlap_factor/2 ;
+    //Add a little bit extra if there are too many workers (Add nothing if world_size == 2, and up to local_volume if world_size == inf)
+
+    double overlap_range = local_range * x ;// * 2.0*(world_size - 2.0 + x)/world_size;
 
     if (world_ID == 0){
         E_min_local = E_min_global;
@@ -206,6 +209,9 @@ void class_worker::divide_global_range(){
         E_min_local = E_min_global + world_ID*local_range - overlap_range;
         E_max_local = E_min_global + (world_ID +1)*local_range + overlap_range;
     }
+    E_max_local = fmin(E_max_local,  E_max_global);
+    E_min_local = fmax(E_min_local,  E_min_global);
+
     M_min_local = M_min_global;
     M_max_local = M_max_global;
     in_window = check_in_window(E);
@@ -213,7 +219,6 @@ void class_worker::divide_global_range(){
         find_current_state();
     }
 }
-
 
 void class_worker::resize_local_bins() {
     // This function does rebinning of dos and histograms.
@@ -399,7 +404,7 @@ void class_worker::acceptance_criterion(){
 
     //  4a)in_window = false, E_trial not in_window, E_trial towards window = accept, otherwise accept 50% chance?
     //  5) need_to_resize_global = true (because E_trial out of global bounds) -> accept with 50% chance?
-	
+
     if (in_window){
         t_acceptance_criterion.tic();
         if (model.discrete_model && counter::merges == 0){

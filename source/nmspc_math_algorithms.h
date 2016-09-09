@@ -122,7 +122,7 @@ namespace math{
     template <typename Derived>
     void subtract_min_nonnan(ArrayBase<Derived> &array){
         auto min_nonnan = nanminCoeff(array);
-        array = (array == array).select(array-min_nonnan, array);
+        array = (array > 0 && array == array).select(array-min_nonnan, array);
     }
 
     template <typename Derived>
@@ -139,10 +139,16 @@ namespace math{
         array = (array == array).select(array-min_positive, array);
     }
 
+    template <typename Derived>
+    void subtract_min_nonzero_one(ArrayBase<Derived> &array){
+        auto min_positive = find_min_positive(array);
+        array = (array > 0 && array == array).select(array-min_positive+1, array);
+    }
+
 
 
     template <typename Derived, typename T>
-    void add_to_nonzero(ArrayBase<Derived> &array, const T &x){
+    void add_to_nonzero_nonnan(ArrayBase<Derived> &array, const T &x){
         array = (array > 0 && array == array).select(array+x, array);
     }
 

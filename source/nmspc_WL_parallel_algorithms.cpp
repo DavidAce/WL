@@ -122,7 +122,21 @@ namespace mpi {
             cout.flush();
             std::this_thread::sleep_for(std::chrono::microseconds(1000));
         }
-        MPI_Barrier(MPI_COMM_WORLD);
+
+//        //set zero_values to nan
+//        for (int w = 0; w < worker.world_size ; w++){
+//            if(w == worker.world_ID){
+//                cout << worker.dos << endl << endl;
+//                cout << worker.dos << endl << endl << endl;
+//
+//                cout.flush();
+//                std::this_thread::sleep_for(std::chrono::microseconds(1000));
+//            }
+//            MPI_Barrier(MPI_COMM_WORLD);
+//        }
+        worker.dos = math::Zero_to_NaN(worker.dos);
+
+
         ArrayXXd dos_total, dos_temp, dos_recv;
         ArrayXd E_total, M_total, E_temp, M_temp, E_recv, M_recv;
         int E_sizes[worker.world_size];
@@ -176,14 +190,17 @@ namespace mpi {
                 //Find difference between heights at these points
                 diff = dos_total(E_merge_idx, M_merge_idx) - dos_recv(E_merge_idx_up, M_merge_idx_up);
                 //Add that difference to the next
-                math::add_to_nonzero(dos_recv, diff);
+                if (std::isnan(diff)){
+                    cout << "Tried to concatenate "<< w-1 << " and " << w << ". Diff between two DOS is NaN, exiting" << endl;
+                }
+                math::add_to_nonzero_nonnan(dos_recv, diff);
                 //Now now all doses should be the same height
                 if (debug_merge) {
                     cout << "Concatenating " << w-1 << " and "<< w << endl;
-                    cout << "E_bins_up      " << E_recv(E_merge_idx_up) << " [" << E_merge_idx_up << "]" << "    = "
-                         << E_recv.transpose() << endl;
                     cout << "E_bins_total   " << E_total(E_merge_idx) << " [" << E_merge_idx << "]" << "    = "
                          << E_total.transpose() << endl;
+                    cout << "E_bins_up      " << E_recv(E_merge_idx_up) << " [" << E_merge_idx_up << "]" << "    = "
+                         << E_recv.transpose() << endl;
                     cout << "dos_tot" <<endl << dos_total << endl;
                     cout << "dos_rec" <<endl << dos_recv << endl;
 
@@ -208,6 +225,9 @@ namespace mpi {
                         E_recv.segment(from_up, rows_up);
                 dos_total = dos_temp;
                 E_total = E_temp;
+
+
+
                 if (debug_merge) {
                     cout << "OK ";
                     cout.flush();
@@ -223,13 +243,21 @@ namespace mpi {
 
 
         if (worker.world_ID == 0) {
-            math::subtract_min_nonzero_nan(dos_total);
+            math::subtract_min_nonnan(dos_total);
+            //Trim away nan rows for each worker
             math::remove_nan_rows(dos_total, E_total);
+
             worker.find_current_state();
             worker.dos_total = dos_total;
             worker.E_bins_total = E_total;
             worker.M_bins_total = M_total;
-
+            if (debug_merge) {
+                cout << "Finished Merging" << endl;
+                cout << "E_bins_total = " << E_total.transpose() << endl<<endl;
+                cout << "dos_total = " << endl << dos_total << endl;
+                cout.flush();
+                std::this_thread::sleep_for(std::chrono::microseconds(1000));
+            }
         }
     }
 
@@ -279,29 +307,32 @@ namespace mpi {
         MPI_Barrier(MPI_COMM_WORLD);
         double global_volume = math::volume(worker.dos_total, worker.E_bins_total, worker.M_bins_total);
         double local_volume = global_volume / worker.world_size;
-        double x = local_volume * constants::overlap_factor / (1 - constants::overlap_factor / 2);
+        double x = constants::overlap_factor / (1 - constants::overlap_factor / 2)  ;
+        //Add a little bit if there are too many workers (Add nothing if world_size == 2, and up to local_volume if world_size == inf)
+        double overlap_range = local_volume * 2.0*(worker.world_size - 2.0 + x)/worker.world_size;
+//        cout << local_volume / global_volume << overlap_range << " " << local_volume*x << endl << endl;
         //Find the boundaries of the DOS domain that gives every worker the  same DOS volume to work on
         int E_min_local_idx, E_max_local_idx;
-        if (worker.world_ID == 0){
-            cout << "dos volume " << global_volume << endl;
-        }
+//        if (worker.world_ID == 0){
+//            cout << "dos volume " << global_volume << endl;
+//        }
         if (worker.world_ID == 0) {
             E_min_local_idx = 0;
             E_max_local_idx = math::volume_idx(worker.dos_total, worker.E_bins_total, worker.M_bins_total,
-                                               (worker.world_ID + 1) * local_volume + x / 2);
+                                               (worker.world_ID + 1) * local_volume + overlap_range / 2);
             while (E_max_local_idx - E_min_local_idx < 3) { E_max_local_idx++; }
 
         } else if (worker.world_ID == worker.world_size - 1) {
             E_min_local_idx = math::volume_idx(worker.dos_total, worker.E_bins_total, worker.M_bins_total,
-                                               worker.world_ID * local_volume - x / 2);
+                                               worker.world_ID * local_volume - overlap_range / 2);
             E_max_local_idx = (int) worker.E_bins_total.size() - 1;
             while (E_max_local_idx - E_min_local_idx < 3) { E_min_local_idx--; }
 
         } else {
             E_min_local_idx = math::volume_idx(worker.dos_total, worker.E_bins_total, worker.M_bins_total,
-                                               worker.world_ID * local_volume - x / 4);
+                                               worker.world_ID * local_volume - overlap_range / 4);
             E_max_local_idx = math::volume_idx(worker.dos_total, worker.E_bins_total, worker.M_bins_total,
-                                               (worker.world_ID + 1) * local_volume + x / 4);
+                                               (worker.world_ID + 1) * local_volume + overlap_range / 4);
             while (E_max_local_idx - E_min_local_idx < 3) {
                 E_min_local_idx--;
                 E_max_local_idx++;

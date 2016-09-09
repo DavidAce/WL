@@ -8,16 +8,19 @@
 #include <chrono>
 #include "class_tic_toc.h"
 #include <Eigen/Dense>
+#include <Eigen/Core>
 #define debug_swap 0
 #define debug_merge 0
 #define debug_bcast 0
 #define debug_divide 0
 
 #include "class_WL_worker.h"
+//class class_worker;
 namespace mpi {
     extern void swap                           (class_worker &) ;
     extern void merge                          (class_worker &) ;
     extern void broadcast                      (class_worker &) ;
+    extern void divide_global_range_energy     (class_worker &) ;
     extern void divide_global_range_dos_volume (class_worker &) ;
 
     template <typename Derived, typename mpitype>

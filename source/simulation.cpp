@@ -111,7 +111,7 @@ void check_global_limits(class_worker &worker){
         if (worker.need_to_resize_global == 1) {
             if (debug_global_limits){debug_print(worker,"Check Global Limits ");}
             worker.resize_global_range();
-            worker.divide_global_range();
+            worker.divide_global_range_energy();
             worker.resize_local_bins();
             worker.prev_WL_iteration();
             worker.need_to_resize_global = 0;
@@ -137,7 +137,8 @@ void divide_range(class_worker &worker){
 
 void add_hist_volume(class_worker &worker) {
     //Find minimum histogram entry larger than 2.
-    math::subtract_min_nonzero(worker.histogram);
+    math::subtract_min_nonzero_one(worker.histogram);
+//    cout << worker.histogram << endl << endl;
     //Resize saturation vector
     if (worker.saturation.size() <= counter::saturation) {
         worker.saturation.conservativeResize(2 * std::max(1, counter::saturation));
@@ -164,9 +165,9 @@ void check_saturation(class_worker &worker) {
         Sx += pow(i - mX, 2);
         Sxy += (worker.saturation(i) - mY) * (i - mX);
     }
-    double slope = Sxy / Sx;
+    worker.slope = Sxy / Sx;
 
-    if (slope < 0) {
+    if (worker.slope < 0) {
         worker.next_WL_iteration();
         if (worker.lnf < constants::minimum_lnf) {
             worker.finish_line = 1;
@@ -227,6 +228,7 @@ void print_status(class_worker &worker) {
                         << " iw: "    << worker.in_window
                         << " 1/t: "   << worker.flag_one_over_t
                         << " Fin: "   << worker.finish_line
+                        << " slope "  << left << setw(10) << worker.slope
                         << " MCS: "   << left << setw(10) << counter::MCS
                         << " Time: "  << fixed << setprecision(3) << timer::elapsed_time_print.count() << " s ";
                 if(profiling_sweep){

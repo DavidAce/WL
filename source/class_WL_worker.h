@@ -69,7 +69,7 @@ public:
     int     finish_line;                 //turns to 1 when converged
 
     ArrayXi saturation;                //Measures the histogram saturation
-
+    double slope;
     //Holders for total, merged data
     ArrayXXd dos_total;
     ArrayXd E_bins_total, M_bins_total;
@@ -89,9 +89,8 @@ public:
     void set_initial_local_bins();
     void update_global_range();
     void resize_global_range() __attribute__((hot));
-    void divide_global_range();
+    void divide_global_range_energy();
     void resize_local_bins();
-    void resize_local_range();
     void compute_number_of_bins(int &, int &);
     bool check_in_window(const double &);
     void make_MC_trial() __attribute__((hot));

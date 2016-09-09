@@ -1,6 +1,6 @@
 close all
 clear all;
-L = 12;
+L = 16;
 N = L^2;
 dos1D= importdata(['../outdata/final/dos1D.dat']);
 E    = importdata(['../outdata/final/E.dat']);
@@ -97,6 +97,7 @@ shadedErrorBar(E/N,dos1D,dos1D_err, '-o', 1),hold all;
 
 %%
 figure(7)
+subplot(1,2,1)
 h = mesh(M,E, dos);
 hold on;
 set(h, 'zdata', dos);
@@ -104,8 +105,17 @@ axis vis3d
 ylabel('E');
 xlabel('M');
 zlabel('log(g(E,M))');
+subplot(1,2,2)
+h = mesh(M,E, dos_err);
+hold on;
+set(h, 'zdata', dos_err);
+axis vis3d
+ylabel('E');
+xlabel('M');
+zlabel('standard error');
 %%
+
 figure(8)
 Tc_idx = nearestpoint(c_peak(1), T);
-plot(E, D(Tc_idx, :))
+shadedErrorBar(E, D(Tc_idx, :), D_err(Tc_idx,:), '-o', 1)
 

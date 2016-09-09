@@ -130,39 +130,36 @@ namespace math {
     }
 
     bool  on_the_edge_up(const ArrayXXd &dos, const ArrayXd &E, const ArrayXd &M, const int &i, const int &j){
-        return i == 0 || std::isnan(dos(i,j))||std::isnan(dos(std::max(i-1,0), j));
+        return i == 0 ||  dos(std::max(i-1,0), j) == 0||  std::isnan(dos(std::max(i-1,0), j));
     }
 
     bool  on_the_edge_dn(const ArrayXXd &dos, const ArrayXd &E, const ArrayXd &M, const int &i, const int &j){
-        return i == E.size()-1 || std::isnan(dos(i,j)) || std::isnan(dos(std::min(i+1, (int)E.size()-1), j));
+        return i == E.size()-1 || dos(std::min(i+1, (int)E.size()-1), j) == 0 || std::isnan(dos(std::min(i+1, (int)E.size()-1), j));
     }
 
     bool  on_the_edge_lf(const ArrayXXd &dos, const ArrayXd &E, const ArrayXd &M, const int &i, const int &j){
-        return  j == 0 || std::isnan(dos(i,j)) || std::isnan(dos(i, std::max(j-1,0)));
+        return  j == 0 || dos(i, std::max(j-1,0)) == 0 || std::isnan(dos(i, std::max(j-1,0)));
     }
 
     bool  on_the_edge_rt(const ArrayXXd &dos, const ArrayXd &E, const ArrayXd &M, const int &i, const int &j){
-        return j == M.size()-1 || std::isnan(dos(i,j)) || std::isnan(dos(i, std::min(j+1, (int)M.size()-1)));
+        return j == M.size()-1 || dos(i, std::min(j+1, (int)M.size()-1)) == 0 ||std::isnan(dos(i, std::min(j+1, (int)M.size()-1)));
     }
 
     Vector3d gradient_vector(const ArrayXXd &dos, const ArrayXd &E, const ArrayXd &M, const int &i, const int &j){
-        Vector3d v_up, v_rt, v_dn, v_lf, v_tot; //Vectors connecting adjacent 3 orthogonal points on DOS
+        Vector3d v_up, v_rt, v_dn, v_lf; //Vectors connecting adjacent 3 orthogonal points on DOS
         switch(constants::rw_dims){
             case 1:
                 v_dn << E(i + 1) - E(i), 0, dos(i + 1, j) - dos(i, j);
                 return v_dn.normalized();
             case 2:
+                //Down is in the +x direction, and right in the +y direction (right hand rule)
+                if (on_the_edge_up(dos,E,M,i,j)){v_up << -1, 0, 0;}else{v_up << E(i - 1) - E(i), 0, dos(i - 1, j) - dos(i, j);} //Detect if on edge
+                if (on_the_edge_dn(dos,E,M,i,j)){v_dn <<  1, 0, 0;}else{v_dn << E(i + 1) - E(i), 0, dos(i + 1, j) - dos(i, j);} //Detect if on edge
+                if (on_the_edge_rt(dos,E,M,i,j)){v_rt <<  0, 1, 0;}else{v_rt << 0, M(j + 1) - M(j), dos(i, j + 1) - dos(i, j);} //Detect if on edge
+                if (on_the_edge_lf(dos,E,M,i,j)){v_lf <<  0,-1, 0;}else{v_lf << 0, M(j - 1) - M(j), dos(i, j - 1) - dos(i, j);} //Detect if on edge
+                return (v_up.cross(v_rt) + v_rt.cross(v_dn) + v_dn.cross(v_lf) + v_lf.cross(v_dn)).normalized();
+//                return v_tot.normalized();
 
-                if (on_the_edge_up(dos,E,M,i,j)){v_up << 0,0,0;}else{v_up << E(i - 1) - E(i), 0, dos(i - 1, j) - dos(i, j);} //Detect if on edge
-                if (on_the_edge_dn(dos,E,M,i,j)){v_dn << 0,0,0;}else{v_dn << E(i + 1) - E(i), 0, dos(i + 1, j) - dos(i, j);} //Detect if on edge
-                if (on_the_edge_rt(dos,E,M,i,j)){v_rt << 0,0,0;}else{v_rt << 0, M(j + 1) - M(j), dos(i, j + 1) - dos(i, j);} //Detect if on edge
-                if (on_the_edge_lf(dos,E,M,i,j)){v_lf << 0,0,0;}else{v_lf << 0, M(j - 1) - M(j), dos(i, j - 1) - dos(i, j);} //Detect if on edge
-                v_tot = v_up.cross(v_rt) + v_rt.cross(v_dn) + v_dn.cross(v_lf) + v_lf.cross(v_dn);
-                if (v_tot.norm() == 0){
-                    return v_tot;
-                }else{
-                    return v_tot.normalized();
-                }
         }
     }
 
@@ -172,7 +169,7 @@ namespace math {
         Vector3d u1, u2;                //Vectors connecting adjacent 3 orthogonal points on DOS
         ArrayXd sum(E1.size());
         sum.fill(0);
-        int col = 1, num;
+        int num;
         int E_merge_idx;    //Index of merging point
 
         if (dos1.rows() < 3 || dos2.rows() < 3){
@@ -181,20 +178,22 @@ namespace math {
         }
 
         int x, y; //Coordinates closest to i, j on dos of neighbor above.
-        for (int i = 1; i < E1.size() - 1; i++) {
+        for (int i = 0; i < E1.size(); i++) {
+            if (E1(i) <  E2.minCoeff()) { continue; }
+            if (E1(i) >  E2.maxCoeff()) { continue; }
+            x = math::binary_search(E2.data(), E1(i), E2.size());
             num = 0;
             for (int j = 0; j < M1.size(); j++) {
-                if (E1(i) <  E2.minCoeff()) { continue; }
-                if (E1(i) >  E2.maxCoeff()) { continue; }
-                x = math::binary_search(E2.data(), E1(i), E2.size());
+                if (dos1(i,j) == 0 || std::isnan(dos1(i,j)))  { continue; }
                 y = math::binary_search(M2.data(), M1(j), M2.size());
+                if (dos2(x,y) == 0 ||std::isnan(dos2(x,y)))  { continue; }
+
                 u1 = gradient_vector(dos1, E1, M1, i, j);
                 u2 = gradient_vector(dos2, E2, M2, x, y);
-                sum(col) += u1.dot(u2);
+                if (u1.norm() == 0 || u2.norm() == 0){continue;}
+                sum(i) = (sum(i)*num + u1.dot(u2))/(num+1); //Average
                 num++;
             }
-            sum(col) /= std::max(1, num);
-            col++;
         }
         sum.maxCoeff(&E_merge_idx);
         std::cout << "sum [" << E_merge_idx << "] = " << sum.transpose() << std::endl;
