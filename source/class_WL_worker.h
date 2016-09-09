@@ -23,6 +23,7 @@ static const int profiling_check_convergence	=   0;
 static const int profiling_make_MC_trial 		=	0;
 static const int profiling_acceptance_criterion =	0;
 static const int debug_comp_numb_bins           =   0;
+static const int debug_divide_dos_vol           =   0;
 using namespace Eigen;
 class class_worker {
 private:

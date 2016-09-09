@@ -280,6 +280,7 @@ void class_worker::resize_local_bins() {
     dos             = dos_temp;
     histogram       = histogram_temp;
     find_current_state();
+    if (debug_divide_dos_vol)
     for (int w = 0 ; w < world_size; w++){
         if (w == world_ID){
             cout << *this << endl;
