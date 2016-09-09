@@ -309,35 +309,38 @@ namespace mpi {
         double local_volume = global_volume / worker.world_size;
         double x = constants::overlap_factor / (1 - constants::overlap_factor / 2)  ;
         //Add a little bit if there are too many workers (Add nothing if world_size == 2, and up to local_volume if world_size == inf)
-        double overlap_range = local_volume * 2.0*(worker.world_size - 2.0 + x)/worker.world_size;
+        double overlap_range = local_volume * x ;//2.0*(worker.world_size - 2.0 + x)/worker.world_size;
 //        cout << local_volume / global_volume << overlap_range << " " << local_volume*x << endl << endl;
         //Find the boundaries of the DOS domain that gives every worker the  same DOS volume to work on
         int E_min_local_idx, E_max_local_idx;
 //        if (worker.world_ID == 0){
 //            cout << "dos volume " << global_volume << endl;
 //        }
+        int min_width = 10;
         if (worker.world_ID == 0) {
             E_min_local_idx = 0;
             E_max_local_idx = math::volume_idx(worker.dos_total, worker.E_bins_total, worker.M_bins_total,
                                                (worker.world_ID + 1) * local_volume + overlap_range / 2);
-            while (E_max_local_idx - E_min_local_idx < 3) { E_max_local_idx++; }
+            while (E_max_local_idx - E_min_local_idx < min_width) { E_max_local_idx++; }
 
         } else if (worker.world_ID == worker.world_size - 1) {
             E_min_local_idx = math::volume_idx(worker.dos_total, worker.E_bins_total, worker.M_bins_total,
                                                worker.world_ID * local_volume - overlap_range / 2);
             E_max_local_idx = (int) worker.E_bins_total.size() - 1;
-            while (E_max_local_idx - E_min_local_idx < 3) { E_min_local_idx--; }
+            while (E_max_local_idx - E_min_local_idx < min_width) { E_min_local_idx--; }
 
         } else {
             E_min_local_idx = math::volume_idx(worker.dos_total, worker.E_bins_total, worker.M_bins_total,
                                                worker.world_ID * local_volume - overlap_range / 4);
             E_max_local_idx = math::volume_idx(worker.dos_total, worker.E_bins_total, worker.M_bins_total,
                                                (worker.world_ID + 1) * local_volume + overlap_range / 4);
-            while (E_max_local_idx - E_min_local_idx < 3) {
+            while (E_max_local_idx - E_min_local_idx < min_width) {
                 E_min_local_idx--;
                 E_max_local_idx++;
             }
         }
+        E_min_local_idx = max(E_min_local_idx, 0);
+        E_max_local_idx = min(E_max_local_idx, (int)worker.E_bins_total.size()-1);
 
         worker.E_min_local = worker.E_bins_total(E_min_local_idx);
         worker.E_max_local = worker.E_bins_total(E_max_local_idx);

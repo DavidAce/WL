@@ -525,6 +525,7 @@ void class_worker::rewind_to_lowest_walk(){
     timer::add_hist_volume  = 0;
     timer::check_finish_line= 0;
     timer::check_saturation = 0;
+    histogram.resizeLike(dos);
     histogram.fill(0);
     saturation.fill(0);
 //    counter::MCS            = (int) ( constants::one_over_t_factor / pow(lnf, constants::one_over_t_exponent));

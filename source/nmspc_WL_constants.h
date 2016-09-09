@@ -19,12 +19,12 @@ namespace constants{
 
     //Lattice Properties
     static const int d = 2;         //Dimension
-    static const int L = 16;        //Linear size
+    static const int L = 6;        //Linear size
     static const int N = (int)pow(L,d);  //Number of spins/particles
 
     //DOS and Histogram properties
     static const int rw_dims    = 2;      //Dimension of random walks (1D or 2D WL)
-    static const int bins       = 3;      //No lower than 3!
+    static const int bins       = 10;      //No lower than 3!
 
     //Rates for checking and printing (MCS units)
     static const int    rate_add_hist_volume   = 500;
