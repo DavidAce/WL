@@ -271,6 +271,7 @@ namespace mpi {
         mpi::bcast_dynamic(worker.dos_total, MPI_DOUBLE, 0, worker.world_ID );
         mpi::bcast_dynamic(worker.E_bins_total, MPI_DOUBLE, 0, worker.world_ID );
         mpi::bcast_dynamic(worker.M_bins_total, MPI_DOUBLE, 0, worker.world_ID );
+
         counter::merges++;
         MPI_Barrier(MPI_COMM_WORLD);
         if (worker.world_ID == 0 && debug_bcast) {
@@ -381,11 +382,12 @@ namespace mpi {
         worker.dos = worker.dos_total.middleRows(from, rows);
         worker.E_bins = worker.E_bins_total.segment(from, rows);
         worker.in_window = worker.check_in_window(worker.E);
+        worker.histogram = ArrayXXi::Zero(worker.dos.rows(), worker.dos.cols());
+
         if (worker.in_window) {
             worker.E_idx = math::binary_search(worker.E_bins.data(), worker.E, worker.E_bins.size());
             worker.M_idx = math::binary_search(worker.M_bins.data(), worker.M, worker.M_bins.size());
         }
-        worker.histogram.conservativeResize(worker.dos.rows(), worker.dos.cols());
         if (worker.model.discrete_model) {
             worker.E_set.clear();
             for (int i = 0; i < worker.E_bins.size(); i++) {

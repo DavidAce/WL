@@ -6,7 +6,7 @@ using namespace std;
 #define debug_sweep                     0
 #define debug_convergence               0
 #define debug_global_limits             0
-
+#define debug_saturation                1
 
 void do_simulations(class_worker &worker){
     for (int i = 0; i < constants::simulation_reps; i++){
@@ -137,7 +137,7 @@ void divide_range(class_worker &worker){
 
 void add_hist_volume(class_worker &worker) {
     //Find minimum histogram entry larger than 2.
-    math::subtract_min_nonzero_one(worker.histogram);
+    math::subtract_min_nonzero(worker.histogram);
 //    cout << worker.histogram << endl << endl;
     //Resize saturation vector
     if (worker.saturation.size() <= counter::saturation) {
@@ -166,7 +166,22 @@ void check_saturation(class_worker &worker) {
         Sxy += (worker.saturation(i) - mY) * (i - mX);
     }
     worker.slope = Sxy / Sx;
+    if (debug_saturation && counter::merges == 1) {
+        for (int w = 0; w < worker.world_size; w++) {
+            if (w == worker.world_ID){
+                cout << worker.histogram << endl<< endl;
+                cout << worker.saturation.transpose() << endl<<endl;
+                cout << worker.slope << endl << endl << endl << endl;
+            }
+            MPI_Barrier(MPI_COMM_WORLD);
 
+        }
+    }
+    if (counter::merges == 1){
+        cout << worker.histogram <<endl;
+        cout << worker.saturation.transpose() << endl << endl;
+        cout << worker.slope << endl;
+    }
     if (worker.slope < 0) {
         worker.next_WL_iteration();
         if (worker.lnf < constants::minimum_lnf) {

@@ -381,7 +381,6 @@ void class_worker::compute_number_of_bins(int & E_new_size, int & M_new_size) {
         E_new_size = (int) E_bins.size();
         M_new_size = (int) M_bins.size();
     }
-
 }
 
 bool class_worker::check_in_window(const double &x) {
@@ -525,9 +524,8 @@ void class_worker::rewind_to_lowest_walk(){
     timer::add_hist_volume  = 0;
     timer::check_finish_line= 0;
     timer::check_saturation = 0;
-    histogram.resizeLike(dos);
-    histogram.fill(0);
     saturation.fill(0);
+    counter::saturation = 0;
 //    counter::MCS            = (int) ( constants::one_over_t_factor / pow(lnf, constants::one_over_t_exponent));
     counter::MCS            = (int) (1.0/lnf);
     cout << "New MCS = " << counter::MCS << endl;
@@ -542,8 +540,10 @@ void class_worker::rewind_to_zero(){
     counter::merges = 1;
     finish_line = 0;
     dos.fill(0);
-    histogram.fill(0);
+    timer::check_saturation = 0;
+    histogram = ArrayXXi::Zero(dos.rows(), dos.cols());
     saturation.fill(0);
+    counter::saturation = 0;
 }
 
 void class_worker::prev_WL_iteration() {
