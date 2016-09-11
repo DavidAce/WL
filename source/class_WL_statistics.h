@@ -26,39 +26,51 @@ public:
 
     ArrayXXd s;
     ArrayXXd c;
+    ArrayXXd m;
     ArrayXXd u;
     ArrayXXd f;
     ArrayXXd x;
     ArrayXXd dos1D;
     ArrayXXd c_peak;
+    ArrayXXd x_peak;
+    ArrayXXd Tc_F;
     vector<ArrayXXd> dos;
     vector<ArrayXXd> D;
     vector<ArrayXXd> F;
+    vector<ArrayXXd> P;
 
     ArrayXd E_avg;
     ArrayXd M_avg;
 
     ArrayXd s_avg;
     ArrayXd c_avg;
+    ArrayXd m_avg;
     ArrayXd u_avg;
     ArrayXd f_avg;
     ArrayXd x_avg;
     ArrayXd dos1D_avg;
     ArrayXd c_peak_avg; //peak in c(T) vs T
+    ArrayXd x_peak_avg; //peak in x(T) vs T
+    ArrayXd Tc_F_avg; //Critical temperature average of free energy vs M
     ArrayXXd dos_avg;
     ArrayXXd D_avg;
     ArrayXXd F_avg;
+    ArrayXXd P_avg;
 
     ArrayXd s_err;
     ArrayXd c_err;
+    ArrayXd m_err;
     ArrayXd u_err;
     ArrayXd f_err;
     ArrayXd x_err;
     ArrayXd dos1D_err;
     ArrayXd c_peak_err;
+    ArrayXd x_peak_err;
+    ArrayXd Tc_F_err;
     ArrayXXd dos_err;
     ArrayXXd D_err;
     ArrayXXd F_err;
+    ArrayXXd P_err;
 
 };
 

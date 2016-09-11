@@ -167,7 +167,8 @@ namespace math {
                              const ArrayXd &E1  , const ArrayXd &E2,
                              const ArrayXd &M1  , const ArrayXd &M2){
         Vector3d u1, u2;                //Vectors connecting adjacent 3 orthogonal points on DOS
-        ArrayXd sum(E1.size());
+//        ArrayXd sum(E1.size());
+        ArrayXXd sum(E1.size(), M1.size());
         sum.fill(0);
         int num;
         int E_merge_idx;    //Index of merging point
@@ -190,13 +191,13 @@ namespace math {
 
                 u1 = gradient_vector(dos1, E1, M1, i, j);
                 u2 = gradient_vector(dos2, E2, M2, x, y);
-                if (u1.norm() == 0 || u2.norm() == 0){continue;}
-                sum(i) = (sum(i)*num + u1.dot(u2))/(num+1); //Average
-                num++;
+//                if (u1.norm() == 0 || u2.norm() == 0){continue;}
+                sum(i,j) = u1.dot(u2);
             }
         }
-        sum.maxCoeff(&E_merge_idx);
-        std::cout << "sum [" << E_merge_idx << "] = " << sum.transpose() << std::endl;
+
+        sum.rowwise().mean().maxCoeff(&E_merge_idx);
+//        std::cout << "sum [" << E_merge_idx << "] = " << std::endl <<  sum.rowwise().mean() << std::endl << std::endl;
 
 //        E_merge_idx = sum.sum() == 0 ? (int)E1.size() - 1 : E_merge_idx;
         return E_merge_idx;

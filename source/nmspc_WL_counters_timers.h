@@ -9,7 +9,6 @@
 namespace counter {
     //Counters
     extern int MCS;
-    extern int saturation;
     extern int walks;
     extern int swaps;
     extern int swap_accepts;

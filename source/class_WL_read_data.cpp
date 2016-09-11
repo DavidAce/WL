@@ -41,6 +41,11 @@ void indata::load_random_section(class_worker &worker) {
 
 
 void indata::load_full(class_worker &worker) {
+    if (debug_load_full_thermo) {
+        cout << "ID: "<< worker.world_ID << " Thermo: Loading..." << endl;
+        cout.flush();
+        std::this_thread::sleep_for(std::chrono::microseconds(1000));
+    }
     string name_dos     = folder + to_string(worker.iteration) + string("/dos.dat");
     string name_E_bins  = folder + to_string(worker.iteration) + string("/E.dat");
     string name_M_bins  = folder + to_string(worker.iteration) + string("/M.dat");
@@ -58,37 +63,56 @@ void indata::load_full(class_stats &stats, class_worker &worker) {
     stats.s.resize(constants::T_num, reps);
     stats.f.resize(constants::T_num, reps);
     stats.c.resize(constants::T_num, reps);
+    stats.m.resize(constants::T_num, reps);
     stats.u.resize(constants::T_num, reps);
     stats.x.resize(constants::T_num, reps);
     stats.dos1D.resize(worker.E_bins_total.size(), reps);
     stats.c_peak.resize(2, reps);
-    cout << "Finished Resizing" << endl;
+    stats.x_peak.resize(2, reps);
+    stats.Tc_F.resize(1, reps);
+    if (debug_load_full_thermo) {
+        cout << "Finished Resizing" << endl;
+        cout.flush();
+        std::this_thread::sleep_for(std::chrono::microseconds(1000));
+    }
     for (int i = 0; i < reps; i++) {
-        cout << "Loading rep " << i << endl;
+        if (debug_load_full_thermo) {
+            cout << "Loading rep " << i << endl;
+            cout.flush();
+            std::this_thread::sleep_for(std::chrono::microseconds(1000));
+        }
         string name_E       = folder + to_string(i) + string("/E.dat");
         string name_M       = folder + to_string(i) + string("/M.dat");
         string name_s       = folder + to_string(i) + string("/s.dat");
         string name_f       = folder + to_string(i) + string("/f.dat");
         string name_c       = folder + to_string(i) + string("/c.dat");
+        string name_m       = folder + to_string(i) + string("/m.dat");
         string name_u       = folder + to_string(i) + string("/u.dat");
         string name_x       = folder + to_string(i) + string("/x.dat");
         string name_dos1D   = folder + to_string(i) + string("/dos1D.dat");
         string name_c_peak  = folder + to_string(i) + string("/c_peak.dat");
+        string name_x_peak  = folder + to_string(i) + string("/x_peak.dat");
+        string name_Tc_F    = folder + to_string(i) + string("/Tc_F.dat");
         string name_dos     = folder + to_string(i) + string("/dos.dat");
         string name_D       = folder + to_string(i) + string("/D.dat");
         string name_F       = folder + to_string(i) + string("/F.dat");
+        string name_P       = folder + to_string(i) + string("/P.dat");
         stats.E.col(i)      = read_file(name_E);
         stats.M.col(i)      = read_file(name_M);
         stats.s.col(i)      = read_file(name_s);
         stats.f.col(i)      = read_file(name_f);
         stats.c.col(i)      = read_file(name_c);
+        stats.m.col(i)      = read_file(name_m);
         stats.u.col(i)      = read_file(name_u);
         stats.x.col(i)      = read_file(name_x);
         stats.dos1D.col(i)  = read_file(name_dos1D);
         stats.c_peak.col(i) = read_file(name_c_peak);
+        stats.x_peak.col(i) = read_file(name_x_peak);
+        stats.Tc_F.col(i)   = read_file(name_Tc_F);
         stats.dos.push_back(read_file(name_dos));
         stats.D.push_back(read_file(name_D));
         stats.F.push_back(read_file(name_F));
+        stats.P.push_back(read_file(name_P));
     }
 }
 

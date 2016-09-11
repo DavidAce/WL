@@ -27,11 +27,16 @@ public:
     ArrayXd c; //Specific heat
     ArrayXd x; //Susceptibility
     ArrayXd dos_total1D; //Density of states in Energy space only
-    ArrayXd peak;
+    ArrayXd c_peak;
+    ArrayXd x_peak;
+    ArrayXd Tc_F; //Free energy critical temperature (Tc)
     ArrayXXd D; //Canonical Distribution
+    ArrayXXd P; //Probability distribution
     ArrayXXd F; //Free energy as a function of order parameter
     void compute(class_worker &worker);
-    void get_peak(class_worker &worker);
+    void get_c_peak(class_worker &worker);
+    void get_x_peak(class_worker &worker);
+    void get_Tc_free_energy(class_worker &worker);
 };
 
 

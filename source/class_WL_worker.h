@@ -10,6 +10,7 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <set>
+#include <iterator>
 #include "class_model.h"
 #include "class_tic_toc.h"
 #include "nmspc_WL_constants.h"
@@ -25,6 +26,17 @@ static const int profiling_acceptance_criterion =	0;
 static const int debug_comp_numb_bins           =   0;
 static const int debug_divide_dos_vol           =   0;
 using namespace Eigen;
+
+template <typename T>
+std::ostream& operator<< (std::ostream& out, const std::vector<T>& v) {
+    if ( !v.empty() ) {
+        out << "[ ";
+        std::copy (v.begin(), v.end(), std::ostream_iterator<T>(out, " "));
+        out << "]";
+    }
+    return out;
+}
+
 class class_worker {
 private:
 
@@ -67,8 +79,8 @@ public:
     //WL convergence parameters
     int     flag_one_over_t;             //turns to 1 when 1/t algorithm starts
     int     finish_line;                 //turns to 1 when converged
-
-    ArrayXi saturation;                //Measures the histogram saturation
+    vector<int> saturation;
+//    ArrayXi saturation;                //Measures the histogram saturation
     double slope;
     //Holders for total, merged data
     ArrayXXd dos_total;

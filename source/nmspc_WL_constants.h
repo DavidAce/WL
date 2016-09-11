@@ -9,8 +9,8 @@
 namespace constants{
 
     //WL boostrap properties
-    static const int simulation_reps = 3;      //Number of independent do_simulations
-    static const int bootstrap_reps  = 3;
+    static const int simulation_reps = 2;      //Number of independent do_simulations
+    static const int bootstrap_reps  = 2;
 
     //WL thermodynamics properties
     static const int    T_num = 500;             //Number of temperatures for thermodynamic quantities
@@ -18,16 +18,16 @@ namespace constants{
     static const double T_max = 6;               //Maximum temperature for thermodynamic quantities
 
     //Lattice Properties
-    static const int d = 2;         //Dimension
-    static const int L = 6;        //Linear size
-    static const int N = (int)pow(L,d);  //Number of spins/particles
+    static const int d = 2;               //Dimension
+    static const int L = 6;               //Linear size
+    static const int N = (int) pow(L,d);  //Number of spins/particles
 
     //DOS and Histogram properties
-    static const int rw_dims    = 2;      //Dimension of random walks (1D or 2D WL)
+    static const int rw_dims    = 2;       //Dimension of random walks (1D or 2D WL)
     static const int bins       = 10;      //No lower than 3!
 
     //Rates for checking and printing (MCS units)
-    static const int    rate_add_hist_volume   = 500;
+    static const int    rate_add_hist_volume   = 100;
     static const int    rate_check_finish_line = 5000;
     static const int    rate_check_saturation  = 5000;
     static const int    rate_check_limits      = 1000;

@@ -16,7 +16,7 @@
 #include "class_WL_statistics.h"
 
 const int debug_load_full_thermo = 1;
-
+const int debug_load_full_statis = 1;
 using namespace Eigen;
 using namespace std;
 class indata {

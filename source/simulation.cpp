@@ -6,7 +6,7 @@ using namespace std;
 #define debug_sweep                     0
 #define debug_convergence               0
 #define debug_global_limits             0
-#define debug_saturation                1
+#define debug_saturation                0
 
 void do_simulations(class_worker &worker){
     for (int i = 0; i < constants::simulation_reps; i++){
@@ -136,52 +136,46 @@ void divide_range(class_worker &worker){
 }
 
 void add_hist_volume(class_worker &worker) {
-    //Find minimum histogram entry larger than 2.
-    math::subtract_min_nonzero(worker.histogram);
-//    cout << worker.histogram << endl << endl;
-    //Resize saturation vector
-    if (worker.saturation.size() <= counter::saturation) {
-        worker.saturation.conservativeResize(2 * std::max(1, counter::saturation));
-        worker.saturation.bottomRows(counter::saturation).fill(0);
-    }
-    worker.saturation(counter::saturation) = worker.histogram.sum();
-    counter::saturation++;
+    //Subtract the smallest positive number (subtracts away regions impossible to reach as well)
+    math::subtract_min_nonzero_one(worker.histogram);
+    worker.saturation.push_back(worker.histogram.sum());
+
 }
 
 void check_saturation(class_worker &worker) {
     int i, j;
-    int idx = (int) (constants::check_saturation_from * counter::saturation);
+    //counter::saturation tells how many elements are in worker.saturation
+    int idx = (int) (constants::check_saturation_from * (worker.saturation.size()-1));
     double Sx = 0, Sxy = 0, mX = 0, mY = 0;
     j = 0;
     //Compute means of the last 10%:
-    for (i = idx; i < counter::saturation; i++) {
+    for (i = idx; i < worker.saturation.size(); i++) {
         mX += i;//X(i);
-        mY += worker.saturation(i);
+        mY += worker.saturation[i];
         j++;
     }
-    mX /= j;
-    mY /= j;
-    for (i = idx; i < counter::saturation; i++) {
+    mX /= fmax(j,1);
+    mY /= fmax(j,1);
+    for (i = idx; i < worker.saturation.size(); i++) {
         Sx += pow(i - mX, 2);
-        Sxy += (worker.saturation(i) - mY) * (i - mX);
+        Sxy += (worker.saturation[i] - mY) * (i - mX);
     }
-    worker.slope = Sxy / Sx;
-    if (debug_saturation && counter::merges == 1) {
-        for (int w = 0; w < worker.world_size; w++) {
-            if (w == worker.world_ID){
-                cout << worker.histogram << endl<< endl;
-                cout << worker.saturation.transpose() << endl<<endl;
-                cout << worker.slope << endl << endl << endl << endl;
-            }
-            MPI_Barrier(MPI_COMM_WORLD);
+    worker.slope = Sxy / fmax(Sx,1);
+    if (debug_saturation && counter::merges == 1 ) {
+        cout << setprecision(0);
+        cout << "ID " << worker.world_ID << ": "
+             << worker.histogram.sum() << " "
+             << idx  << " "
+             << worker.saturation.size() << " "
+             << worker.histogram.rows() <<  " x " << worker.histogram.cols() << " "
+             << worker.slope << "  "
+             << worker.saturation
+             << endl;
+        cout << flush;
+        std::this_thread::sleep_for(std::chrono::microseconds(10));
 
-        }
     }
-    if (counter::merges == 1){
-        cout << worker.histogram <<endl;
-        cout << worker.saturation.transpose() << endl << endl;
-        cout << worker.slope << endl;
-    }
+    math::subtract_min_nonzero(worker.histogram);
     if (worker.slope < 0) {
         worker.next_WL_iteration();
         if (worker.lnf < constants::minimum_lnf) {

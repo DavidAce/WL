@@ -56,7 +56,9 @@ void do_thermodynamics(class_worker &worker){
             cout.flush();
             std::this_thread::sleep_for(std::chrono::microseconds(1000));
         }
-        thermo.get_peak(worker);
+        thermo.get_c_peak(worker);
+        thermo.get_x_peak(worker);
+        thermo.get_Tc_free_energy(worker);
 
         if (debug_stats) {
             cout << "ID: "<< worker.world_ID << " Thermo: Writing Data..." << endl;

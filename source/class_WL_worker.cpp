@@ -7,7 +7,6 @@
 using namespace std;
 using namespace Eigen;
 int counter::MCS;
-int counter::saturation;
 int counter::walks;
 int counter::swaps;
 int counter::swap_accepts;
@@ -109,7 +108,6 @@ void class_worker::find_initial_limits(){
 
 void class_worker::start_counters() {
     counter::MCS                = 0;
-    counter::saturation         = 0;
     counter::walks              = 0;
     counter::swaps              = 0;
     counter::swap_accepts       = 0;
@@ -508,8 +506,7 @@ void class_worker::reject_MC_trial() {
 void class_worker::next_WL_iteration() {
     lnf = fmax(1e-12, lnf*constants::reduce_factor_lnf);
     histogram.fill(0);
-    saturation.fill(0);
-    counter::saturation = 0;
+    saturation.clear();
     counter::walks++;
     finish_line = lnf > constants::minimum_lnf ? 0 : 1;
 
@@ -524,9 +521,7 @@ void class_worker::rewind_to_lowest_walk(){
     timer::add_hist_volume  = 0;
     timer::check_finish_line= 0;
     timer::check_saturation = 0;
-    saturation.fill(0);
-    counter::saturation = 0;
-//    counter::MCS            = (int) ( constants::one_over_t_factor / pow(lnf, constants::one_over_t_exponent));
+    saturation.clear();
     counter::MCS            = (int) (1.0/lnf);
     cout << "New MCS = " << counter::MCS << endl;
     finish_line = lnf > constants::minimum_lnf ? 0 : 1;
@@ -542,8 +537,7 @@ void class_worker::rewind_to_zero(){
     dos.fill(0);
     timer::check_saturation = 0;
     histogram = ArrayXXi::Zero(dos.rows(), dos.cols());
-    saturation.fill(0);
-    counter::saturation = 0;
+    saturation.clear();
 }
 
 void class_worker::prev_WL_iteration() {
@@ -561,8 +555,7 @@ void class_worker::prev_WL_iteration() {
         counter::MCS            = (int) 1.0 / lnf;
 
         histogram.fill(0);
-        saturation.fill(0);
-        counter::saturation = 0;
+        saturation.clear();
     }else {
 //        counter::MCS = (int) (constants::one_over_t_factor / pow(lnf, constants::one_over_t_exponent));
         counter::MCS            = (int) 1.0 / lnf;
