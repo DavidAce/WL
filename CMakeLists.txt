@@ -18,22 +18,47 @@ include_directories(${MPI_INCLUDE_PATH})
 ##################################
 # Check for c++14 compiler support
 ##################################
-include(CheckCXXCompilerFlag)
-CHECK_CXX_COMPILER_FLAG("-std=c++14" COMPILER_SUPPORTS_CXX14)
-CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
+set(ENABLE_CXXFLAGS_TO_CHECK
+        -std=gnu++1z
+        -std=c++1z
+        -std=gnu++14
+        -std=c++14
+        -std=gnu++1y
+        -std=c++1y
+        -std=gnu++11
+        -std=c++11
+        -std=gnu++0x
+        -std=c++0x)
+
+foreach(flag ${ENABLE_CXXFLAGS_TO_CHECK})
+    string(REPLACE "-std=" "_" flag_var ${flag})
+    string(REPLACE "+" "x" flag_var ${flag_var})
+    check_cxx_compiler_flag("${flag}" COMPILER_HAS_CXX_FLAG${flag_var})
+    if(COMPILER_HAS_CXX_FLAG${flag_var})
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${flag}")
+        break()
+    endif()
+endforeach()
+
+#
+#include(CheckCXXCompilerFlag)
+#CHECK_CXX_COMPILER_FLAG("-std=c++14" COMPILER_SUPPORTS_CXX14)
 #CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
-#CHECK_CXX_COMPILER_FLAG("-std=c++0x" COMPILER_SUPPORTS_CXX0X)
-if(COMPILER_SUPPORTS_CXX14)
-    set(CMAKE_CXX_STANDARD 14)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c++14")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
-elseif(COMPILER_SUPPORTS_CXX11)
-    set(CMAKE_CXX_STANDARD 11)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c++11")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-else()
-    message("WARNING: Compiler ${CMAKE_CXX_COMPILER} may not have C++11/C++14 support.")
-endif()
+#CHECK_FLAG_SUPPORTED(-std=c++14)
+##CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
+##CHECK_CXX_COMPILER_FLAG("-std=c++0x" COMPILER_SUPPORTS_CXX0X)
+#if(COMPILER_SUPPORTS_CXX14)
+#    set(CMAKE_CXX_STANDARD 14)
+#    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c++14")
+#    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
+#elseif(COMPILER_SUPPORTS_CXX11)
+#    set(CMAKE_CXX_STANDARD 11)
+#    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c++11")
+#    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+#else()
+#    set(CMAKE_CXX_STANDARD 14)
+#    message("WARNING: Compiler ${CMAKE_CXX_COMPILER} may not have C++11/C++14 support.")
+#endif()
 
 
 
