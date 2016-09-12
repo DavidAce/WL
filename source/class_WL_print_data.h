@@ -9,6 +9,8 @@
 #include <cstdlib>
 #include <stdexcept>
 #include <sys/stat.h>
+#include <limits.h>
+#include <errno.h>
 #include <iostream>
 #include "class_WL_worker.h"
 #include "class_WL_thermo.h"
@@ -34,7 +36,7 @@ public:
     void create_folder();
     void set_folder(const int &iter);
     void create_and_set_folder(const int &iter);
-
+    int mkdir_p(const char *path);
     //File streams
 
     void write_data_worker(class_worker &);

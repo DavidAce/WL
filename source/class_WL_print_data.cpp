@@ -159,17 +159,53 @@ void outdata::set_folder(const int &iter){
     }
 }
 
+int outdata::mkdir_p(const char *path)
+{
+    /* Adapted from http://stackoverflow.com/a/2336245/119527 */
+    const size_t len = strlen(path);
+    char _path[PATH_MAX];
+    char *p;
 
+    errno = 0;
+
+    /* Copy string so its mutable */
+    if (len > sizeof(_path)-1) {
+        errno = ENAMETOOLONG;
+        return -1;
+    }
+    strcpy(_path, path);
+
+    /* Iterate the string */
+    for (p = _path + 1; *p; p++) {
+        if (*p == '/') {
+            /* Temporarily truncate */
+            *p = '\0';
+
+            if (mkdir(_path, S_IRWXU) != 0) {
+                if (errno != EEXIST)
+                    return -1;
+            }
+
+            *p = '/';
+        }
+    }
+
+    if (mkdir(_path, S_IRWXU) != 0) {
+        if (errno != EEXIST)
+            return -1;
+    }
+
+    return 0;
+}
 
 void outdata::create_folder(){
-    if (mkdir(folder.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) == -1)
+
+    if (mkdir_p(folder.c_str()) == 0)
     {
-        if( errno == EEXIST ) {
-            // alredy exists
-        } else {
-            // something else
-            std::cout << "cannot create folder error:" << strerror(errno) << std::endl;
-        }
+        cout << "Created folder successfully: " << folder << endl;
+
+    }else{
+        cout << "Failed to create folder: " << folder << endl;
     }
 }
 
