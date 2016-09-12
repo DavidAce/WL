@@ -49,7 +49,6 @@ void sweep(class_worker &worker){
         worker.acceptance_criterion();
         if(worker.accept){
             worker.accept_MC_trial();
-
         }else{
             worker.reject_MC_trial();
         }
