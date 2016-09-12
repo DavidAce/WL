@@ -19,27 +19,6 @@ include_directories(${MPI_INCLUDE_PATH})
 ##################################
 # Check for c++14 compiler support
 ##################################
-
-
-
-###################################
-#Change flags depending on host
-###################################
-site_name(this_host)
-if ("${this_host}" MATCHES "triolith")
-    message("Host: ${this_host} (Intel) ")
-    set(CMAKE_CXX_COMPILER mpiicpc)
-    set(CMAKE_CXX_FLAGS_DEBUG "  ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_DEBUG} -cxxlib=/software/apps/gcc/6.1.0/build01/ -gxx-name=g++.orig -Wall")
-    set(CMAKE_CXX_FLAGS_RELEASE "  ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE} -O3 -cxxlib=/software/apps/gcc/4.9.0/build01/ -gxx-name=g++.orig -ip -xavx -funroll-loops -DNDEBUG")
-else()
-    message("Host: ${this_host} (GNU)")
-    set(CMAKE_CXX_COMPILER mpicxx)
-    set(CMAKE_CXX_FLAGS_DEBUG " ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_DEBUG} -Wall -Wno-deprecated-declarations")
-    set(CMAKE_CXX_FLAGS_RELEASE " ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE} -O3 -funroll-loops -march=native -frename-registers -Wno-deprecated-declarations -DNDEBUG")
-endif()
-message("Compiling with: ${CMAKE_CXX_COMPILER_ID}")
-
-
 include(CheckCXXCompilerFlag)
 CHECK_CXX_COMPILER_FLAG("-std=c++14" COMPILER_SUPPORTS_CXX14)
 CHECK_CXX_COMPILER_FLAG("-std=c++1y" COMPILER_SUPPORTS_CXX1Y)
@@ -64,6 +43,26 @@ elseif(COMPILER_SUPPORTS_CXX11)
 else()
     message("WARNING: Compiler ${CMAKE_CXX_COMPILER} may not have C++11/C++14 support.")
 endif()
+
+
+
+###################################
+#Change flags depending on host
+###################################
+site_name(this_host)
+if ("${this_host}" MATCHES "triolith")
+    message("Host: ${this_host} (Intel) ")
+    set(CMAKE_CXX_COMPILER mpiicpc)
+    set(CMAKE_CXX_FLAGS_DEBUG "  ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_DEBUG} -cxxlib=/software/apps/gcc/6.1.0/build01/ -gxx-name=g++.orig -Wall")
+    set(CMAKE_CXX_FLAGS_RELEASE "  ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE} -O3 -cxxlib=/software/apps/gcc/4.9.0/build01/ -gxx-name=g++.orig -ip -xavx -funroll-loops -DNDEBUG")
+else()
+    message("Host: ${this_host} (GNU)")
+    set(CMAKE_CXX_COMPILER mpicxx)
+    set(CMAKE_CXX_FLAGS_DEBUG " ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_DEBUG} -Wall -Wno-deprecated-declarations")
+    set(CMAKE_CXX_FLAGS_RELEASE " ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE} -O3 -funroll-loops -march=native -frename-registers -Wno-deprecated-declarations -DNDEBUG")
+endif()
+message("Compiling with: ${CMAKE_CXX_COMPILER_ID}")
+
 
 
 file(GLOB_RECURSE WL_SOURCES "source/*.cpp")
