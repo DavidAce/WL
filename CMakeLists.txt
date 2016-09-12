@@ -18,9 +18,8 @@ include_directories(${MPI_INCLUDE_PATH})
 ##################################
 # Check for c++14 compiler support
 ##################################
+include(CheckCXXCompilerFlag)
 set(ENABLE_CXXFLAGS_TO_CHECK
-        -std=gnu++1z
-        -std=c++1z
         -std=gnu++14
         -std=c++14
         -std=gnu++1y
