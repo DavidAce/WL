@@ -96,6 +96,9 @@ public:
     int iteration;
     //Functions
     void find_current_state();           //Compute current E and M (and their indices)
+    void find_next_state();
+    void find_next_state(bool&);
+
     void find_initial_limits();
     void start_counters();
     void set_initial_local_bins();

@@ -64,9 +64,41 @@ void class_worker::find_current_state(){
         default:
             cout << "Wrong rw-dimension  constants::rw_dims" << endl;
     }
-
 	in_window = check_in_window(E);
 }
+
+
+void class_worker::find_next_state(){
+    switch(constants::rw_dims) {
+        case 1:
+            E_idx_trial = math::binary_search(E_bins.data(), E_trial, E_bins.size());
+            M_idx_trial = 0;
+            break;
+        case 2:
+            E_idx_trial = math::binary_search(E_bins.data(), E_trial, E_bins.size());
+            M_idx_trial = math::binary_search(M_bins.data(), M_trial, M_bins.size());
+            break;
+        default:
+            cout << "Wrong dimension:  constants::rw_dims" << endl;
+    }
+}
+
+void class_worker::find_next_state(bool & dummy){
+    switch (constants::rw_dims) {
+        case 1:
+            E_idx_trial = math::binary_search(E_bins.data(), E_trial, E_bins.size(), E, E_idx);
+            M_idx_trial = 0;
+            break;
+        case 2:
+            E_idx_trial = math::binary_search(E_bins.data(), E_trial, E_bins.size(), E, E_idx);
+            M_idx_trial = math::binary_search(M_bins.data(), M_trial, M_bins.size(), M, M_idx);
+
+            break;
+        default:
+            cout << "Wrong dimension:  constants::rw_dims" << endl;
+    }
+}
+
 
 void class_worker::find_initial_limits(){
     //Measure, randomize and measure again to get 2 states
@@ -392,7 +424,7 @@ void class_worker::make_MC_trial()  {
 	t_make_MC_trial.toc();
 }
 
-void class_worker::acceptance_criterion(){
+void class_worker::acceptance_criterion() {
     //Scenarios:
     //  1) in_window = true, E_trial is in_window ->  Find idx -> MC-test
     //  2) in_window = true, E_trial not in_window->  Reject
@@ -401,88 +433,181 @@ void class_worker::acceptance_criterion(){
 
     //  4a)in_window = false, E_trial not in_window, E_trial towards window = accept, otherwise accept 50% chance?
     //  5) need_to_resize_global = true (because E_trial out of global bounds) -> accept with 50% chance?
-
-    if (in_window){
-        t_acceptance_criterion.tic();
-        if (model.discrete_model && counter::merges == 0){
-            E_bins(E_idx) = E;
-            M_bins(M_idx) = M;
-            E_set.insert(E);
-            M_set.insert(M);
-        }
-        if (check_in_window(E_trial)){
-            switch(constants::rw_dims) {
-                case 1:
-//                    E_idx_trial = math::binary_search(E_bins.data(), E_trial, E_bins.size());
-                    E_idx_trial = math::binary_search(E_bins.data(), E_trial, E_bins.size(),E, E_idx);
-                    M_idx_trial = 0;
-                    break;
-                case 2:
-                    E_idx_trial = math::binary_search(E_bins.data(), E_trial, E_bins.size(),E, E_idx);
-                    M_idx_trial = math::binary_search(M_bins.data(), M_trial, M_bins.size(),M, M_idx);
-//                    E_idx_trial = math::binary_search(E_bins.data(), E_trial, E_bins.size());
-//                    M_idx_trial = math::binary_search(M_bins.data(), M_trial, M_bins.size());
-                    break;
-                default:
-                    cout << "Wrong dimension:  constants::rw_dims" << endl;
+    if (!need_to_resize_global) {
+        if (check_in_window(E_trial)) {
+            if (in_window) {
+                if (model.discrete_model && counter::merges == 0) {
+                    E_bins(E_idx) = E;
+                    M_bins(M_idx) = M;
+                    E_set.insert(E);
+                    M_set.insert(M);
+                }
+                find_next_state(in_window);
+                accept = rn::uniform_double_1() < exp(dos(E_idx, M_idx) - dos(E_idx_trial, M_idx_trial));
+            } else { //If  E not in window
+                    //Reentering the window
+                    accept      = true;
+                    in_window   = true;
+//                    find_next_state(); //Do we need to?
             }
-            accept      = rn::uniform_double_1() < exp(dos(E_idx, M_idx) - dos(E_idx_trial, M_idx_trial));
-        }else{
-            accept      = false;
+
+
+        } else { //If E_trial not in window
+            accept = false;
         }
 
-	    t_acceptance_criterion.toc();
-    }else{
-        if (check_in_window(E_trial)){
-            //Reentering the window
-            accept      = true;
-            in_window   = true;
-            switch(constants::rw_dims) {
-                case 1:
-                    E_idx_trial = math::binary_search(E_bins.data(), E_trial, E_bins.size());
-                    M_idx_trial = 0;
-                    break;
-                case 2:
-                    E_idx_trial = math::binary_search(E_bins.data(), E_trial, E_bins.size());
-                    M_idx_trial = math::binary_search(M_bins.data(), M_trial, M_bins.size());
-                    break;
-                default:
-                    cout << "Wrong dimension:  constants::rw_dims" << endl;
-            }
-        }else{
-            //Still out of window... prefer to move towards window.
-            in_window   = false;
-            if (E_trial >= E && E < E_min_local){
+    }else{ //If need to resize
+        if(check_in_window(E_trial)){
+            if (in_window){
+                find_next_state();
                 accept = true;
-            }else if (E_trial <= E && E > E_max_local){
-                accept = true;
-            }else if(E_trial < E && E < E_min_local){
-                accept = rn::uniform_double_1() > 0.5;
-            }else if (E_trial > E && E > E_max_local){
-                accept = rn::uniform_double_1() > 0.5;
-            }else{
-                accept = true;
-            }
-        }
-
-        if (need_to_resize_global == 1){
-            //Broke through global limits. Might as well explore
-            if (E_trial > E && E_trial >= E_max_local) {
-                accept = true;
-            }else if(E_trial < E && E_trial <= E_max_local){
-                accept = true;
-            }
-            if (constants::rw_dims == 2) {
-                if (M_trial > M && M_trial >= M_max_global) {
+            }else {
+                //Still out of window... prefer to move towards window.
+                in_window = false;
+                if (E_trial >= E && E < E_min_local) {
                     accept = true;
-                } else if (M_trial < M && M_trial <= M_min_global) {
+                } else if (E_trial <= E && E > E_max_local) {
+                    accept = true;
+                } else if (E_trial < E && E < E_min_local) {
+                    accept = rn::uniform_double_1() > 0.5;
+                } else if (E_trial > E && E > E_max_local) {
+                    accept = rn::uniform_double_1() > 0.5;
+                } else {
                     accept = true;
                 }
             }
+
+        }else{
+           accept = false;
         }
     }
-
 }
+//
+//
+//    else{
+//            //Still out of window... prefer to move towards window.
+//            in_window   = false;
+//            if (E_trial >= E && E < E_min_local){
+//                accept = true;
+//            }else if (E_trial <= E && E > E_max_local){
+//                accept = true;
+//            }else if(E_trial < E && E < E_min_local){
+//                accept = rn::uniform_double_1() > 0.5;
+//            }else if (E_trial > E && E > E_max_local){
+//                accept = rn::uniform_double_1() > 0.5;
+//            }else{
+//                accept = true;
+//            }
+//        }
+//
+//        if (need_to_resize_global == 1){
+//            //Broke through global limits. Might as well explore
+//            if (E_trial > E && E_trial >= E_max_local) {
+//                accept = true;
+//            }else if(E_trial < E && E_trial <= E_max_local){
+//                accept = true;
+//            }
+//            if (constants::rw_dims == 2) {
+//                if (M_trial > M && M_trial >= M_max_global) {
+//                    accept = true;
+//                } else if (M_trial < M && M_trial <= M_min_global) {
+//                    accept = true;
+//                }
+//            }
+//        }
+//    }
+
+//}
+
+//void class_worker::acceptance_criterion(){
+//    //Scenarios:
+//    //  1) in_window = true, E_trial is in_window ->  Find idx -> MC-test
+//    //  2) in_window = true, E_trial not in_window->  Reject
+//    //  3) in_window = false,E_trial is in_window ->  Accept -> Find idx -> set in_window true
+//    //  4) in_window = false,E_trial not in_window->  Accept (without updating dos)
+//
+//    //  4a)in_window = false, E_trial not in_window, E_trial towards window = accept, otherwise accept 50% chance?
+//    //  5) need_to_resize_global = true (because E_trial out of global bounds) -> accept with 50% chance?
+//
+//    if (in_window){
+//        t_acceptance_criterion.tic();
+//        if (model.discrete_model && counter::merges == 0){
+//            E_bins(E_idx) = E;
+//            M_bins(M_idx) = M;
+//            E_set.insert(E);
+//            M_set.insert(M);
+//        }
+//        if (check_in_window(E_trial)){
+//            switch(constants::rw_dims) {
+//                case 1:
+//                    E_idx_trial = math::binary_search(E_bins.data(), E_trial, E_bins.size(),E, E_idx);
+//                    M_idx_trial = 0;
+//                    break;
+//                case 2:
+//                    E_idx_trial = math::binary_search(E_bins.data(), E_trial, E_bins.size(),E, E_idx);
+//                    M_idx_trial = math::binary_search(M_bins.data(), M_trial, M_bins.size(),M, M_idx);
+//
+//                    break;
+//                default:
+//                    cout << "Wrong dimension:  constants::rw_dims" << endl;
+//            }
+//            accept      = rn::uniform_double_1() < exp(dos(E_idx, M_idx) - dos(E_idx_trial, M_idx_trial));
+//        }else{
+//            accept      = false;
+//        }
+//
+//	    t_acceptance_criterion.toc();
+//    }else{
+//        if (check_in_window(E_trial)){
+//            //Reentering the window
+//            accept      = true;
+//            in_window   = true;
+//            switch(constants::rw_dims) {
+//                case 1:
+//                    E_idx_trial = math::binary_search(E_bins.data(), E_trial, E_bins.size());
+//                    M_idx_trial = 0;
+//                    break;
+//                case 2:
+//                    E_idx_trial = math::binary_search(E_bins.data(), E_trial, E_bins.size());
+//                    M_idx_trial = math::binary_search(M_bins.data(), M_trial, M_bins.size());
+//                    break;
+//                default:
+//                    cout << "Wrong dimension:  constants::rw_dims" << endl;
+//            }
+//        }else{
+//            //Still out of window... prefer to move towards window.
+//            in_window   = false;
+//            if (E_trial >= E && E < E_min_local){
+//                accept = true;
+//            }else if (E_trial <= E && E > E_max_local){
+//                accept = true;
+//            }else if(E_trial < E && E < E_min_local){
+//                accept = rn::uniform_double_1() > 0.5;
+//            }else if (E_trial > E && E > E_max_local){
+//                accept = rn::uniform_double_1() > 0.5;
+//            }else{
+//                accept = true;
+//            }
+//        }
+//
+//        if (need_to_resize_global == 1){
+//            //Broke through global limits. Might as well explore
+//            if (E_trial > E && E_trial >= E_max_local) {
+//                accept = true;
+//            }else if(E_trial < E && E_trial <= E_max_local){
+//                accept = true;
+//            }
+//            if (constants::rw_dims == 2) {
+//                if (M_trial > M && M_trial >= M_max_global) {
+//                    accept = true;
+//                } else if (M_trial < M && M_trial <= M_min_global) {
+//                    accept = true;
+//                }
+//            }
+//        }
+//    }
+//
+//}
 
 void class_worker::accept_MC_trial() {
     E                           = E_trial;
