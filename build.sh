@@ -19,8 +19,8 @@ fi
 if [[ "$HOSTNAME" == *"triolith"* ]]
 then
     echo "We're on triolith!";
-    export CC=/software/apps/gcc/6.1.0/build01/bin/gcc
-    export CXX=/software/apps/gcc/6.1.0/build01/bin/g++
+    export CC=/software/apps/gcc/5.3.0/build01/bin/gcc
+    export CXX=/software/apps/gcc/5.3.0/build01/bin/g++
 else
     echo "We're on my pc!"
 fi

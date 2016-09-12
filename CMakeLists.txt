@@ -20,12 +20,12 @@ include_directories(${MPI_INCLUDE_PATH})
 ##################################
 include(CheckCXXCompilerFlag)
 set(ENABLE_CXXFLAGS_TO_CHECK
-        -std=gnu++14
         -std=c++14
-        -std=gnu++1y
         -std=c++1y
-        -std=gnu++11
+        -std=gnu++1y
+        -std=gnu++14
         -std=c++11
+        -std=gnu++11
         -std=gnu++0x
         -std=c++0x)
 
@@ -38,7 +38,6 @@ foreach(flag ${ENABLE_CXXFLAGS_TO_CHECK})
         break()
     endif()
 endforeach()
-
 #
 #include(CheckCXXCompilerFlag)
 #CHECK_CXX_COMPILER_FLAG("-std=c++14" COMPILER_SUPPORTS_CXX14)
@@ -68,8 +67,8 @@ site_name(this_host)
 if ("${this_host}" MATCHES "triolith")
     message("Host: ${this_host} (Intel) ")
     set(CMAKE_CXX_COMPILER mpiicpc)
-    set(CMAKE_CXX_FLAGS_DEBUG "  ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_DEBUG} -cxxlib=/software/apps/gcc/6.1.0/build01/ -gxx-name=g++ -Wall")
-    set(CMAKE_CXX_FLAGS_RELEASE "  ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE} -O3 -cxxlib=/software/apps/gcc/6.1.0/build01/ -gxx-name=g++ -ip -xavx -funroll-loops -DNDEBUG")
+    set(CMAKE_CXX_FLAGS_DEBUG "  ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_DEBUG} -cxxlib=/software/apps/gcc/5.3.0/build01/ -gxx-name=g++ -Wall")
+    set(CMAKE_CXX_FLAGS_RELEASE "  ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE} -O3 -cxxlib=/software/apps/gcc/5.3.0/build01/ -gxx-name=g++ -ip -xavx -funroll-loops -DNDEBUG")
 else()
     message("Host: ${this_host} (GNU)")
     set(CMAKE_CXX_COMPILER mpicxx)
