@@ -13,13 +13,15 @@ fi
 
 if [[ "$@" == "intel" ]]
 then
-	compiler="mpiicpc"
+	CCcompiler="mpiicc"
+	CXXcompiler="mpiicpc"
 else
-    compiler="mpic++"
+    CCcompiler="mpicc"
+    CXXcompiler="mpic++"
 fi
 
 mkdir ${buildtype}
 cd ${buildtype}
 
-cmake -DCMAKE_BUILD_TYPE=${buildtype} -DCMAKE_CXX_COMPILER=${compiler} ../../
+cmake -DCMAKE_BUILD_TYPE=${buildtype} -DCMAKE_C_COMPILER=${CCcompiler} -DCMAKE_CXX_COMPILER=${CXXcompiler}  ../../
 make
