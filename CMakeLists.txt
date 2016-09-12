@@ -21,17 +21,6 @@ include_directories(${MPI_INCLUDE_PATH})
 ##################################
 
 
-include(CheckCXXCompilerFlag)
-CHECK_CXX_COMPILER_FLAG("-std=c++14" COMPILER_SUPPORTS_CXX14)
-CHECK_CXX_COMPILER_FLAG("-std=c++1y" COMPILER_SUPPORTS_CXX1Y)
-if(COMPILER_SUPPORTS_CXX11)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-elseif(COMPILER_SUPPORTS_CXX1Y)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++1y")
-else()
-    message("Compiler ${CMAKE_CXX_COMPILER} may not have C++14 support.")
-endif()
-SET(CMAKE_CXX_STANDARD 14)
 
 ###################################
 #Change flags depending on host
@@ -49,6 +38,32 @@ else()
     set(CMAKE_CXX_FLAGS_RELEASE " ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE} -O3 -funroll-loops -march=native -frename-registers -Wno-deprecated-declarations -DNDEBUG")
 endif()
 message("Compiling with: ${CMAKE_CXX_COMPILER_ID}")
+
+
+include(CheckCXXCompilerFlag)
+CHECK_CXX_COMPILER_FLAG("-std=c++14" COMPILER_SUPPORTS_CXX14)
+CHECK_CXX_COMPILER_FLAG("-std=c++1y" COMPILER_SUPPORTS_CXX1Y)
+CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
+CHECK_CXX_COMPILER_FLAG("-std=c++0x" COMPILER_SUPPORTS_CXX0X)
+if(COMPILER_SUPPORTS_CXX14)
+    set(CMAKE_CXX_STANDARD 14)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c++14")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
+elseif(COMPILER_SUPPORTS_CXX1Y)
+    set(CMAKE_CXX_STANDARD 14)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c++1y")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++1y")
+elseif(COMPILER_SUPPORTS_CXX11)
+    set(CMAKE_CXX_STANDARD 11)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c++11")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+elseif(COMPILER_SUPPORTS_CXX11)
+    set(CMAKE_CXX_STANDARD 11)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c++0x")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
+else()
+    message("WARNING: Compiler ${CMAKE_CXX_COMPILER} may not have C++11/C++14 support.")
+endif()
 
 
 file(GLOB_RECURSE WL_SOURCES "source/*.cpp")

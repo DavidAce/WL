@@ -1,12 +1,12 @@
 #!/bin/bash
-echo "Running"
-# trap ctrl-c and call ctrl_c()
-trap ctrl_c INT
 
-function ctrl_c() {
-        echo "** Trapped CTRL-C"
-}
+echo "Starting job"
 
-mpirun -n 6  -bind-to core:overload-allowed bin/Release/WL
-
-
+if [[ "$HOSTNAME" == *"triolith"* ]]
+then
+    echo "We're on triolith!";
+    sbatch run_triolith.sh
+else
+    echo "We're on my pc!"
+    ./run_my_pc.sh
+fi
