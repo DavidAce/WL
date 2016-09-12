@@ -203,16 +203,16 @@ void class_worker::resize_global_range() {
     E_max_global = fmax(E_max_local, E_max_global);
     switch (constants::rw_dims) {
         case 1:
-            MPI_Allreduce(&E_min_global, MPI_IN_PLACE, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
-            MPI_Allreduce(&E_max_global, MPI_IN_PLACE, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+            MPI_Allreduce(MPI_IN_PLACE, &E_min_global,  1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+            MPI_Allreduce(MPI_IN_PLACE, &E_max_global,  1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
             M_min_global = 0;
             M_max_global = 0;
             break;
         case 2:
-            MPI_Allreduce(&E_min_global, MPI_IN_PLACE, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
-            MPI_Allreduce(&E_max_global, MPI_IN_PLACE, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-            MPI_Allreduce(&M_min_global, MPI_IN_PLACE, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
-            MPI_Allreduce(&M_max_global, MPI_IN_PLACE, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+            MPI_Allreduce(MPI_IN_PLACE, &E_min_global, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+            MPI_Allreduce(MPI_IN_PLACE, &E_max_global, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+            MPI_Allreduce(MPI_IN_PLACE, &M_min_global, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+            MPI_Allreduce(MPI_IN_PLACE, &M_max_global, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
             break;
         default:
             cout << "Error in check_windows(). Wrong dimension for WL-random walk (rw_dims = ?)" << endl;
@@ -338,8 +338,8 @@ void class_worker::compute_number_of_bins(int & E_new_size, int & M_new_size) {
             i++;
         }
 
-        MPI_Allreduce(&M_min_global,MPI_IN_PLACE, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
-        MPI_Allreduce(&M_max_global,MPI_IN_PLACE, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+        MPI_Allreduce(MPI_IN_PLACE, &M_min_global, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+        MPI_Allreduce(MPI_IN_PLACE, &M_max_global, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
         M_min_local = M_min_global;
         M_max_local = M_max_global;
         double E_spacing_set =  math::typical_spacing(E_set_2_vector);
@@ -385,7 +385,7 @@ void class_worker::compute_number_of_bins(int & E_new_size, int & M_new_size) {
         M_new_size = max(constants::bins , (int) M_set.size());
         M_new_size = max(M_new_size      , M_maxElem);
         M_new_size = constants::rw_dims == 1 ? 1 : M_new_size;
-        MPI_Allreduce(&M_new_size, MPI_IN_PLACE, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+        MPI_Allreduce( MPI_IN_PLACE, &M_new_size, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
 
     }else{
         //Modify this for continuous models later
