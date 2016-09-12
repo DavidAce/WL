@@ -34,7 +34,7 @@ SET(CMAKE_CXX_STANDARD 14)
 ###################################
 #Change flags depending on compiler
 ###################################
-message("Compiling with: ${CMAKE_CXX_COMPILER_ID}$")
+message("Compiling with: ${CMAKE_CXX_COMPILER_ID}")
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
     # using Clang
 elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
