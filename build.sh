@@ -5,15 +5,26 @@ cd build
 #rm -rf *
 buildtype="Release"
 
-if [[ "$@" == "Debug" ]]
+if [[ "$@" == *"ebug"* ]]
 then
 	buildtype="Debug"
 fi
 
-if [[ "$@" == "Clean" ]]
+if [[ "$@" == *"lean"* ]]
 then
 	buildtype="Clean"
 fi
+
+
+if [[ "$HOSTNAME" == *"triolith"* ]]
+then
+    echo "We're on triolith!";
+    export CC=/software/apps/gcc/6.1.0/build01/bin/gcc
+    export CXX=/software/apps/gcc/6.1.0/build01/bin/g++
+else
+    echo "We're on my pc!"
+fi
+
 
 mkdir ${buildtype}
 cd ${buildtype}
