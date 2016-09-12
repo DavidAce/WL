@@ -3,12 +3,23 @@ echo "Starting Build"
 mkdir build
 cd build
 #rm -rf *
-buildtype="Release"
-if [[ $# -eq 1 ]] ; then
-	echo "Argument supplied: " $1
-	buildtype=$1
+
+if [[ "$@" == "Debug" ]]
+then
+	buildtype="Debug"
+else
+    buildtype="Release"
 fi
+
+if [[ "$@" == "intel" ]]
+then
+	compiler="mpiicpc"
+else
+    compiler="mpic++"
+fi
+
 mkdir ${buildtype}
 cd ${buildtype}
-cmake -DCMAKE_BUILD_TYPE=${buildtype} ../../
+
+cmake -DCMAKE_BUILD_TYPE=${buildtype} -DCMAKE_CXX_COMPILER=${compiler} ../../
 make

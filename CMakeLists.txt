@@ -21,7 +21,7 @@ include_directories(${MPI_INCLUDE_PATH})
 ##################################
 include(CheckCXXCompilerFlag)
 CHECK_CXX_COMPILER_FLAG("-std=c++14" COMPILER_SUPPORTS_CXX14)
-CHECK_CXX_COMPILER_FLAG("-std=c++1y" COMPILER_SUPPORTS_CXX0Y)
+CHECK_CXX_COMPILER_FLAG("-std=c++1y" COMPILER_SUPPORTS_CXX1Y)
 if(COMPILER_SUPPORTS_CXX14)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
 elseif(COMPILER_SUPPORTS_CXX1Y)
@@ -51,7 +51,6 @@ elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
 elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
     # using Visual Studio C++
 endif()
-
 
 
 file(GLOB_RECURSE WL_SOURCES "source/*.cpp")
