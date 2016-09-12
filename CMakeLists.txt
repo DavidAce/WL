@@ -15,9 +15,6 @@ link_libraries(-lstdc++fs)
 # Require MPI for this project:
 find_package(MPI REQUIRED)
 include_directories(${MPI_INCLUDE_PATH})
-SET(CMAKE_C_COMPILER mpicc)
-SET(CMAKE_CXX_COMPILER mpicxx)
-SET(CMAKE_CXX_STANDARD 14)
 
 ##################################
 # Check for c++14 compiler support
@@ -32,20 +29,23 @@ elseif(COMPILER_SUPPORTS_CXX1Y)
 else()
     message("Compiler ${CMAKE_CXX_COMPILER} may not have C++14 support.")
 endif()
+SET(CMAKE_CXX_STANDARD 14)
 
 ###################################
 #Change flags depending on compiler
 ###################################
+message("Compiling with: ${CMAKE_CXX_COMPILER_ID}$")
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
     # using Clang
 elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
     # using GCC
+    SET(CMAKE_CXX_COMPILER mpicxx)
     set(CMAKE_CXX_FLAGS_DEBUG " ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_DEBUG} -Wall -Wno-deprecated-declarations")
     set(CMAKE_CXX_FLAGS_RELEASE " ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE} -O3 -funroll-loops -march=native -frename-registers -Wno-deprecated-declarations -DNDEBUG")
 
 elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
     # using Intel C++
-    set(CMAKE_CXX_FLAGS "$$")
+    SET(CMAKE_CXX_COMPILER mpiicpc)
     set(CMAKE_CXX_FLAGS_DEBUG "  ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_DEBUG} -Wall")
     set(CMAKE_CXX_FLAGS_RELEASE "  ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE} -O3 -ip -xavx -funroll-loops -DNDEBUG")
 elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
