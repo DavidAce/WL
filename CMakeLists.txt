@@ -37,20 +37,17 @@ SET(CMAKE_CXX_STANDARD 14)
 #Change flags depending on host
 ###################################
 site_name(this_host)
-message("Name of this host: ${this_host}")
 if ("${this_host}" MATCHES "triolith")
-    message("Using Intel compiler")
+    message("Host: ${this_host} (Intel) ")
     set(CMAKE_CXX_COMPILER mpiicpc)
-    set(CMAKE_CXX_FLAGS_DEBUG "  ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_DEBUG} -Wall")
-    set(CMAKE_CXX_FLAGS_RELEASE "  ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE} -O3 -ip -xavx -funroll-loops -DNDEBUG")
-
+    set(CMAKE_CXX_FLAGS_DEBUG "  ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_DEBUG} -cxxlib=/software/apps/gcc/6.1.0/build01/ -gxx-name=g++.orig -Wall")
+    set(CMAKE_CXX_FLAGS_RELEASE "  ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE} -O3 -cxxlib=/software/apps/gcc/4.9.0/build01/ -gxx-name=g++.orig -ip -xavx -funroll-loops -DNDEBUG")
 else()
-    message("Using GNU compiler")
+    message("Host: ${this_host} (GNU)")
     set(CMAKE_CXX_COMPILER mpicxx)
     set(CMAKE_CXX_FLAGS_DEBUG " ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_DEBUG} -Wall -Wno-deprecated-declarations")
     set(CMAKE_CXX_FLAGS_RELEASE " ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE} -O3 -funroll-loops -march=native -frename-registers -Wno-deprecated-declarations -DNDEBUG")
 endif()
-
 message("Compiling with: ${CMAKE_CXX_COMPILER_ID}")
 
 
