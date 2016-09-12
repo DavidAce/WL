@@ -160,12 +160,26 @@ void outdata::set_folder(const int &iter){
 }
 
 
+
 void outdata::create_folder(){
-    path.assign(folder);
-    if (!fs::exists(path)) { // Check if folder exists
-        fs::create_directories(path); // create src folder
+    if (mkdir(folder.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) == -1)
+    {
+        if( errno == EEXIST ) {
+            // alredy exists
+        } else {
+            // something else
+            std::cout << "cannot create folder error:" << strerror(errno) << std::endl;
+        }
     }
 }
+
+
+//void outdata::create_folder(){
+//    path.assign(folder);
+//    if (!fs::exists(path)) { // Check if folder exists
+//        fs::create_directories(path); // create src folder
+//    }
+//}
 
 
 void outdata::create_and_set_folder(const int &iter){

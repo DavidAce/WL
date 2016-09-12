@@ -6,10 +6,9 @@
 #define WL_CLASS_PRINT_DATA_H
 #include <Eigen/Core>
 #include <Eigen/Dense>
-
-#include <experimental/filesystem>
 #include <cstdlib>
-
+#include <stdexcept>
+#include <sys/stat.h>
 #include <iostream>
 #include "class_WL_worker.h"
 #include "class_WL_thermo.h"
@@ -19,12 +18,12 @@
 
 using namespace std;
 using namespace Eigen;
-namespace fs = std::experimental::filesystem;
+//namespace fs = std::experimental::filesystem;
 
 class outdata {
 private:
     string      folder;
-    fs::path path;
+//    fs::path path;
     int   world_ID;
     int   iteration;
     int   precision = 10;
