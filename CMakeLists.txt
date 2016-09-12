@@ -17,40 +17,41 @@ find_package(MPI REQUIRED)
 include_directories(${MPI_INCLUDE_PATH})
 
 ##################################
-# Check for c++11 compiler support
+# Check for c++14 compiler support
 ##################################
+
+
 include(CheckCXXCompilerFlag)
-CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
-CHECK_CXX_COMPILER_FLAG("-std=c++0x" COMPILER_SUPPORTS_CXX0X)
+CHECK_CXX_COMPILER_FLAG("-std=c++14" COMPILER_SUPPORTS_CXX14)
+CHECK_CXX_COMPILER_FLAG("-std=c++1y" COMPILER_SUPPORTS_CXX1Y)
 if(COMPILER_SUPPORTS_CXX11)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-elseif(COMPILER_SUPPORTS_CXX0X)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
+elseif(COMPILER_SUPPORTS_CXX1Y)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++1y")
 else()
-    message("Compiler ${CMAKE_CXX_COMPILER} may not have C++11 support.")
+    message("Compiler ${CMAKE_CXX_COMPILER} may not have C++14 support.")
 endif()
-SET(CMAKE_CXX_STANDARD 11)
+SET(CMAKE_CXX_STANDARD 14)
 
 ###################################
-#Change flags depending on compiler
+#Change flags depending on host
 ###################################
-message("Compiling with: ${CMAKE_CXX_COMPILER_ID}")
-if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-    # using Clang
-elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    # using GCC
-    SET(CMAKE_CXX_COMPILER mpicxx)
-    set(CMAKE_CXX_FLAGS_DEBUG " ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_DEBUG} -Wall -Wno-deprecated-declarations")
-    set(CMAKE_CXX_FLAGS_RELEASE " ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE} -O3 -funroll-loops -march=native -frename-registers -Wno-deprecated-declarations -DNDEBUG")
-
-elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
-    # using Intel C++
-    SET(CMAKE_CXX_COMPILER mpiicpc)
+site_name(this_host)
+message("Name of this host: ${this_host}")
+if ("${this_host}" MATCHES "triolith")
+    message("Using Intel compiler")
+    set(CMAKE_CXX_COMPILER mpiicpc)
     set(CMAKE_CXX_FLAGS_DEBUG "  ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_DEBUG} -Wall")
     set(CMAKE_CXX_FLAGS_RELEASE "  ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE} -O3 -ip -xavx -funroll-loops -DNDEBUG")
-elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-    # using Visual Studio C++
+
+else()
+    message("Using GNU compiler")
+    set(CMAKE_CXX_COMPILER mpicxx)
+    set(CMAKE_CXX_FLAGS_DEBUG " ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_DEBUG} -Wall -Wno-deprecated-declarations")
+    set(CMAKE_CXX_FLAGS_RELEASE " ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE} -O3 -funroll-loops -march=native -frename-registers -Wno-deprecated-declarations -DNDEBUG")
 endif()
+
+message("Compiling with: ${CMAKE_CXX_COMPILER_ID}")
 
 
 file(GLOB_RECURSE WL_SOURCES "source/*.cpp")

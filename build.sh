@@ -3,7 +3,9 @@ echo "Starting Build"
 mkdir build
 cd build
 #rm -rf *
-
+buildtype="Release"
+#CC="mpicc"
+#CXX="mpic++"
 if [[ "$@" == "Debug" ]]
 then
 	buildtype="Debug"
@@ -13,16 +15,16 @@ fi
 
 #if [[ "$@" == "intel" ]]
 #then
-#	CCcompiler="mpiicc"
-#	CXXcompiler="mpiicpc"
+#	CC="mpiicc"
+#	CXX="mpiicpc"
 #else
-#    CCcompiler="mpicc"
-#    CXXcompiler="mpic++"
+#    CC="mpicc"
+#    CXX="mpic++"
 #fi
-CCcompiler="mpiicc"
-CXXcompiler="mpiicpc"
+
 mkdir ${buildtype}
 cd ${buildtype}
 
+#cmake -DCMAKE_BUILD_TYPE=${buildtype} -DCMAKE_C_COMPILER=${CC} -DCMAKE_CXX_COMPILER=${CXX}  ../../
 cmake -DCMAKE_BUILD_TYPE=${buildtype}  ../../
 make
