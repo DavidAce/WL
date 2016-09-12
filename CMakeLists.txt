@@ -1,3 +1,5 @@
+set(CMAKE_C_COMPILER "mpiicc")
+set(CMAKE_CXX_COMPILER "mpiicpc")
 cmake_minimum_required(VERSION 2.8)
 project(WL)
 

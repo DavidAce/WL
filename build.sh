@@ -24,5 +24,5 @@ CXXcompiler="mpiicpc"
 mkdir ${buildtype}
 cd ${buildtype}
 
-cmake -DCMAKE_BUILD_TYPE=${buildtype} -DCMAKE_C_COMPILER=${CCcompiler} -DCMAKE_CXX_COMPILER=${CXXcompiler}  ../../
+cmake -DCMAKE_BUILD_TYPE=${buildtype}  ../../
 make
