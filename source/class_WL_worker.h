@@ -23,7 +23,7 @@ static const int profiling_check_global_limits  =	0;
 static const int profiling_check_convergence	=   0;
 static const int profiling_make_MC_trial 		=	0;
 static const int profiling_acceptance_criterion =	0;
-static const int debug_comp_numb_bins           =   0;
+static const int debug_comp_numb_bins           =   1;
 static const int debug_divide_dos_vol           =   0;
 using namespace Eigen;
 
@@ -109,6 +109,9 @@ public:
     void compute_number_of_bins(int &, int &);
     bool check_in_window(const double &);
     void make_MC_trial() __attribute__((hot));
+    void insert_state() __attribute__((hot));
+    void walk_away_from_window() __attribute__((hot));
+    void walk_towards_window() __attribute__((hot));
     void acceptance_criterion() __attribute__((hot));
     void accept_MC_trial() __attribute__((hot));
     void reject_MC_trial() __attribute__((hot));

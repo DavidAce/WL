@@ -99,7 +99,6 @@ void class_worker::find_next_state(bool & dummy){
     }
 }
 
-
 void class_worker::find_initial_limits(){
     //Measure, randomize and measure again to get 2 states
     double E0 = model.get_E();
@@ -179,7 +178,7 @@ void class_worker::set_initial_local_bins(){
 
 void class_worker::update_global_range() {
     if (E_trial < E_min_global){
-        E_min_global  = E_trial;	
+        E_min_global = E_trial;
 		need_to_resize_global = 1;
     }
     if (E_trial > E_max_global){
@@ -194,13 +193,14 @@ void class_worker::update_global_range() {
     if (M_trial > M_max_global){
         M_max_global = M_trial;
         M_max_local = M_trial;
-
         need_to_resize_global = 1;
     }
 }
 
 void class_worker::resize_global_range() {
     //Compare to the other workers to find global limits
+    E_min_global = fmin(E_min_local, E_min_global);
+    E_max_global = fmax(E_max_local, E_max_global);
     switch (constants::rw_dims) {
         case 1:
             MPI_Allreduce(&E_min_global, &E_min_global, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
@@ -224,11 +224,9 @@ void class_worker::divide_global_range_energy(){
     //Update limits
     double global_range     = fabs(E_max_global - E_min_global);
     double local_range      = global_range / (world_size);
-    double x    =  constants::overlap_factor/2 ;
+    double x    =  constants::overlap_factor_energy/2 ;
     //Add a little bit extra if there are too many workers (Add nothing if world_size == 2, and up to local_volume if world_size == inf)
-
     double overlap_range = local_range * x ;// * 2.0*(world_size - 2.0 + x)/world_size;
-
     if (world_ID == 0){
         E_min_local = E_min_global;
         E_max_local = E_min_local + local_range + overlap_range*2;
@@ -241,13 +239,9 @@ void class_worker::divide_global_range_energy(){
     }
     E_max_local = fmin(E_max_local,  E_max_global);
     E_min_local = fmax(E_min_local,  E_min_global);
-
     M_min_local = M_min_global;
     M_max_local = M_max_global;
-    in_window = check_in_window(E);
-    if (in_window){
-        find_current_state();
-    }
+
 }
 
 void class_worker::resize_local_bins() {
@@ -314,7 +308,6 @@ void class_worker::resize_local_bins() {
     }
     dos             = dos_temp;
     histogram       = histogram_temp;
-    find_current_state();
     if (debug_divide_dos_vol)
     for (int w = 0 ; w < world_size; w++){
         if (w == world_ID){
@@ -329,17 +322,7 @@ void class_worker::compute_number_of_bins(int & E_new_size, int & M_new_size) {
     //  1) E_set contains more elements than the current E_bins.size() -> E_new_size = E_set.size()
     //  2) E_set contains less elements than the current E_bins.size() -> E
 
-
     if (model.discrete_model){
-        //Purge elements from E_set outside of window
-        for (auto it = E_set.begin(); it != E_set.end(); ) {
-            if (!check_in_window(*it)){
-                it = E_set.erase(it);
-            }
-            else {
-                ++it;
-            }
-        }
 
 
         int i = 0;
@@ -388,24 +371,22 @@ void class_worker::compute_number_of_bins(int & E_new_size, int & M_new_size) {
                 MPI_Barrier(MPI_COMM_WORLD);
             }
         }
-
+        //Purge elements from E_set outside of window
+        for (auto it = E_set.begin(); it != E_set.end(); ) {
+            if (!check_in_window(*it)){
+                it = E_set.erase(it);
+            }
+            else {
+                ++it;
+            }
+        }
         E_new_size = max(constants::bins , (int) E_set.size()); //What if there is a jump in E_set?
         E_new_size = max(E_new_size      , E_maxElem);
-        M_new_size = max(constants::bins , (int) M_set.size()); //What if there is a jump in E_set?
+        M_new_size = max(constants::bins , (int) M_set.size());
         M_new_size = max(M_new_size      , M_maxElem);
         M_new_size = constants::rw_dims == 1 ? 1 : M_new_size;
-//        switch(constants::rw_dims){
-//            case 1 :
-//                M_new_size = 1;
-//                break;
-//            case 2 :
-//                M_new_size = max(constants::bins , (int) M_set.size());
-//                break;
-//            default:
-//                cout << "Error wrong rw-dimension  constants::rw_dims" << endl;
-//                break;
-//        }
-//        MPI_Allreduce(&M_new_size, &M_new_size, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+        MPI_Allreduce(&M_new_size, &M_new_size, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+
     }else{
         //Modify this for continuous models later
         E_new_size = (int) E_bins.size();
@@ -424,6 +405,65 @@ void class_worker::make_MC_trial()  {
 	t_make_MC_trial.toc();
 }
 
+void class_worker::insert_state(){
+    if (model.discrete_model && counter::merges == 0) {
+        E_bins(E_idx) = E;
+        M_bins(M_idx) = M;
+        E_set.insert(E);
+        M_set.insert(M);
+    }
+}
+
+//SKITBRA??????
+//void class_worker::walk_away_from_window(){
+//    if ((E_trial >= E && E_trial >= E_max_local) || (constants::rw_dims == 2  && M_trial >= M && M_trial >= M_max_local)) {
+//        in_window = false;
+//        accept = true;
+//    } else if ((E_trial <= E && E_trial <= E_min_local) || (constants::rw_dims == 2  && M_trial <= M && M_trial <= M_min_local)) {
+//        in_window = false;
+//        accept = true;
+//    }else {
+//        accept = rn::uniform_double_1() < 0.1;
+//    }
+//}
+void class_worker::walk_away_from_window(){
+//    if ((E_trial >= E && E_trial >= E_max_local) || (constants::rw_dims == 2  && M_trial >= M && M_trial >= M_max_local)) {
+    if ((E_trial >= E && E_trial >= E_max_local) ) {
+        accept = true;
+//    } else if ((E_trial <= E && E_trial <= E_min_local) || (constants::rw_dims == 2  && M_trial <= M && M_trial <= M_min_local)) {
+    } else if ((E_trial <= E && E_trial <= E_min_local) ) {
+        accept = true;
+    }else {
+        //Either you're taking a step towards your window, in which case you can't accept,
+        //...or you're already inside your window, in which case you need to leave. Go to the nearest boundary!
+        if (check_in_window(E)){
+            bool move_up = fabs(E - E_min_local ) >= fabs(E - E_max_local);
+            if (move_up){
+                accept = E_trial >= E ;
+            }else{
+                accept = E_trial <= E ;
+            }
+        }else{
+            accept = false;
+        }
+    }
+}
+
+void class_worker::walk_towards_window(){
+    //If E_trial not in window, and neither is E. Then we'd rather find our window.
+    if        (E_trial >= E && E < E_min_local) {
+        //Step towards window from below
+        accept = true;
+    } else if (E_trial <= E && E > E_max_local) {
+        //Step towards window from above
+        accept = true;
+    } else{
+
+        accept = false;
+
+    }
+}
+
 void class_worker::acceptance_criterion() {
     //Scenarios:
     //  1) in_window = true, E_trial is in_window ->  Find idx -> MC-test
@@ -436,52 +476,34 @@ void class_worker::acceptance_criterion() {
     if (!need_to_resize_global) {
         if (check_in_window(E_trial)) {
             if (in_window) {
-                if (model.discrete_model && counter::merges == 0) {
-                    E_bins(E_idx) = E;
-                    M_bins(M_idx) = M;
-                    E_set.insert(E);
-                    M_set.insert(M);
-                }
+                insert_state();
                 find_next_state(in_window);
                 accept = rn::uniform_double_1() < exp(dos(E_idx, M_idx) - dos(E_idx_trial, M_idx_trial));
-            } else { //If  E not in window
-                    //Reentering the window
-                    accept      = true;
-                    in_window   = true;
-//                    find_next_state(); //Do we need to?
-            }
-
-
-        } else { //If E_trial not in window
-            accept = false;
-        }
-
-    }else{ //If need to resize
-        if(check_in_window(E_trial)){
-            if (in_window){
-                find_next_state();
+            } else { //If  we are currently not in window, but E_trial is! then reenter
+                in_window = true;
                 accept = true;
-            }else {
-                //Still out of window... prefer to move towards window.
-                in_window = false;
-                if (E_trial >= E && E < E_min_local) {
-                    accept = true;
-                } else if (E_trial <= E && E > E_max_local) {
-                    accept = true;
-                } else if (E_trial < E && E < E_min_local) {
-                    accept = rn::uniform_double_1() > 0.5;
-                } else if (E_trial > E && E > E_max_local) {
-                    accept = rn::uniform_double_1() > 0.5;
-                } else {
-                    accept = true;
-                }
+                find_next_state();
             }
 
-        }else{
-           accept = false;
+        } else { //If E_trial not in window, and neither is E. Then we'd rather find our window.
+            if (in_window){
+                accept == false;
+            }else{
+                walk_towards_window();
+            }
+
         }
+
+    } else { //If need to resize we might as well explore the E-M landscape, so use different strategy
+        //Windows should no longer be relevant, everybody should just try to go outwards
+        //Accept if taking a step outward
+        in_window = false;
+        insert_state();
+        walk_away_from_window();
+
     }
 }
+
 //
 //
 //    else{
@@ -618,6 +640,7 @@ void class_worker::accept_MC_trial() {
         M_idx                    = M_idx_trial;
         dos(E_idx, M_idx)       += lnf;
         histogram(E_idx, M_idx) += 1;
+
     }
 }
 

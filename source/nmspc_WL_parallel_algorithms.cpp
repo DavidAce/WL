@@ -11,6 +11,9 @@ namespace mpi {
         //Use MPI Tag in the 100-200 range
         if (timer::swap > constants::rate_swap) {
             timer::swap = 0;
+            int abort;
+            MPI_Allreduce(&worker.need_to_resize_global, &abort, 1, MPI_INT , MPI_MAX, MPI_COMM_WORLD);
+            if (abort){return;}
             worker.t_swap.tic();
             counter::swaps++;
             int swap, copy;
@@ -79,7 +82,6 @@ namespace mpi {
                 MPI_Send(&worker.dos(worker.E_idx, worker.M_idx), 1, MPI_DOUBLE, dn, 109, MPI_COMM_WORLD);
                 MPI_Recv(&swap, 1, MPI_INT, dn, 110, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             }
-
 
             //Now do the swapping if you got lucky
             if (myTurn) {
@@ -308,7 +310,7 @@ namespace mpi {
         MPI_Barrier(MPI_COMM_WORLD);
         double global_volume = math::volume(worker.dos_total, worker.E_bins_total, worker.M_bins_total);
         double local_volume = global_volume / worker.world_size;
-        double x = constants::overlap_factor / (1 - constants::overlap_factor / 2)  ;
+        double x = constants::overlap_factor_dos_vol / (1 - constants::overlap_factor_dos_vol / 2)  ;
         //Add a little bit if there are too many workers (Add nothing if world_size == 2, and up to local_volume if world_size == inf)
         double overlap_range = local_volume * x ;//2.0*(worker.world_size - 2.0 + x)/worker.world_size;
 //        cout << local_volume / global_volume << overlap_range << " " << local_volume*x << endl << endl;

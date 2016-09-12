@@ -114,6 +114,10 @@ void check_global_limits(class_worker &worker){
             worker.divide_global_range_energy();
             worker.resize_local_bins();
             worker.prev_WL_iteration();
+            worker.in_window = worker.check_in_window(worker.E);
+            if (worker.in_window){
+                worker.find_current_state();
+            }
             worker.need_to_resize_global = 0;
         }
     }
@@ -139,6 +143,7 @@ void add_hist_volume(class_worker &worker) {
     //Subtract the smallest positive number (subtracts away regions impossible to reach as well)
     math::subtract_min_nonzero_one(worker.histogram);
     worker.saturation.push_back(worker.histogram.sum());
+
 
 }
 
@@ -231,10 +236,13 @@ void print_status(class_worker &worker) {
                         << " Walk: "  << left << setw(3) << counter::walks
                         << " f: "     << left << setw(16)<< fixed << setprecision(12) << exp(worker.lnf)
                         << " Bins: [" << left << setw(4) << worker.dos.rows() << " " << worker.dos.cols() << "]"
+                        << " E: "     << left << setw(9) << setprecision(2)   << worker.E
+                        << " M: "     << left << setw(9) << setprecision(2)   << worker.M
                         << " dE: "    << left << setw(7) << setprecision(2)   << worker.E_max_local - worker.E_min_local
-                        << " E : ["   << left << setw(7) << setprecision(1)   << worker.E_bins(0) << " " << left << setw(7) << setprecision(1) << worker.E_bins(worker.E_bins.size()-1) << "]"
+                        << " : ["     << left << setw(7) << setprecision(1)   << worker.E_bins(0) << " " << left << setw(7) << setprecision(1) << worker.E_bins(worker.E_bins.size()-1) << "]"
                         << " Sw: "    << left << setw(5) << counter::swap_accepts
                         << " iw: "    << worker.in_window
+                        << " NR: "    << worker.need_to_resize_global
                         << " 1/t: "   << worker.flag_one_over_t
                         << " Fin: "   << worker.finish_line
                         << " slope "  << left << setw(10) << worker.slope
