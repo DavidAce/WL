@@ -107,7 +107,7 @@ void check_global_limits(class_worker &worker){
     timer::check_limits++;
     if (timer::check_limits >= constants::rate_check_limits) {
         timer::check_limits = 0;
-        MPI_Allreduce(&worker.need_to_resize_global, &worker.need_to_resize_global, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+        MPI_Allreduce(&worker.need_to_resize_global, MPI_IN_PLACE, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
         if (worker.need_to_resize_global == 1) {
             if (debug_global_limits){debug_print(worker,"Check Global Limits ");}
             worker.resize_global_range();
