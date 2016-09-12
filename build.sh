@@ -1,7 +1,5 @@
 #!/bin/bash
-echo "Starting Build"
-mkdir build
-cd build
+
 #rm -rf *
 buildtype="Release"
 
@@ -12,7 +10,9 @@ fi
 
 if [[ "$@" == *"lean"* ]]
 then
-	buildtype="Clean"
+    echo "Cleaning build"
+	rm -rf build
+    exit 0
 fi
 
 
@@ -25,9 +25,10 @@ else
     echo "We're on my pc!"
 fi
 
-
+mkdir build
+cd build
 mkdir ${buildtype}
 cd ${buildtype}
-
+echo "Starting Build"
 cmake -DCMAKE_BUILD_TYPE=${buildtype}  ../../
 make
