@@ -8,8 +8,11 @@ buildtype="Release"
 if [[ "$@" == "Debug" ]]
 then
 	buildtype="Debug"
-else
-    buildtype="Release"
+fi
+
+if [[ "$@" == "Clean" ]]
+then
+	buildtype="Clean"
 fi
 
 mkdir ${buildtype}
