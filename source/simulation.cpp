@@ -4,6 +4,8 @@
 #include "simulation.h"
 using namespace std;
 #define debug_sweep                     1
+#define debug_trial                     1
+#define debug_acceptance                1
 #define debug_convergence               1
 #define debug_global_limits             1
 #define debug_saturation                1
@@ -27,6 +29,10 @@ void wanglandau(class_worker &worker){
         print_status        (worker)              ;
         divide_range        (worker)              ;
         backup_data         (worker,out)          ;
+        if (counter::MCS > 5){
+            MPI_Finalize();
+            exit(0);
+        }
     }
     out.write_data_worker (worker) ;
     mpi::merge            (worker) ;
@@ -45,7 +51,23 @@ void sweep(class_worker &worker){
 
     worker.t_sweep.tic();
     for (int i = 0; i < constants::N ; i++){
+        if (debug_trial){
+            if (worker.world_ID == 0) {
+                cout << endl << "    Trial "<< i;
+                cout.flush();
+                std::this_thread::sleep_for(std::chrono::microseconds(10));
+            }
+            MPI_Barrier(MPI_COMM_WORLD);
+        }
         worker.make_MC_trial();
+        if (debug_acceptance){
+            if (worker.world_ID == 0) {
+                cout << "    Accept ";
+                cout.flush();
+                std::this_thread::sleep_for(std::chrono::microseconds(10));
+            }
+            MPI_Barrier(MPI_COMM_WORLD);
+        }
         worker.acceptance_criterion();
         if(worker.accept){
             worker.accept_MC_trial();
@@ -53,7 +75,16 @@ void sweep(class_worker &worker){
         }else{
             worker.reject_MC_trial();
         }
+        if (debug_acceptance){
+            if (worker.world_ID == 0) {
+                cout << " OK";
+                cout.flush();
+                std::this_thread::sleep_for(std::chrono::microseconds(10));
+            }
+            MPI_Barrier(MPI_COMM_WORLD);
+        }
     }
+
     counter::MCS++;
     worker.t_sweep.toc();
 }
