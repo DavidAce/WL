@@ -29,10 +29,10 @@ void wanglandau(class_worker &worker){
         print_status        (worker)              ;
         divide_range        (worker)              ;
         backup_data         (worker,out)          ;
-//        if (counter::MCS > 5){
-//            MPI_Finalize();
-//            exit(0);
-//        }
+        if (counter::MCS > 10000){
+            MPI_Finalize();
+            exit(0);
+        }
     }
     out.write_data_worker (worker) ;
     mpi::merge            (worker) ;
