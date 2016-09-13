@@ -7,6 +7,8 @@
 #include <mpi.h>
 #include <random>
 #include <fstream>
+#include <thread>
+#include <chrono>
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <set>
@@ -17,14 +19,7 @@
 #include "nmspc_WL_counters_timers.h"
 #include "nmspc_math_algorithms.h"
 #include "nmspc_random_numbers.h"
-static const int profiling_sweep                =	1;
-static const int profiling_swap                 =	0;
-static const int profiling_check_global_limits  =	0;
-static const int profiling_check_convergence	=   0;
-static const int profiling_make_MC_trial 		=	0;
-static const int profiling_acceptance_criterion =	0;
-static const int debug_comp_numb_bins           =   1;
-static const int debug_divide_dos_vol           =   0;
+
 using namespace Eigen;
 
 template <typename T>

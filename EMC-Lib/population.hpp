@@ -56,7 +56,6 @@ class paramLine{
 class population{
 private:
 //	void getFitness(personality& guy);
-	void wakeUpPop ();
 	void wakeUpGuys();
 	void wakeUpBest();
     void getFitness4All();
@@ -70,7 +69,7 @@ public:
 			 snookerGuys    (r_num,ref),
              line           (ref),
 			 generation(0){
-        wakeUpPop();
+
     };
     vector<personality> guys; 			     //Make an array of N guys
 	vector<personality> newguys; 			 //Make a temporary array of N guinneapigs
@@ -79,6 +78,7 @@ public:
 
     paramLine line;	//for doing the snooker crossover
     int generation;  //Number of generations for this population
+	void wakeUpPop ();
 
     void getFitness(personality &guy);
     void getFitness(const Array<long double, Dynamic, 1> &point, personality &guy);

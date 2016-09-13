@@ -3,7 +3,10 @@
 //
 
 #include "nmspc_WL_parallel_algorithms.h"
-
+#define debug_swap      0
+#define debug_merge     0
+#define debug_bcast     0
+#define debug_divide    0
 using namespace std;
 
 namespace mpi {
@@ -19,14 +22,23 @@ namespace mpi {
             int swap, copy;
             double dos_X, dos_Y;
             double E_X, E_Y, M_X, M_Y;
-            int E_X_idx, E_Y_idx, M_X_idx, M_Y_idx;
-            double E_min_up, E_max_dn;
+            int    E_X_idx, E_Y_idx, M_X_idx, M_Y_idx;
+            int    in_window_up, in_window_dn;
+            double E_min_up, E_max_up;
             double P_swap;      //Swap probability
             bool myTurn = math::mod(worker.world_ID, 2) == math::mod(counter::swaps, 2);
 
             int up = math::mod(worker.world_ID + 1, worker.world_size);
             int dn = math::mod(worker.world_ID - 1, worker.world_size);
-
+            if (debug_swap){
+                for (int w = 0; w < worker.world_size; w++){
+                    if(w == worker.world_ID){
+                        cout << "ID: "<< w << " Starting Swap. Myturn = " << myTurn << endl;
+                    }
+                    MPI_Barrier(MPI_COMM_WORLD);
+                }
+            }
+            worker.in_window = worker.check_in_window(worker.E);
             //Send current E and M to neighbors up and down. Receive X from below, Y from above.
             MPI_Sendrecv(&worker.E, 1, MPI_DOUBLE, up, 100, &E_X, 1, MPI_DOUBLE, dn, 100, MPI_COMM_WORLD,
                          MPI_STATUS_IGNORE);
@@ -39,14 +51,36 @@ namespace mpi {
             //Check if the neighbors position is within my overlap region. If so, find the indices.
             MPI_Sendrecv(&worker.E_min_local, 1, MPI_DOUBLE, dn, 104, &E_min_up, 1, MPI_DOUBLE, up, 104, MPI_COMM_WORLD,
                          MPI_STATUS_IGNORE);
-            MPI_Sendrecv(&worker.E_max_local, 1, MPI_DOUBLE, up, 105, &E_max_dn, 1, MPI_DOUBLE, dn, 105, MPI_COMM_WORLD,
+            MPI_Sendrecv(&worker.E_max_local, 1, MPI_DOUBLE, dn, 105, &E_max_up, 1, MPI_DOUBLE, up, 105, MPI_COMM_WORLD,
+                         MPI_STATUS_IGNORE);
+//            MPI_Sendrecv(&worker.E_max_local, 1, MPI_DOUBLE, up, 105, &E_max_dn, 1, MPI_DOUBLE, dn, 105, MPI_COMM_WORLD,
+//                         MPI_STATUS_IGNORE);
+//            MPI_Sendrecv(&worker.in_window, 1, MPI_INT, up, 1055, &in_window_dn, 1, MPI_INT, dn, 1055, MPI_COMM_WORLD,
+//                         MPI_STATUS_IGNORE);
+            MPI_Sendrecv(&worker.in_window, 1, MPI_INT, dn, 1044, &in_window_up, 1, MPI_INT, up, 1044, MPI_COMM_WORLD,
                          MPI_STATUS_IGNORE);
             //Now both swappees need to know if it is ok to go ahead with a swap.
+            if (debug_swap){
+                for (int w = 0; w < worker.world_size; w++){
+                    if(w == worker.world_ID){
+                        cout << "ID: "<< w<< " SendRecv Successful"
+                             << " E_X = " << E_X
+                             << " E_Y = " << E_Y
+                             << " E_idx = " << worker.E_idx
+                             << " E_idx_trial = " << worker.E_idx_trial
+                             << endl;
+                    }
+                    MPI_Barrier(MPI_COMM_WORLD);
+                }
+            }
             int go_ahead;
             if (myTurn) {
+                //Go ahead if inside the upper window and vice versa
                 go_ahead = worker.E >= E_min_up && E_Y <= worker.E_max_local;
+                go_ahead = worker.E <= E_max_up && E_Y >= worker.E_min_local && go_ahead;
                 copy = !go_ahead && !worker.in_window && ((worker.E < E_Y && worker.E < worker.E_min_local) ||
                                                           (worker.E > E_Y && worker.E > worker.E_max_local));
+                //Make sure the last worker doesn't swap!
                 go_ahead = go_ahead && worker.world_ID != worker.world_size - 1;
                 MPI_Send(&go_ahead, 1, MPI_INT, up, 106, MPI_COMM_WORLD);
                 MPI_Send(&copy, 1, MPI_INT, up, 107, MPI_COMM_WORLD);
@@ -55,13 +89,21 @@ namespace mpi {
                 MPI_Recv(&copy, 1, MPI_INT, dn, 107, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             }
 
-            //Now we should only be left with workers going ahead with a swap.
+            if (debug_swap){
+                for (int w = 0; w < worker.world_size; w++){
+                    if(w == worker.world_ID){
+                        cout << "ID: "<< w<< " Received goahead = " << go_ahead << endl;
+                        cout << worker << endl;
+                    }
+                    MPI_Barrier(MPI_COMM_WORLD);
+                }
+            }
             if (myTurn) {
                 if (go_ahead) {
                     MPI_Recv(&dos_X, 1, MPI_DOUBLE, up, 108, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                     MPI_Recv(&dos_Y, 1, MPI_DOUBLE, up, 109, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                    E_Y_idx = math::binary_search(worker.E_bins.data(), E_Y, worker.E_bins.size());
-                    M_Y_idx = math::binary_search(worker.M_bins.data(), M_Y, worker.M_bins.size());
+                    E_Y_idx = math::binary_search(worker.E_bins, E_Y);
+                    M_Y_idx = math::binary_search(worker.M_bins, M_Y);
                     P_swap = exp(worker.dos(worker.E_idx, worker.M_idx)
                                  - worker.dos(E_Y_idx, M_Y_idx)
                                  + dos_Y
@@ -76,13 +118,20 @@ namespace mpi {
                 }
                 MPI_Send(&swap, 1, MPI_INT, up, 110, MPI_COMM_WORLD);
             } else {
-                E_X_idx = math::binary_search(worker.E_bins.data(), E_X, worker.E_bins.size());
-                M_X_idx = math::binary_search(worker.M_bins.data(), M_X, worker.M_bins.size());
+                E_X_idx = math::binary_search(worker.E_bins, E_X);
+                M_X_idx = math::binary_search(worker.M_bins, M_X);
                 MPI_Send(&worker.dos(E_X_idx, M_X_idx), 1, MPI_DOUBLE, dn, 108, MPI_COMM_WORLD);
                 MPI_Send(&worker.dos(worker.E_idx, worker.M_idx), 1, MPI_DOUBLE, dn, 109, MPI_COMM_WORLD);
                 MPI_Recv(&swap, 1, MPI_INT, dn, 110, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             }
-
+            if (debug_swap){
+                for (int w = 0; w < worker.world_size; w++){
+                    if(w == worker.world_ID){
+                        cout << "ID: "<< w<< "Starting swap. Swap = "  << swap << endl;
+                    }
+                    MPI_Barrier(MPI_COMM_WORLD);
+                }
+            }
             //Now do the swapping if you got lucky
             if (myTurn) {
                 if (go_ahead == 1) {
@@ -112,7 +161,14 @@ namespace mpi {
             }
             counter::swap_accepts += swap;
             worker.t_swap.toc();
-
+            if (debug_swap){
+                for (int w = 0; w < worker.world_size; w++){
+                    if(w == worker.world_ID){
+                        cout << "ID: "<< w<< "Swap OK "  << endl;
+                    }
+                    MPI_Barrier(MPI_COMM_WORLD);
+                }
+            }
         } else {
             timer::swap++;
         }
@@ -186,7 +242,7 @@ namespace mpi {
 
 //                dos_total.row(E_merge_idx).maxCoeff(&M_merge_idx);
                 //Find coordinates on received dos;
-                E_merge_idx_up = math::binary_search(E_recv.data(), E_total(E_merge_idx), E_sizes[w]);
+                E_merge_idx_up = math::binary_search(E_recv, E_total(E_merge_idx));
                 M_merge_idx_up = math::nanmaxCoeff_idx(dos_recv.row(E_merge_idx_up));
 //                dos_recv.row(E_merge_idx_up).maxCoeff(&M_merge_idx_up);
                 //Find difference between heights at these points
@@ -194,11 +250,25 @@ namespace mpi {
                 //Add that difference to the next
                 if (std::isnan(diff)){
                     cout << "Tried to concatenate "<< w-1 << " and " << w << ". Diff between two DOS is NaN, exiting" << endl;
+                    cout << "Merge_idx    = [" <<  E_merge_idx    << ", " << M_merge_idx    << "]" << endl;
+                    cout << "Merge_idx_up = [" <<  E_merge_idx_up << ", " << M_merge_idx_up << "]" << endl;
+
+                    cout << "E_bins_total   " << E_total(E_merge_idx) << " [" << E_merge_idx << "]" << "    = "
+                         << E_total.transpose() << endl;
+                    cout << "E_bins_up      " << E_recv(E_merge_idx_up) << " [" << E_merge_idx_up << "]" << "    = "
+                         << E_recv.transpose() << endl;
+                    cout << "dos_tot" <<endl << dos_total << endl;
+                    cout << "dos_rec" <<endl << dos_recv << endl;
+                    MPI_Finalize();
+                    exit(1);
                 }
                 math::add_to_nonzero_nonnan(dos_recv, diff);
                 //Now now all doses should be the same height
                 if (debug_merge) {
                     cout << "Concatenating " << w-1 << " and "<< w << endl;
+                    cout << "Merge_idx    = [" <<  E_merge_idx    << ", " << M_merge_idx    << "]" << endl;
+                    cout << "Merge_idx_up = [" <<  E_merge_idx_up << ", " << M_merge_idx_up << "]" << endl;
+
                     cout << "E_bins_total   " << E_total(E_merge_idx) << " [" << E_merge_idx << "]" << "    = "
                          << E_total.transpose() << endl;
                     cout << "E_bins_up      " << E_recv(E_merge_idx_up) << " [" << E_merge_idx_up << "]" << "    = "
@@ -367,6 +437,7 @@ namespace mpi {
             cout << worker << endl;
             cout.flush();
             std::this_thread::sleep_for(std::chrono::seconds(1));
+            MPI_Finalize();
             exit(15);
         }
 
@@ -377,6 +448,7 @@ namespace mpi {
             cout << worker << endl;
             cout.flush();
             std::this_thread::sleep_for(std::chrono::seconds(1));
+            MPI_Finalize();
             exit(16);
         }
         MPI_Barrier(MPI_COMM_WORLD);
@@ -387,8 +459,8 @@ namespace mpi {
         worker.histogram = ArrayXXi::Zero(worker.dos.rows(), worker.dos.cols());
 
         if (worker.in_window) {
-            worker.E_idx = math::binary_search(worker.E_bins.data(), worker.E, worker.E_bins.size());
-            worker.M_idx = math::binary_search(worker.M_bins.data(), worker.M, worker.M_bins.size());
+            worker.E_idx = math::binary_search(worker.E_bins, worker.E);
+            worker.M_idx = math::binary_search(worker.M_bins, worker.M);
         }
         if (worker.model.discrete_model) {
             worker.E_set.clear();

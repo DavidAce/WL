@@ -3,7 +3,6 @@
 //
 
 #include "class_WL_read_data.h"
-#include "class_WL_worker.h"
 
 #ifdef __linux__
 #define os 0
@@ -125,6 +124,7 @@ ArrayXXd indata::read_file(string filename) {
 
     if (!infile.is_open()) {
         cout << "Could not open file with name: " << filename << endl;
+        MPI_Finalize();
         exit(5);
     }
     unsigned long int rows = 0, cols = 0;

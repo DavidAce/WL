@@ -83,7 +83,8 @@ namespace math {
                 for (int j = 0; j < M.size() - 1; j++) {
                     for (int i = 0; i < E.size() - 1; i++) {
                         if (dos(i, j) == 0 || std::isnan(dos(i,j))) { continue; }
-                        vol += (E(i + 1) - E(i)) * (M(j + 1) - M(j)) * dos(i, j);
+//                        vol += (E(i + 1) - E(i)) * (M(j + 1) - M(j)) * dos(i, j);
+                        vol += (E(i + 1) - E(i)) * (M(j + 1) - M(j)) ;
                     }
                 }
                 break;
@@ -114,7 +115,8 @@ namespace math {
                 for (int i = 0; i < E.size() - 1; i++) {
                     for (int j = 0; j < M.size() - 1; j++) {
                         if (dos(i, j) == 0 || std::isnan(dos(i,j))) { continue; }
-                        vol += (E(i + 1) - E(i)) * (M(j + 1) - M(j)) * dos(i, j);
+//                        vol += (E(i + 1) - E(i)) * (M(j + 1) - M(j)) * dos(i, j);
+                        vol += (E(i + 1) - E(i)) * (M(j + 1) - M(j)) ;
                     }
                     if (vol >= vol_limit){
                         return i;
@@ -182,11 +184,11 @@ namespace math {
         for (int i = 0; i < E1.size(); i++) {
             if (E1(i) <  E2.minCoeff()) { continue; }
             if (E1(i) >  E2.maxCoeff()) { continue; }
-            x = math::binary_search(E2.data(), E1(i), E2.size());
+            x = math::binary_search(E2, E1(i));
             num = 0;
             for (int j = 0; j < M1.size(); j++) {
                 if (dos1(i,j) == 0 || std::isnan(dos1(i,j)))  { continue; }
-                y = math::binary_search(M2.data(), M1(j), M2.size());
+                y = math::binary_search(M2, M1(j));
                 if (dos2(x,y) == 0 ||std::isnan(dos2(x,y)))  { continue; }
 
                 u1 = gradient_vector(dos1, E1, M1, i, j);

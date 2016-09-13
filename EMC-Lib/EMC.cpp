@@ -13,6 +13,8 @@ void minimize(objective_function & obj_fun){
 	omp_set_num_threads(EMC_constants::M);
     Eigen::initParallel();
     species sp(obj_fun);
+    sp.wakeUpPop();
+
 
     rng.seed(EMC_constants::seed);
 	//Start algorithm

@@ -2,8 +2,19 @@
 // Created by david on 2016-07-24.
 //
 #include "class_WL_worker.h"
-#define debug_divide 1
-#define debug_resize_local_range 1
+
+#define profiling_sweep                	0
+#define profiling_swap                 	0
+#define profiling_check_global_limits  	0
+#define profiling_check_convergence	    0
+#define profiling_make_MC_trial 		0
+#define profiling_acceptance_criterion 	0
+#define debug_comp_numb_bins            1
+#define debug_divide_energy             0
+#define debug_resize_local_bins         0
+#define debug_resize_local_range        1
+#define debug_insert_state              1
+#define debug_accept_trial              1
 using namespace std;
 using namespace Eigen;
 int counter::MCS;
@@ -46,57 +57,70 @@ class_worker::class_worker(): 	model(),
     divide_global_range_energy();
     set_initial_local_bins();
     find_current_state();
-    start_counters();
+    in_window = check_in_window(E);
     need_to_resize_global = 0;
+    update_global_range();
+    start_counters();
     cout << "ID: " << world_ID << " Started OK"<<endl;
 }
 
 void class_worker::find_current_state(){
     switch(constants::rw_dims){
         case 1:
-            E_idx = math::binary_search(E_bins.data(), E, E_bins.size());
+            E_idx = math::binary_search(E_bins, E);
             M_idx = 0;
             break;
         case 2:
-            E_idx = math::binary_search(E_bins.data(), E, E_bins.size());
-            M_idx = math::binary_search(M_bins.data(), M, M_bins.size());
+            E_idx = math::binary_search(E_bins, E);
+            M_idx = math::binary_search(M_bins, M);
             break;
         default:
             cout << "Wrong rw-dimension  constants::rw_dims" << endl;
     }
-	in_window = check_in_window(E);
-}
 
+}
 
 void class_worker::find_next_state(){
     switch(constants::rw_dims) {
         case 1:
-            E_idx_trial = math::binary_search(E_bins.data(), E_trial, E_bins.size());
+            E_idx_trial = math::binary_search(E_bins, E_trial);
             M_idx_trial = 0;
             break;
         case 2:
-            E_idx_trial = math::binary_search(E_bins.data(), E_trial, E_bins.size());
-            M_idx_trial = math::binary_search(M_bins.data(), M_trial, M_bins.size());
+            E_idx_trial = math::binary_search(E_bins, E_trial);
+            M_idx_trial = math::binary_search(M_bins, M_trial);
             break;
         default:
             cout << "Wrong dimension:  constants::rw_dims" << endl;
     }
+    if (E_idx_trial < 0 || E_idx_trial > E_bins.size()-1){
+        cout << "E_idx_trial is out of bounds!" << endl;
+        cout << "E_idx_trial = " << E_idx_trial << " Size = "<< E_bins.size() << endl;
+        exit(1);
+    }
+
 }
 
 void class_worker::find_next_state(bool & dummy){
     switch (constants::rw_dims) {
         case 1:
-            E_idx_trial = math::binary_search(E_bins.data(), E_trial, E_bins.size(), E, E_idx);
+            E_idx_trial = math::binary_search(E_bins, E_trial, E, E_idx);
             M_idx_trial = 0;
             break;
         case 2:
-            E_idx_trial = math::binary_search(E_bins.data(), E_trial, E_bins.size(), E, E_idx);
-            M_idx_trial = math::binary_search(M_bins.data(), M_trial, M_bins.size(), M, M_idx);
+            E_idx_trial = math::binary_search(E_bins, E_trial, E, E_idx);
+            M_idx_trial = math::binary_search(M_bins, M_trial, M, M_idx);
 
             break;
         default:
             cout << "Wrong dimension:  constants::rw_dims" << endl;
     }
+    if (E_idx_trial < 0 || E_idx_trial > E_bins.size()-1){
+        cout << "E_idx_trial is out of bounds!" << endl;
+        cout << "E_idx_trial = " << E_idx_trial << " Size = "<< E_bins.size() << endl;
+        exit(1);
+    }
+
 }
 
 void class_worker::find_initial_limits(){
@@ -132,6 +156,7 @@ void class_worker::find_initial_limits(){
             break;
         default:
             cout << "Error: Wrong dimension  constants::rw_dims" << endl;
+            MPI_Finalize();
             exit(5);
     }
 
@@ -172,6 +197,7 @@ void class_worker::set_initial_local_bins(){
             break;
         default:
             cout << "Error in class_worker::set_initial_local_bins. Wrong dimension for WL-random walk (rw_dims = ?)" << endl;
+            MPI_Finalize();
             exit(1);
     }
 }
@@ -216,6 +242,7 @@ void class_worker::resize_global_range() {
             break;
         default:
             cout << "Error in check_windows(). Wrong dimension for WL-random walk (rw_dims = ?)" << endl;
+            MPI_Finalize();
             exit(1);
     }
 }
@@ -223,24 +250,46 @@ void class_worker::resize_global_range() {
 void class_worker::divide_global_range_energy(){
     //Update limits
     double global_range     = fabs(E_max_global - E_min_global);
-    double local_range      = global_range / (world_size);
-    double x    =  constants::overlap_factor_energy/2 ;
+    double local_range      = global_range / (double)(world_size);
+    double x                =  constants::overlap_factor_energy/2 ;
     //Add a little bit extra if there are too many workers (Add nothing if world_size == 2, and up to local_volume if world_size == inf)
     double overlap_range = local_range * x ;// * 2.0*(world_size - 2.0 + x)/world_size;
+
     if (world_ID == 0){
         E_min_local = E_min_global;
-        E_max_local = E_min_local + local_range + overlap_range*2;
+        E_max_local = E_min_global + local_range + overlap_range*2;
     }else if (world_ID == world_size - 1){
+        E_min_local = E_max_global - local_range - overlap_range*2;
         E_max_local = E_max_global;
-        E_min_local = E_max_local - local_range - overlap_range*2;
+
     }else{
-        E_min_local = E_min_global + world_ID*local_range - overlap_range;
-        E_max_local = E_min_global + (world_ID +1)*local_range + overlap_range;
+        E_min_local = E_min_global + (world_ID     *local_range) - overlap_range;
+        E_max_local = E_min_global + (world_ID +1) *local_range   + overlap_range;
     }
     E_max_local = fmin(E_max_local,  E_max_global);
     E_min_local = fmax(E_min_local,  E_min_global);
     M_min_local = M_min_global;
     M_max_local = M_max_global;
+    if(debug_divide_energy){
+        if (world_ID == 0){
+            cout << "Dividing according to energy range" << endl;
+            cout << flush;
+            std::this_thread::sleep_for(std::chrono::microseconds(10));
+        }
+        MPI_Barrier(MPI_COMM_WORLD);
+        for (int w = 0; w < world_size ; w++){
+            if (w == world_ID){
+                cout << "ID: " << world_ID << endl;
+                cout << "   Global Bound= " << E_min_global << " " << E_max_global << endl;
+                cout << "   Local Range = " << local_range << " overlap_range = " << overlap_range << endl;
+                cout << "   Bounds E: [" <<  E_min_local << " " << E_max_local << "]" << endl;
+                cout << "          M: [" <<  M_min_local << " " << M_max_local << "]" << endl;
+                std::this_thread::sleep_for(std::chrono::microseconds(10));
+
+            }
+            MPI_Barrier(MPI_COMM_WORLD);
+        }
+    }
 
 }
 
@@ -308,7 +357,7 @@ void class_worker::resize_local_bins() {
     }
     dos             = dos_temp;
     histogram       = histogram_temp;
-    if (debug_divide_dos_vol)
+    if (debug_resize_local_bins)
     for (int w = 0 ; w < world_size; w++){
         if (w == world_ID){
             cout << *this << endl;
@@ -323,8 +372,6 @@ void class_worker::compute_number_of_bins(int & E_new_size, int & M_new_size) {
     //  2) E_set contains less elements than the current E_bins.size() -> E
 
     if (model.discrete_model){
-
-
         int i = 0;
         ArrayXd E_set_2_vector(E_set.size());
         ArrayXd M_set_2_vector(M_set.size());
@@ -348,29 +395,7 @@ void class_worker::compute_number_of_bins(int & E_new_size, int & M_new_size) {
         double M_spacing     =  fmax(M_spacing_set,math::typical_spacing(M_bins));
         int E_maxElem     = (int) ceil((E_max_local - E_min_local + E_spacing) / E_spacing);
         int M_maxElem     = (int) ceil((M_max_global - M_min_global + M_spacing) / M_spacing);
-        if (debug_comp_numb_bins) {
-            for (i = 0; i < world_size; i++) {
-                if (i == world_ID) {
-                    cout << "ID: " << world_ID
-                            << " E_Spacing = " << E_spacing
-                            << " M_Spacing = " << M_spacing
-                            << " E_Spacing set = " << E_spacing_set
-                            << " M_Spacing set = " << M_spacing_set
-                            << " E_maxElem = " << E_maxElem
-                            << " M_maxElem = " << M_maxElem
-                            << " E_set.size() = " << E_set.size()
-                            << " M_set.size() = " << M_set.size()
-                            << " Emin = " << E_min_local
-                            << " Emax = " << E_max_local
-                            << " Emin = " << M_min_global
-                            << " Emin = " << E_min_global
-                            << endl
-                            << "E_bins: " << E_bins.transpose() << endl
-                            << "M_bins: " << M_bins.transpose() << endl;
-                }
-                MPI_Barrier(MPI_COMM_WORLD);
-            }
-        }
+
         //Purge elements from E_set outside of window
         for (auto it = E_set.begin(); it != E_set.end(); ) {
             if (!check_in_window(*it)){
@@ -386,6 +411,22 @@ void class_worker::compute_number_of_bins(int & E_new_size, int & M_new_size) {
         M_new_size = max(M_new_size      , M_maxElem);
         M_new_size = constants::rw_dims == 1 ? 1 : M_new_size;
         MPI_Allreduce( MPI_IN_PLACE, &M_new_size, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+        if (debug_comp_numb_bins) {
+            for (i = 0; i < world_size; i++) {
+                if (i == world_ID) {
+                    cout << "ID: " << world_ID << endl
+                         << "    Spacing         = " << E_spacing        << " " << M_spacing     << endl
+                         << "    Spacing (sets)  = " << E_spacing_set    << " " << M_spacing_set << endl
+                         << "    MaxElems        = " << E_maxElem        << " " << M_maxElem     << endl
+                         << "    Set sizes       = " << E_set.size()     << " " << M_set.size()  << endl
+                         << "    E local bounds  = " << E_min_local      << " " << E_max_local   << endl
+                         << "    E global bounds = " << E_min_global     << " " << E_max_global  << endl
+                         << "    E_bins          = " << E_bins.transpose() << endl
+                         << "    M_bins          = " << M_bins.transpose() << endl;
+                }
+                MPI_Barrier(MPI_COMM_WORLD);
+            }
+        }
 
     }else{
         //Modify this for continuous models later
@@ -407,6 +448,20 @@ void class_worker::make_MC_trial()  {
 
 void class_worker::insert_state(){
     if (model.discrete_model && counter::merges == 0) {
+        if (debug_insert_state && in_window) {
+            int E_idx_temp = E_idx;
+            find_current_state();
+            if (E_idx_temp != E_idx) {
+                cout << "ID: " << world_ID <<  " Insert state failed: State mismatch!" << endl;
+                cout << "E_idx reported: " << E_idx_temp << endl;
+                cout << "E_idx reality : " << E_idx << endl;
+                cout << "Current E: " << E << "  E_bins: " << E_bins.transpose() << endl;
+                cout.flush();
+                std::this_thread::sleep_for(std::chrono::microseconds(1000));
+                exit(1);
+            }
+        }
+
         E_bins(E_idx) = E;
         M_bins(M_idx) = M;
         E_set.insert(E);
@@ -414,18 +469,6 @@ void class_worker::insert_state(){
     }
 }
 
-//SKITBRA??????
-//void class_worker::walk_away_from_window(){
-//    if ((E_trial >= E && E_trial >= E_max_local) || (constants::rw_dims == 2  && M_trial >= M && M_trial >= M_max_local)) {
-//        in_window = false;
-//        accept = true;
-//    } else if ((E_trial <= E && E_trial <= E_min_local) || (constants::rw_dims == 2  && M_trial <= M && M_trial <= M_min_local)) {
-//        in_window = false;
-//        accept = true;
-//    }else {
-//        accept = rn::uniform_double_1() < 0.1;
-//    }
-//}
 void class_worker::walk_away_from_window(){
 //    if ((E_trial >= E && E_trial >= E_max_local) || (constants::rw_dims == 2  && M_trial >= M && M_trial >= M_max_local)) {
     if ((E_trial >= E && E_trial >= E_max_local) ) {
@@ -464,7 +507,84 @@ void class_worker::walk_towards_window(){
     }
 }
 
-void class_worker::acceptance_criterion() {
+//void class_worker::acceptance_criterion2() {
+//    //Scenarios:
+//    //  1) in_window = true, E_trial is in_window ->  Find idx -> MC-test
+//    //  2) in_window = true, E_trial not in_window->  Reject
+//    //  3) in_window = false,E_trial is in_window ->  Accept -> Find idx -> set in_window true
+//    //  4) in_window = false,E_trial not in_window->  Accept (without updating dos)
+//
+//    //  4a)in_window = false, E_trial not in_window, E_trial towards window = accept, otherwise accept 50% chance?
+//    //  5) need_to_resize_global = true (because E_trial out of global bounds) -> accept with 50% chance?
+//    MPI_Barrier(MPI_COMM_WORLD);
+//    if (!need_to_resize_global) {
+//        if (check_in_window(E_trial)) {
+//            if (in_window) {
+//                if (debug_accept_trial) {
+//                    int E_idx_temp = E_idx;
+//                    find_current_state();
+//                    if (E_idx_temp != E_idx) {
+//                        cout << "ID: " << world_ID <<  " Accept trial failed: State mismatch!" << endl;
+//                        cout << "E_idx reported: " << E_idx_temp << endl;
+//                        cout << "E_idx reality : " << E_idx << endl;
+//                        cout << "Current E: " << E << "  E_bins: " << E_bins.transpose() << endl;
+//                        cout.flush();
+//                        std::this_thread::sleep_for(std::chrono::microseconds(1000));
+////                        exit(1);
+//                    }
+//                }
+////                insert_state();
+//                find_next_state(in_window);
+//                accept = rn::uniform_double_1() < exp(dos(E_idx, M_idx) - dos(E_idx_trial, M_idx_trial));
+////                cout << fixed << showpoint << setprecision(1) << *this << endl;
+//
+//
+//                if (!std::is_sorted(E_bins.data(),E_bins.data()+(int)E_bins.size())){
+//                    cout << "Unsorted!" << endl;
+//                    cout << E_bins.transpose() << endl;
+//                    exit(0);
+//                }
+//
+//            } else { //If  we are currently not in window, but E_trial is! then reenter
+//                in_window = true;
+//                accept = true;
+//                if (debug_accept_trial) {
+//                    int E_idx_temp = E_idx;
+//                    find_current_state();
+//                    if (E_idx_temp != E_idx) {
+//                        cout << "ID: " << world_ID <<  " Reenter failed: State mismatch!" << endl;
+//                        cout << "E_idx reported: " << E_idx_temp << endl;
+//                        cout << "E_idx reality : " << E_idx << endl;
+//                        cout << "Current E: " << E << "  E_bins: " << E_bins.transpose() << endl;
+//                        cout.flush();
+//                        std::this_thread::sleep_for(std::chrono::microseconds(1000));
+////                        exit(1);
+//                    }
+//                }
+//                find_next_state();
+//            }
+//        } else {
+//            if (in_window){ //If E_trial not in window, but E is already, then reject
+////                insert_state();
+//                accept == false;
+//            }else{          //If E_trial not in window, Then we'd rather find our window.
+//                walk_towards_window();
+//            }
+//
+//        }
+//
+//    } else { //If need to resize we might as well explore the E-M landscape, so use different strategy
+//        //Windows should no longer be relevant, everybody should just try to go outwards
+//        //Accept if taking a step outward
+//        in_window = false;
+////        insert_state();
+//        walk_away_from_window();
+//
+//    }
+//}
+
+
+void class_worker::acceptance_criterion(){
     //Scenarios:
     //  1) in_window = true, E_trial is in_window ->  Find idx -> MC-test
     //  2) in_window = true, E_trial not in_window->  Reject
@@ -474,170 +594,48 @@ void class_worker::acceptance_criterion() {
     //  4a)in_window = false, E_trial not in_window, E_trial towards window = accept, otherwise accept 50% chance?
     //  5) need_to_resize_global = true (because E_trial out of global bounds) -> accept with 50% chance?
     if (!need_to_resize_global) {
-        if (check_in_window(E_trial)) {
-            if (in_window) {
-                insert_state();
+        if (in_window) {
+            t_acceptance_criterion.tic();
+            insert_state();
+            if (check_in_window(E_trial)) {
                 find_next_state(in_window);
                 accept = rn::uniform_double_1() < exp(dos(E_idx, M_idx) - dos(E_idx_trial, M_idx_trial));
-            } else { //If  we are currently not in window, but E_trial is! then reenter
-                in_window = true;
-                accept = true;
-                find_next_state();
+            } else {
+                accept = false;
             }
+            t_acceptance_criterion.toc();
+        } else {
+            if (check_in_window(E_trial)) {
+                //Reentering the window
+                accept = true;
+                in_window = true;
+                find_next_state();
 
-        } else { //If E_trial not in window, and neither is E. Then we'd rather find our window.
-            if (in_window){
-                accept == false;
-            }else{
+            } else {
+                //Still out of window... prefer to move towards window.
+                in_window = false;
                 walk_towards_window();
             }
-
         }
-
-    } else { //If need to resize we might as well explore the E-M landscape, so use different strategy
-        //Windows should no longer be relevant, everybody should just try to go outwards
-        //Accept if taking a step outward
+    }else{
+        //Broke through global limits. Might as well explore
+        //The current state will probably be out of window, so E_idx points to either the first
+        //or last element in E_bins if we try to find it. Even so, let's insert it anyway.
         in_window = false;
+        find_current_state();
         insert_state();
         walk_away_from_window();
-
     }
+
 }
-
-//
-//
-//    else{
-//            //Still out of window... prefer to move towards window.
-//            in_window   = false;
-//            if (E_trial >= E && E < E_min_local){
-//                accept = true;
-//            }else if (E_trial <= E && E > E_max_local){
-//                accept = true;
-//            }else if(E_trial < E && E < E_min_local){
-//                accept = rn::uniform_double_1() > 0.5;
-//            }else if (E_trial > E && E > E_max_local){
-//                accept = rn::uniform_double_1() > 0.5;
-//            }else{
-//                accept = true;
-//            }
-//        }
-//
-//        if (need_to_resize_global == 1){
-//            //Broke through global limits. Might as well explore
-//            if (E_trial > E && E_trial >= E_max_local) {
-//                accept = true;
-//            }else if(E_trial < E && E_trial <= E_max_local){
-//                accept = true;
-//            }
-//            if (constants::rw_dims == 2) {
-//                if (M_trial > M && M_trial >= M_max_global) {
-//                    accept = true;
-//                } else if (M_trial < M && M_trial <= M_min_global) {
-//                    accept = true;
-//                }
-//            }
-//        }
-//    }
-
-//}
-
-//void class_worker::acceptance_criterion(){
-//    //Scenarios:
-//    //  1) in_window = true, E_trial is in_window ->  Find idx -> MC-test
-//    //  2) in_window = true, E_trial not in_window->  Reject
-//    //  3) in_window = false,E_trial is in_window ->  Accept -> Find idx -> set in_window true
-//    //  4) in_window = false,E_trial not in_window->  Accept (without updating dos)
-//
-//    //  4a)in_window = false, E_trial not in_window, E_trial towards window = accept, otherwise accept 50% chance?
-//    //  5) need_to_resize_global = true (because E_trial out of global bounds) -> accept with 50% chance?
-//
-//    if (in_window){
-//        t_acceptance_criterion.tic();
-//        if (model.discrete_model && counter::merges == 0){
-//            E_bins(E_idx) = E;
-//            M_bins(M_idx) = M;
-//            E_set.insert(E);
-//            M_set.insert(M);
-//        }
-//        if (check_in_window(E_trial)){
-//            switch(constants::rw_dims) {
-//                case 1:
-//                    E_idx_trial = math::binary_search(E_bins.data(), E_trial, E_bins.size(),E, E_idx);
-//                    M_idx_trial = 0;
-//                    break;
-//                case 2:
-//                    E_idx_trial = math::binary_search(E_bins.data(), E_trial, E_bins.size(),E, E_idx);
-//                    M_idx_trial = math::binary_search(M_bins.data(), M_trial, M_bins.size(),M, M_idx);
-//
-//                    break;
-//                default:
-//                    cout << "Wrong dimension:  constants::rw_dims" << endl;
-//            }
-//            accept      = rn::uniform_double_1() < exp(dos(E_idx, M_idx) - dos(E_idx_trial, M_idx_trial));
-//        }else{
-//            accept      = false;
-//        }
-//
-//	    t_acceptance_criterion.toc();
-//    }else{
-//        if (check_in_window(E_trial)){
-//            //Reentering the window
-//            accept      = true;
-//            in_window   = true;
-//            switch(constants::rw_dims) {
-//                case 1:
-//                    E_idx_trial = math::binary_search(E_bins.data(), E_trial, E_bins.size());
-//                    M_idx_trial = 0;
-//                    break;
-//                case 2:
-//                    E_idx_trial = math::binary_search(E_bins.data(), E_trial, E_bins.size());
-//                    M_idx_trial = math::binary_search(M_bins.data(), M_trial, M_bins.size());
-//                    break;
-//                default:
-//                    cout << "Wrong dimension:  constants::rw_dims" << endl;
-//            }
-//        }else{
-//            //Still out of window... prefer to move towards window.
-//            in_window   = false;
-//            if (E_trial >= E && E < E_min_local){
-//                accept = true;
-//            }else if (E_trial <= E && E > E_max_local){
-//                accept = true;
-//            }else if(E_trial < E && E < E_min_local){
-//                accept = rn::uniform_double_1() > 0.5;
-//            }else if (E_trial > E && E > E_max_local){
-//                accept = rn::uniform_double_1() > 0.5;
-//            }else{
-//                accept = true;
-//            }
-//        }
-//
-//        if (need_to_resize_global == 1){
-//            //Broke through global limits. Might as well explore
-//            if (E_trial > E && E_trial >= E_max_local) {
-//                accept = true;
-//            }else if(E_trial < E && E_trial <= E_max_local){
-//                accept = true;
-//            }
-//            if (constants::rw_dims == 2) {
-//                if (M_trial > M && M_trial >= M_max_global) {
-//                    accept = true;
-//                } else if (M_trial < M && M_trial <= M_min_global) {
-//                    accept = true;
-//                }
-//            }
-//        }
-//    }
-//
-//}
 
 void class_worker::accept_MC_trial() {
     E                           = E_trial;
     M                           = M_trial;
     model.flip();
     if (in_window) {
-        E_idx                    = E_idx_trial;
-        M_idx                    = M_idx_trial;
+        E_idx                       = E_idx_trial;
+        M_idx                       = M_idx_trial;
         dos(E_idx, M_idx)       += lnf;
         histogram(E_idx, M_idx) += 1;
 
