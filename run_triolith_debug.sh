@@ -5,4 +5,4 @@
 #SBATCH -N 1
 #SBATCH --exclusive
 
-mpprun ./build/Release/WL
+valgrind --tool=memcheck --leak-check=full -v mpprun ./build/Debug/WL
