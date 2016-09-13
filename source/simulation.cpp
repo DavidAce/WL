@@ -36,10 +36,10 @@ void wanglandau(class_worker &worker){
         check_convergence   (worker, finish_line) ;
         divide_range        (worker)              ;
         backup_data         (worker,out)          ;
-//        if (counter::MCS > 1000){
-//            MPI_Finalize();
-//            exit(0);
-//        }
+        if (counter::MCS > 5000){
+            MPI_Finalize();
+            exit(0);
+        }
         for (int w = 0; w << worker.world_size; w++){
             if (w == worker.world_ID){
                 cout << worker << endl;
