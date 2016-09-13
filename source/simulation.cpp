@@ -4,10 +4,10 @@
 #include "simulation.h"
 using namespace std;
 #define debug_sweep                     1
-#define debug_trial                     1
-#define debug_acceptance                1
-#define debug_convergence               1
-#define debug_global_limits             1
+#define debug_trial                     0
+#define debug_acceptance                0
+#define debug_convergence               0
+#define debug_global_limits             0
 #define debug_saturation                1
 
 void do_simulations(class_worker &worker){
