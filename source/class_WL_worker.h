@@ -17,14 +17,14 @@
 #include "nmspc_WL_counters_timers.h"
 #include "nmspc_math_algorithms.h"
 #include "nmspc_random_numbers.h"
-static const int profiling_sweep                =	0;
-static const int profiling_swap                 =	0;
-static const int profiling_check_global_limits  =	0;
-static const int profiling_check_convergence	=   0;
-static const int profiling_make_MC_trial 		=	0;
-static const int profiling_acceptance_criterion =	0;
-static const int debug_comp_numb_bins           =   1;
-static const int debug_divide_dos_vol           =   1;
+#define profiling_sweep                	0
+#define profiling_swap                 	0
+#define profiling_check_global_limits  	0
+#define profiling_check_convergence	    0
+#define profiling_make_MC_trial 		0
+#define profiling_acceptance_criterion 	0
+#define debug_comp_numb_bins            0
+#define debug_divide_dos_vol            0
 using namespace Eigen;
 
 template <typename T>

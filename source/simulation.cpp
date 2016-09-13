@@ -3,12 +3,7 @@
 //
 #include "simulation.h"
 using namespace std;
-#define debug_sweep                     1
-#define debug_trial                     0
-#define debug_acceptance                0
-#define debug_convergence               0
-#define debug_global_limits             0
-#define debug_saturation                1
+
 
 void do_simulations(class_worker &worker){
     for (int i = 0; i < constants::simulation_reps; i++){
@@ -29,10 +24,10 @@ void wanglandau(class_worker &worker){
         print_status        (worker)              ;
         divide_range        (worker)              ;
         backup_data         (worker,out)          ;
-        if (counter::MCS > 10000){
-            MPI_Finalize();
-            exit(0);
-        }
+//        if (counter::MCS > 10000){
+//            MPI_Finalize();
+//            exit(0);
+//        }
     }
     out.write_data_worker (worker) ;
     mpi::merge            (worker) ;
