@@ -2,8 +2,20 @@
 // Created by david on 2016-07-24.
 //
 #include "simulation.h"
-using namespace std;
+#define profiling_sweep                	0
+#define profiling_swap                 	0
+#define profiling_check_global_limits  	0
+#define profiling_check_convergence	    0
+#define profiling_make_MC_trial 		0
+#define profiling_acceptance_criterion 	0
 
+#define debug_sweep                     1
+#define debug_trial                     0
+#define debug_acceptance                0
+#define debug_convergence               1
+#define debug_global_limits             1
+#define debug_saturation                1
+using namespace std;
 
 void do_simulations(class_worker &worker){
     for (int i = 0; i < constants::simulation_reps; i++){
@@ -17,17 +29,25 @@ void wanglandau(class_worker &worker){
     int finish_line = 0;
     outdata out(worker.world_ID,worker.iteration);
     while(finish_line == 0){
+        print_status        (worker)              ;
         sweep               (worker)              ;
         mpi::swap           (worker)              ;
         check_global_limits (worker)              ;
         check_convergence   (worker, finish_line) ;
-        print_status        (worker)              ;
         divide_range        (worker)              ;
         backup_data         (worker,out)          ;
-//        if (counter::MCS > 10000){
+//        if (counter::MCS > 1000){
 //            MPI_Finalize();
 //            exit(0);
 //        }
+        for (int w = 0; w << worker.world_size; w++){
+            if (w == worker.world_ID){
+                cout << worker << endl;
+                cout.flush();
+                std::this_thread::sleep_for(std::chrono::microseconds(10));
+            }
+            MPI_Barrier(MPI_COMM_WORLD);
+        }
     }
     out.write_data_worker (worker) ;
     mpi::merge            (worker) ;
@@ -138,14 +158,22 @@ void check_global_limits(class_worker &worker){
         if (worker.need_to_resize_global == 1) {
             if (debug_global_limits){debug_print(worker,"Check Global Limits ");}
             worker.resize_global_range();
+            if (debug_global_limits){debug_print(worker," ResizedRange ok ");}
             worker.divide_global_range_energy();
+            if (debug_global_limits){debug_print(worker," Divided ok ");}
             worker.resize_local_bins();
+            if (debug_global_limits){debug_print(worker," ResizedBins ok ");}
             worker.prev_WL_iteration();
+            if (debug_global_limits){debug_print(worker," PrevIteration ok ");}
             worker.in_window = worker.check_in_window(worker.E);
+            if (debug_global_limits){debug_print(worker," CheckInWindow ok ");}
+
             if (worker.in_window){
                 worker.find_current_state();
             }
+            if (debug_global_limits){debug_print(worker," FindCurrentState ok ");}
             worker.need_to_resize_global = 0;
+
         }
     }
 }
@@ -240,6 +268,7 @@ void backup_data(class_worker &worker, outdata &out){
 }
 
 void debug_print(class_worker & worker, string input){
+    MPI_Barrier(MPI_COMM_WORLD);
     if (worker.world_ID == 0) {
         cout << input;
         cout.flush();
@@ -259,6 +288,7 @@ void print_status(class_worker &worker) {
         for (int i = 0; i < worker.world_size; i++){
             if(worker.world_ID == i){
                 if (worker.world_ID == 0){cout << endl;}
+                cout << fixed << showpoint;
                 cout    << "ID: "        << left << setw(3) << i
                         << " Walk: "  << left << setw(3) << counter::walks
                         << " f: "     << left << setw(16)<< fixed << setprecision(12) << exp(worker.lnf)

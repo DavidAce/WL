@@ -60,8 +60,8 @@ namespace mpi {
                 if (go_ahead) {
                     MPI_Recv(&dos_X, 1, MPI_DOUBLE, up, 108, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                     MPI_Recv(&dos_Y, 1, MPI_DOUBLE, up, 109, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                    E_Y_idx = math::binary_search(worker.E_bins.data(), E_Y, worker.E_bins.size());
-                    M_Y_idx = math::binary_search(worker.M_bins.data(), M_Y, worker.M_bins.size());
+                    E_Y_idx = math::binary_search(worker.E_bins, E_Y);
+                    M_Y_idx = math::binary_search(worker.M_bins, M_Y);
                     P_swap = exp(worker.dos(worker.E_idx, worker.M_idx)
                                  - worker.dos(E_Y_idx, M_Y_idx)
                                  + dos_Y
@@ -76,8 +76,8 @@ namespace mpi {
                 }
                 MPI_Send(&swap, 1, MPI_INT, up, 110, MPI_COMM_WORLD);
             } else {
-                E_X_idx = math::binary_search(worker.E_bins.data(), E_X, worker.E_bins.size());
-                M_X_idx = math::binary_search(worker.M_bins.data(), M_X, worker.M_bins.size());
+                E_X_idx = math::binary_search(worker.E_bins, E_X);
+                M_X_idx = math::binary_search(worker.M_bins, M_X);
                 MPI_Send(&worker.dos(E_X_idx, M_X_idx), 1, MPI_DOUBLE, dn, 108, MPI_COMM_WORLD);
                 MPI_Send(&worker.dos(worker.E_idx, worker.M_idx), 1, MPI_DOUBLE, dn, 109, MPI_COMM_WORLD);
                 MPI_Recv(&swap, 1, MPI_INT, dn, 110, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
@@ -186,7 +186,7 @@ namespace mpi {
 
 //                dos_total.row(E_merge_idx).maxCoeff(&M_merge_idx);
                 //Find coordinates on received dos;
-                E_merge_idx_up = math::binary_search(E_recv.data(), E_total(E_merge_idx), E_sizes[w]);
+                E_merge_idx_up = math::binary_search(E_recv, E_total(E_merge_idx));
                 M_merge_idx_up = math::nanmaxCoeff_idx(dos_recv.row(E_merge_idx_up));
 //                dos_recv.row(E_merge_idx_up).maxCoeff(&M_merge_idx_up);
                 //Find difference between heights at these points
@@ -403,8 +403,8 @@ namespace mpi {
         worker.histogram = ArrayXXi::Zero(worker.dos.rows(), worker.dos.cols());
 
         if (worker.in_window) {
-            worker.E_idx = math::binary_search(worker.E_bins.data(), worker.E, worker.E_bins.size());
-            worker.M_idx = math::binary_search(worker.M_bins.data(), worker.M, worker.M_bins.size());
+            worker.E_idx = math::binary_search(worker.E_bins, worker.E);
+            worker.M_idx = math::binary_search(worker.M_bins, worker.M);
         }
         if (worker.model.discrete_model) {
             worker.E_set.clear();

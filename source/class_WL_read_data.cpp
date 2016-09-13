@@ -3,7 +3,6 @@
 //
 
 #include "class_WL_read_data.h"
-#include "class_WL_worker.h"
 
 #ifdef __linux__
 #define os 0

@@ -13,12 +13,7 @@
 #include "nmspc_WL_constants.h"
 #include "nmspc_WL_parallel_algorithms.h"
 #include "nmspc_WL_counters_timers.h"
-#define debug_sweep                     0
-#define debug_trial                     0
-#define debug_acceptance                0
-#define debug_convergence               0
-#define debug_global_limits             0
-#define debug_saturation                0
+
 void do_simulations     (class_worker &);
 void wanglandau         (class_worker &);
 void sweep              (class_worker &); //Function that accepts/rejects new configurations

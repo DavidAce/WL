@@ -7,8 +7,8 @@
 
 #include <Eigen/Dense>
 #include <Eigen/Core>
-#include "class_WL_worker.h"
 #include "nmspc_math_algorithms.h"
+#include "class_WL_worker.h"
 #include "../EMC-Lib/EMC.h"
 
 using namespace Eigen;
