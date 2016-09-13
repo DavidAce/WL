@@ -23,7 +23,8 @@ namespace mpi {
             double dos_X, dos_Y;
             double E_X, E_Y, M_X, M_Y;
             int    E_X_idx, E_Y_idx, M_X_idx, M_Y_idx;
-            double E_min_up, E_max_dn;
+            int    in_window_up, in_window_dn;
+            double E_min_up, E_max_up;
             double P_swap;      //Swap probability
             bool myTurn = math::mod(worker.world_ID, 2) == math::mod(counter::swaps, 2);
 
@@ -37,6 +38,7 @@ namespace mpi {
                     MPI_Barrier(MPI_COMM_WORLD);
                 }
             }
+            worker.in_window = worker.check_in_window(worker.E);
             //Send current E and M to neighbors up and down. Receive X from below, Y from above.
             MPI_Sendrecv(&worker.E, 1, MPI_DOUBLE, up, 100, &E_X, 1, MPI_DOUBLE, dn, 100, MPI_COMM_WORLD,
                          MPI_STATUS_IGNORE);
@@ -49,7 +51,13 @@ namespace mpi {
             //Check if the neighbors position is within my overlap region. If so, find the indices.
             MPI_Sendrecv(&worker.E_min_local, 1, MPI_DOUBLE, dn, 104, &E_min_up, 1, MPI_DOUBLE, up, 104, MPI_COMM_WORLD,
                          MPI_STATUS_IGNORE);
-            MPI_Sendrecv(&worker.E_max_local, 1, MPI_DOUBLE, up, 105, &E_max_dn, 1, MPI_DOUBLE, dn, 105, MPI_COMM_WORLD,
+            MPI_Sendrecv(&worker.E_max_local, 1, MPI_DOUBLE, dn, 105, &E_max_up, 1, MPI_DOUBLE, up, 105, MPI_COMM_WORLD,
+                         MPI_STATUS_IGNORE);
+//            MPI_Sendrecv(&worker.E_max_local, 1, MPI_DOUBLE, up, 105, &E_max_dn, 1, MPI_DOUBLE, dn, 105, MPI_COMM_WORLD,
+//                         MPI_STATUS_IGNORE);
+//            MPI_Sendrecv(&worker.in_window, 1, MPI_INT, up, 1055, &in_window_dn, 1, MPI_INT, dn, 1055, MPI_COMM_WORLD,
+//                         MPI_STATUS_IGNORE);
+            MPI_Sendrecv(&worker.in_window, 1, MPI_INT, dn, 1044, &in_window_up, 1, MPI_INT, up, 1044, MPI_COMM_WORLD,
                          MPI_STATUS_IGNORE);
             //Now both swappees need to know if it is ok to go ahead with a swap.
             if (debug_swap){
@@ -67,9 +75,12 @@ namespace mpi {
             }
             int go_ahead;
             if (myTurn) {
+                //Go ahead if inside the upper window and vice versa
                 go_ahead = worker.E >= E_min_up && E_Y <= worker.E_max_local;
+                go_ahead = worker.E <= E_max_up && E_Y >= worker.E_min_local && go_ahead;
                 copy = !go_ahead && !worker.in_window && ((worker.E < E_Y && worker.E < worker.E_min_local) ||
                                                           (worker.E > E_Y && worker.E > worker.E_max_local));
+                //Make sure the last worker doesn't swap!
                 go_ahead = go_ahead && worker.world_ID != worker.world_size - 1;
                 MPI_Send(&go_ahead, 1, MPI_INT, up, 106, MPI_COMM_WORLD);
                 MPI_Send(&copy, 1, MPI_INT, up, 107, MPI_COMM_WORLD);

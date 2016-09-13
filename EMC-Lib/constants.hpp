@@ -6,7 +6,7 @@ using namespace std;
 using namespace Eigen;
 namespace EMC_constants {
 	//Evolutionary parameters
-	const int M 				= 2;  				//Number of populations in a species (= threads in OpenMP)
+	const int M 				= 4;  				//Number of populations in a species (= threads in OpenMP)
 	const int N 				= 20;				//Number of individuals per population
 	const int N_best			= 4;				//Number of individuals in "hall of fame". Best individuals of all time (per population)
 	extern int geneLength;          				//Number of bits per gene (The number of possible values for a parameter is 2^geneLength-1)

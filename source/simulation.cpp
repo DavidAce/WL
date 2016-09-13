@@ -15,6 +15,8 @@
 #define debug_convergence               0
 #define debug_global_limits             0
 #define debug_saturation                0
+#define debug_status                    0
+
 using namespace std;
 
 void do_simulations(class_worker &worker){
@@ -29,13 +31,14 @@ void wanglandau(class_worker &worker){
     int finish_line = 0;
     outdata out(worker.world_ID,worker.iteration);
     while(finish_line == 0){
-        print_status        (worker)              ;
         sweep               (worker)              ;
         mpi::swap           (worker)              ;
         check_global_limits (worker)              ;
         check_convergence   (worker, finish_line) ;
         divide_range        (worker)              ;
         backup_data         (worker,out)          ;
+        print_status        (worker)              ;
+
 //        if (counter::MCS > 5000){
 //            MPI_Finalize();
 //            exit(0);
@@ -292,18 +295,22 @@ void print_status(class_worker &worker) {
                 cout    << "ID: "        << left << setw(3) << i
                         << " Walk: "  << left << setw(3) << counter::walks
                         << " f: "     << left << setw(16)<< fixed << setprecision(12) << exp(worker.lnf)
-                        << " Bins: [" << left << setw(4) << worker.dos.rows() << " " << worker.dos.cols() << "]"
-                        << " E: "     << left << setw(9) << setprecision(2)   << worker.E
-                        << " M: "     << left << setw(9) << setprecision(2)   << worker.M
-                        << " dE: "    << left << setw(7) << setprecision(2)   << worker.E_max_local - worker.E_min_local
+                        << " Bins: [" << left << setw(4) << worker.dos.rows() << " " << worker.dos.cols() << "]";
+                        if(debug_status){
+                   cout << " E: "     << left << setw(9) << setprecision(2)   << worker.E
+                        << " M: "     << left << setw(9) << setprecision(2)   << worker.M;
+                        }
+                   cout << " dE: "    << left << setw(7) << setprecision(2)   << worker.E_max_local - worker.E_min_local
                         << " : ["     << left << setw(7) << setprecision(1)   << worker.E_bins(0) << " " << left << setw(7) << setprecision(1) << worker.E_bins(worker.E_bins.size()-1) << "]"
                         << " Sw: "    << left << setw(5) << counter::swap_accepts
                         << " iw: "    << worker.in_window
                         << " NR: "    << worker.need_to_resize_global
                         << " 1/t: "   << worker.flag_one_over_t
-                        << " Fin: "   << worker.finish_line
-                        << " slope "  << left << setw(10) << worker.slope
-                        << " MCS: "   << left << setw(10) << counter::MCS
+                        << " Fin: "   << worker.finish_line;
+                        if(debug_status){
+                   cout << " slope "  << left << setw(10) << worker.slope;
+                        }
+                   cout << " MCS: "   << left << setw(10) << counter::MCS
                         << " Time: "  << fixed << setprecision(3) << timer::elapsed_time_print.count() << " s ";
                 if(profiling_sweep){
                     cout << " t_sweep = " << worker.t_sweep;

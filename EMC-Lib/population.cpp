@@ -28,7 +28,8 @@ void population::getFitness(const Array<long double, Dynamic, 1> &p, personality
 void population::getFitness4All(){
         for (int i = 0; i < N; i++) {
             guys[i].H = obj_fun.fitness(guys[i].genome.parameters);
-        }
+			cout << "Initial parameters " << i << " " << guys[i].genome.parameters << endl;
+		}
     }
 
 void population::wakeUpPop(){
