@@ -5,4 +5,4 @@
 #SBATCH -N 1
 #SBATCH --exclusive
 export OMP_NUM_THREADS=4
-mpprun --pass="--bind-to-core --bysocket" ./build/Release/WL
+mpprun ./build/Release/WL
