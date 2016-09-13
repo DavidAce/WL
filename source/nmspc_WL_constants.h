@@ -34,7 +34,7 @@ namespace constants{
     static const int    rate_split_windows     = 10000;     //How often to check if we can merge all dos and split energy subwindows in a smarter way.
     static const int    rate_swap              = 500;       //How often to swap walkers in adjacent windows
     static const int    rate_backup_data       = 500000;    //How often to backup progress
-    static const int    rate_print_status      = 10000;        //How often to print in terminal
+    static const int    rate_print_status      = 1;        //How often to print in terminal
 
     //Wang-Landau convergence criteria
     static const double minimum_lnf            = 1e-5;
