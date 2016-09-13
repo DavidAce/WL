@@ -132,6 +132,7 @@ void class_worker::find_initial_limits(){
             break;
         default:
             cout << "Error: Wrong dimension  constants::rw_dims" << endl;
+            MPI_Finalize();
             exit(5);
     }
 
@@ -172,6 +173,7 @@ void class_worker::set_initial_local_bins(){
             break;
         default:
             cout << "Error in class_worker::set_initial_local_bins. Wrong dimension for WL-random walk (rw_dims = ?)" << endl;
+            MPI_Finalize();
             exit(1);
     }
 }
@@ -216,6 +218,7 @@ void class_worker::resize_global_range() {
             break;
         default:
             cout << "Error in check_windows(). Wrong dimension for WL-random walk (rw_dims = ?)" << endl;
+            MPI_Finalize();
             exit(1);
     }
 }

@@ -119,6 +119,7 @@ void check_convergence(class_worker &worker, int &finish_line){
             break;
         default:
             cout << "Error: check_convergence has wrong flag" << endl;
+            MPI_Finalize();
             exit(2);
     }
     timer::check_finish_line++;

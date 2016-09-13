@@ -194,11 +194,25 @@ namespace mpi {
                 //Add that difference to the next
                 if (std::isnan(diff)){
                     cout << "Tried to concatenate "<< w-1 << " and " << w << ". Diff between two DOS is NaN, exiting" << endl;
+                    cout << "Merge_idx    = [" <<  E_merge_idx    << ", " << M_merge_idx    << "]" << endl;
+                    cout << "Merge_idx_up = [" <<  E_merge_idx_up << ", " << M_merge_idx_up << "]" << endl;
+
+                    cout << "E_bins_total   " << E_total(E_merge_idx) << " [" << E_merge_idx << "]" << "    = "
+                         << E_total.transpose() << endl;
+                    cout << "E_bins_up      " << E_recv(E_merge_idx_up) << " [" << E_merge_idx_up << "]" << "    = "
+                         << E_recv.transpose() << endl;
+                    cout << "dos_tot" <<endl << dos_total << endl;
+                    cout << "dos_rec" <<endl << dos_recv << endl;
+                    MPI_Finalize();
+                    exit(1);
                 }
                 math::add_to_nonzero_nonnan(dos_recv, diff);
                 //Now now all doses should be the same height
                 if (debug_merge) {
                     cout << "Concatenating " << w-1 << " and "<< w << endl;
+                    cout << "Merge_idx    = [" <<  E_merge_idx    << ", " << M_merge_idx    << "]" << endl;
+                    cout << "Merge_idx_up = [" <<  E_merge_idx_up << ", " << M_merge_idx_up << "]" << endl;
+
                     cout << "E_bins_total   " << E_total(E_merge_idx) << " [" << E_merge_idx << "]" << "    = "
                          << E_total.transpose() << endl;
                     cout << "E_bins_up      " << E_recv(E_merge_idx_up) << " [" << E_merge_idx_up << "]" << "    = "
@@ -367,6 +381,7 @@ namespace mpi {
             cout << worker << endl;
             cout.flush();
             std::this_thread::sleep_for(std::chrono::seconds(1));
+            MPI_Finalize();
             exit(15);
         }
 
@@ -377,6 +392,7 @@ namespace mpi {
             cout << worker << endl;
             cout.flush();
             std::this_thread::sleep_for(std::chrono::seconds(1));
+            MPI_Finalize();
             exit(16);
         }
         MPI_Barrier(MPI_COMM_WORLD);
