@@ -9,12 +9,12 @@
 #define profiling_make_MC_trial 		0
 #define profiling_acceptance_criterion 	0
 
-#define debug_sweep                     1
+#define debug_sweep                     0
 #define debug_trial                     0
 #define debug_acceptance                0
-#define debug_convergence               1
-#define debug_global_limits             1
-#define debug_saturation                1
+#define debug_convergence               0
+#define debug_global_limits             0
+#define debug_saturation                0
 using namespace std;
 
 void do_simulations(class_worker &worker){
@@ -36,10 +36,10 @@ void wanglandau(class_worker &worker){
         check_convergence   (worker, finish_line) ;
         divide_range        (worker)              ;
         backup_data         (worker,out)          ;
-        if (counter::MCS > 5000){
-            MPI_Finalize();
-            exit(0);
-        }
+//        if (counter::MCS > 5000){
+//            MPI_Finalize();
+//            exit(0);
+//        }
         for (int w = 0; w << worker.world_size; w++){
             if (w == worker.world_ID){
                 cout << worker << endl;

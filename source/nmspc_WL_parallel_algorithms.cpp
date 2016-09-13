@@ -3,7 +3,10 @@
 //
 
 #include "nmspc_WL_parallel_algorithms.h"
-
+#define debug_swap      0
+#define debug_merge     0
+#define debug_bcast     0
+#define debug_divide    0
 using namespace std;
 
 namespace mpi {
@@ -19,14 +22,21 @@ namespace mpi {
             int swap, copy;
             double dos_X, dos_Y;
             double E_X, E_Y, M_X, M_Y;
-            int E_X_idx, E_Y_idx, M_X_idx, M_Y_idx;
+            int    E_X_idx, E_Y_idx, M_X_idx, M_Y_idx;
             double E_min_up, E_max_dn;
             double P_swap;      //Swap probability
             bool myTurn = math::mod(worker.world_ID, 2) == math::mod(counter::swaps, 2);
 
             int up = math::mod(worker.world_ID + 1, worker.world_size);
             int dn = math::mod(worker.world_ID - 1, worker.world_size);
-
+            if (debug_swap){
+                for (int w = 0; w < worker.world_size; w++){
+                    if(w == worker.world_ID){
+                        cout << "ID: "<< w << " Starting Swap. Myturn = " << myTurn << endl;
+                    }
+                    MPI_Barrier(MPI_COMM_WORLD);
+                }
+            }
             //Send current E and M to neighbors up and down. Receive X from below, Y from above.
             MPI_Sendrecv(&worker.E, 1, MPI_DOUBLE, up, 100, &E_X, 1, MPI_DOUBLE, dn, 100, MPI_COMM_WORLD,
                          MPI_STATUS_IGNORE);
@@ -42,6 +52,19 @@ namespace mpi {
             MPI_Sendrecv(&worker.E_max_local, 1, MPI_DOUBLE, up, 105, &E_max_dn, 1, MPI_DOUBLE, dn, 105, MPI_COMM_WORLD,
                          MPI_STATUS_IGNORE);
             //Now both swappees need to know if it is ok to go ahead with a swap.
+            if (debug_swap){
+                for (int w = 0; w < worker.world_size; w++){
+                    if(w == worker.world_ID){
+                        cout << "ID: "<< w<< " SendRecv Successful"
+                             << " E_X = " << E_X
+                             << " E_Y = " << E_Y
+                             << " E_idx = " << worker.E_idx
+                             << " E_idx_trial = " << worker.E_idx_trial
+                             << endl;
+                    }
+                    MPI_Barrier(MPI_COMM_WORLD);
+                }
+            }
             int go_ahead;
             if (myTurn) {
                 go_ahead = worker.E >= E_min_up && E_Y <= worker.E_max_local;
@@ -55,7 +78,15 @@ namespace mpi {
                 MPI_Recv(&copy, 1, MPI_INT, dn, 107, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             }
 
-            //Now we should only be left with workers going ahead with a swap.
+            if (debug_swap){
+                for (int w = 0; w < worker.world_size; w++){
+                    if(w == worker.world_ID){
+                        cout << "ID: "<< w<< " Received goahead = " << go_ahead << endl;
+                        cout << worker << endl;
+                    }
+                    MPI_Barrier(MPI_COMM_WORLD);
+                }
+            }
             if (myTurn) {
                 if (go_ahead) {
                     MPI_Recv(&dos_X, 1, MPI_DOUBLE, up, 108, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
@@ -82,7 +113,14 @@ namespace mpi {
                 MPI_Send(&worker.dos(worker.E_idx, worker.M_idx), 1, MPI_DOUBLE, dn, 109, MPI_COMM_WORLD);
                 MPI_Recv(&swap, 1, MPI_INT, dn, 110, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             }
-
+            if (debug_swap){
+                for (int w = 0; w < worker.world_size; w++){
+                    if(w == worker.world_ID){
+                        cout << "ID: "<< w<< "Starting swap. Swap = "  << swap << endl;
+                    }
+                    MPI_Barrier(MPI_COMM_WORLD);
+                }
+            }
             //Now do the swapping if you got lucky
             if (myTurn) {
                 if (go_ahead == 1) {
@@ -112,7 +150,14 @@ namespace mpi {
             }
             counter::swap_accepts += swap;
             worker.t_swap.toc();
-
+            if (debug_swap){
+                for (int w = 0; w < worker.world_size; w++){
+                    if(w == worker.world_ID){
+                        cout << "ID: "<< w<< "Swap OK "  << endl;
+                    }
+                    MPI_Barrier(MPI_COMM_WORLD);
+                }
+            }
         } else {
             timer::swap++;
         }

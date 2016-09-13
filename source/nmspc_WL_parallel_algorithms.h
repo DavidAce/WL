@@ -9,10 +9,7 @@
 #include "class_tic_toc.h"
 #include <Eigen/Dense>
 #include <Eigen/Core>
-#define debug_swap 1
-#define debug_merge 1
-#define debug_bcast 1
-#define debug_divide 1
+
 
 #include "class_WL_worker.h"
 //class class_worker;

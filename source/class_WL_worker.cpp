@@ -77,6 +77,7 @@ void class_worker::find_current_state(){
         default:
             cout << "Wrong rw-dimension  constants::rw_dims" << endl;
     }
+
 }
 
 void class_worker::find_next_state(){
@@ -92,6 +93,12 @@ void class_worker::find_next_state(){
         default:
             cout << "Wrong dimension:  constants::rw_dims" << endl;
     }
+    if (E_idx_trial < 0 || E_idx_trial > E_bins.size()-1){
+        cout << "E_idx_trial is out of bounds!" << endl;
+        cout << "E_idx_trial = " << E_idx_trial << " Size = "<< E_bins.size() << endl;
+        exit(1);
+    }
+
 }
 
 void class_worker::find_next_state(bool & dummy){
@@ -107,6 +114,11 @@ void class_worker::find_next_state(bool & dummy){
             break;
         default:
             cout << "Wrong dimension:  constants::rw_dims" << endl;
+    }
+    if (E_idx_trial < 0 || E_idx_trial > E_bins.size()-1){
+        cout << "E_idx_trial is out of bounds!" << endl;
+        cout << "E_idx_trial = " << E_idx_trial << " Size = "<< E_bins.size() << endl;
+        exit(1);
     }
 
 }
@@ -620,11 +632,10 @@ void class_worker::acceptance_criterion(){
 void class_worker::accept_MC_trial() {
     E                           = E_trial;
     M                           = M_trial;
-    E_idx                       = E_idx_trial;
-    M_idx                       = M_idx_trial;
     model.flip();
-//    cout <<endl << "ID: "<< world_ID << " Accepted Trial" << endl;
     if (in_window) {
+        E_idx                       = E_idx_trial;
+        M_idx                       = M_idx_trial;
         dos(E_idx, M_idx)       += lnf;
         histogram(E_idx, M_idx) += 1;
 
@@ -632,8 +643,6 @@ void class_worker::accept_MC_trial() {
 }
 
 void class_worker::reject_MC_trial() {
-//    cout << endl << "ID: "<< world_ID << " Rejected Trial" << endl;
-
     if (in_window) {
         dos(E_idx, M_idx)       += lnf;
         histogram(E_idx, M_idx) += 1;
