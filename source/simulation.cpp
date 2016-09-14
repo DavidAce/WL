@@ -353,6 +353,11 @@ void print_status(class_worker &worker) {
                     << " MaxWalks: "   << fixed << setprecision(0) << ceil(log(constants::minimum_lnf)/log(constants::reduce_factor_lnf))
                     << " Iteration: "   << fixed << setprecision(0) << worker.iteration
                     << " Total Time: " << fixed << setprecision(3) << timer::elapsed_time_total.count() << " s "
+                    << " Edge dos: " << fixed << setprecision(3)
+                    << worker.dos.topLeftCorner(1,1) << " "
+                    << worker.dos.topRightCorner(1,1) << " "
+//                    << endl
+//                    << worker.dos << endl
                     << "  -----"
                     << endl;
         }
