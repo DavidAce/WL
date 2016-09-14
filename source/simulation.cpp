@@ -198,7 +198,7 @@ void divide_range(class_worker &worker){
 }
 
 void add_hist_volume(class_worker &worker) {
-    //Subtract the smallest positive number (subtracts away regions impossible to reach as well)
+    //Subtract the smallest positive number plus one
     math::subtract_min_nonzero_one(worker.histogram);
     worker.saturation.push_back(worker.histogram.sum());
 
@@ -356,8 +356,8 @@ void print_status(class_worker &worker) {
                     << " Edge dos: " << fixed << setprecision(3)
                     << worker.dos.topLeftCorner(1,1) << " "
                     << worker.dos.topRightCorner(1,1) << " "
-//                    << endl
-//                    << worker.histogram << endl
+                    << endl
+                    << worker.dos << endl
                     << "  -----"
                     << endl;
         }

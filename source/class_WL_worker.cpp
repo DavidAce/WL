@@ -293,12 +293,87 @@ void class_worker::divide_global_range_energy(){
 
 }
 
+//void class_worker::resize_local_bins() {
+//    // This function does rebinning of dos and histograms.
+//    // If E_set contains more than the default number of bins, then enlarge E_bins, otherwise shrink it!
+//    // If M_set contains more ----" " ---
+//    int x, y, i, j, k;
+//    double weight, weight_sum, dE, dM, dR, dx, dy;
+//    bool zero;
+//
+//
+//    //Check if we need more bins
+//    int E_old_size = (int) E_bins.size();
+//    int M_old_size = (int) M_bins.size();
+//    int E_new_size;
+//    int M_new_size;
+//    ArrayXXd dos_temp;
+//    ArrayXXi histogram_temp;
+//
+//    compute_number_of_bins(E_new_size, M_new_size);
+//    histogram_temp  = ArrayXXi::Zero(E_new_size, M_new_size);
+//    dos_temp        = ArrayXXd::Zero(E_new_size, M_new_size);
+//    dE              = (E_max_local - E_min_local) / E_new_size;    //New spacing in E_bins
+//    dM              = (M_max_local - M_min_local) / M_new_size;    //New spacing in
+//    dR              = sqrt(dE * dE + dM * dM);
+//    ArrayXd X_bins = E_bins;
+//    ArrayXd Y_bins = M_bins;
+//    E_bins          = ArrayXd::LinSpaced(E_new_size, E_min_local, E_max_local);
+//    M_bins          = ArrayXd::LinSpaced(M_new_size, M_min_local, M_max_local);
+//    //Coarsen the histogram and dos.
+//    for (j = 0; j < M_new_size; j++) {
+//        for (i = 0; i < E_new_size; i++) {
+//            k = 0;
+//            weight_sum  = 0;
+//            zero        = false;
+//            for (y = 0; y < M_old_size; y++) {
+//                for (x = 0; x < E_old_size; x++) {
+//                    if (dos(x, y) == 0) {zero = true; break;}else{zero = false;}
+//                    dx = fabs(E_bins(i) - X_bins(x));             //Distance between old and new bins
+//                    dy = fabs(M_bins(j) - Y_bins(y));
+//                    if (dx >= dE/2) { continue; }
+//                    if (dy >= dM/2) { continue; }
+//                    else {
+//                        weight                   = fabs(1.0 - sqrt(dx * dx + dy * dy) / dR);
+//                        dos_temp(i, j)          += dos(x, y) * weight;
+//                        histogram_temp(i, j)    += histogram(x, y);
+//                        weight_sum              += weight;
+//                        k++;
+//                    }
+//                }
+//                if (zero) { break; }
+//            }
+//            if (weight_sum > 0 && !zero) {
+//                dos_temp(i, j)          /= weight_sum;
+//                histogram_temp(i, j)    /= k;
+//            } else {
+//                dos_temp(i, j)          = 0;
+//                histogram_temp(i, j)    = 0;
+//            }
+//        }
+//    }
+//   if (world_ID == 0){
+//        cout << dos_temp << endl << endl;
+//        cout << histogram_temp << endl << endl << endl << endl;
+//    }
+//    dos             = dos_temp;
+//    histogram       = histogram_temp;
+//    math::subtract_min_nonzero(histogram);
+//    if (debug_resize_local_bins)
+//        for (int w = 0 ; w < world_size; w++){
+//            if (w == world_ID){
+//                cout << *this << endl;
+//            }
+//            MPI_Barrier(MPI_COMM_WORLD);
+//        }
+//}
+
 void class_worker::resize_local_bins() {
     // This function does rebinning of dos and histograms.
     // If E_set contains more than the default number of bins, then enlarge E_bins, otherwise shrink it!
     // If M_set contains more ----" " ---
     int x, y, i, j, k;
-    double weight, weight_sum, dE, dM, dR, dx, dy;
+    double dE, dM, dR, dx, dy;
     bool zero;
 
 
@@ -307,54 +382,53 @@ void class_worker::resize_local_bins() {
     int M_old_size = (int) M_bins.size();
     int E_new_size;
     int M_new_size;
-    ArrayXXd dos_temp;
-    ArrayXXi histogram_temp;
+
 
     compute_number_of_bins(E_new_size, M_new_size);
-    histogram_temp  = ArrayXXi::Zero(E_new_size, M_new_size);
-    dos_temp        = ArrayXXd::Zero(E_new_size, M_new_size);
-    dE              = (E_max_local - E_min_local) / (max(E_new_size,E_old_size) * 2.0);    //New spacing in E_bins
-    dM              = (M_max_local - M_min_local) / (max(M_new_size,M_old_size) * 2.0);    //New spacing in
-    dR              = sqrt(dE * dE + dM * dM);
-    ArrayXd X_bins = E_bins;
-    ArrayXd Y_bins = M_bins;
+    ArrayXXi histogram_new  = ArrayXXi::Zero(E_new_size, M_new_size);
+    ArrayXXd dos_new        = ArrayXXd::Zero(E_new_size, M_new_size);
+    dE              = fabs(E_max_local - E_min_local) / E_new_size;    //New spacing in E_bins
+    dM              = fabs(M_max_local - M_min_local) / M_new_size;    //New spacing in M_bins
+    dR              = sqrt(dE * dE + dM * dM);                         //Diagonal distance ?
+    ArrayXd E_old = E_bins;
+    ArrayXd M_old = M_bins;
     E_bins          = ArrayXd::LinSpaced(E_new_size, E_min_local, E_max_local);
     M_bins          = ArrayXd::LinSpaced(M_new_size, M_min_local, M_max_local);
+    ArrayXXd weight = ArrayXXd::Zero(E_new_size, M_new_size);
+    ArrayXXi count  = ArrayXXi::Zero(E_new_size, M_new_size);
     //Coarsen the histogram and dos.
-    for (j = 0; j < M_new_size; j++) {
-        for (i = 0; i < E_new_size; i++) {
-            k = 0;
-            weight_sum  = 0;
-            zero        = false;
-            for (y = 0; y < M_old_size; y++) {
-                for (x = 0; x < E_old_size; x++) {
-                    if (dos(x, y) == 0) {zero = true; break;}else{zero = false;}
-                    dx = fabs(E_bins(i) - X_bins(x));             //Distance between old and new bins
-                    dy = fabs(M_bins(j) - Y_bins(y));
-                    if (dx >= dE) { continue; }
-                    if (dy >= dM) { continue; }
-                    else {
-                        weight                   = fabs(1.0 - sqrt(dx * dx + dy * dy) / dR);
-                        dos_temp(i, j)          += dos(x, y) * weight;
-                        histogram_temp(i, j)    += histogram(x, y);
-                        weight_sum              += weight;
-                        k++;
-                    }
+    for (y = 0; y < M_old_size; y++) {
+        for (x = 0; x < E_old_size; x++) {
+            for (j = 0; j < M_new_size; j++) {
+                for (i = 0; i < E_new_size; i++) {
+                    dx = fabs(E_bins(i) - E_old(x));   //Distance between old and new bins
+                    dy = fabs(M_bins(j) - M_old(y));   //Distance between old and new bins
+                    //Distance between old and new bins should not exceed dE/2
+                    //This is so to avoid double counting
+                    if (dx >= dE/2) { continue; }
+                    if (dy >= dM/2) { continue; }
+
+//                    weight(i,j)              += fabs(1.0 - 4*dx*dy/dE/dM);
+                    weight(i,j)              += fabs(1.0 - sqrt(dx * dx + dy * dy) / dR);
+                    count (i,j)              += 1;
+                    dos_new(i,j)             += weight(i,j) * dos(x,y);
+                    histogram_new(i,j)       += histogram(x,y);
+                    dos(x,y)                  = 0; //This entry has been used
+                    histogram(x,y)            = 0; //This entry has been used
                 }
-                if (zero) { break; }
-            }
-            if (weight_sum > 0 && !zero) {
-                dos_temp(i, j)          /= weight_sum;
-                histogram_temp(i, j)    /= k;
-            } else {
-                dos_temp(i, j)          = 0;
-                histogram_temp(i, j)    = 0;
             }
         }
     }
-    dos             = dos_temp;
-    histogram       = histogram_temp;
-    math::subtract_min_nonzero(histogram);
+    //We have now inserted all old entries to the new dos and histogram, and we only need to divide by the weight.
+    for (j = 0; j < M_new_size; j++) {
+        for (i = 0; i < E_new_size; i++) {
+            dos_new(i,j)        = count(i,j) > 0  ? dos_new(i,j)/weight(i,j) : 0;
+            histogram_new(i,j)  = count(i,j) > 0  ? histogram_new(i,j)  / count(i,j)  : 0;
+
+        }
+    }
+    dos             = dos_new;
+    histogram       = histogram_new;
     if (debug_resize_local_bins)
     for (int w = 0 ; w < world_size; w++){
         if (w == world_ID){
@@ -362,6 +436,7 @@ void class_worker::resize_local_bins() {
         }
         MPI_Barrier(MPI_COMM_WORLD);
     }
+
 }
 
 void class_worker::compute_number_of_bins(int & E_new_size, int & M_new_size) {
@@ -387,10 +462,10 @@ void class_worker::compute_number_of_bins(int & E_new_size, int & M_new_size) {
         MPI_Allreduce(MPI_IN_PLACE, &M_max_global, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
         M_min_local = M_min_global;
         M_max_local = M_max_global;
-        double E_spacing_set =  math::typical_spacing(E_set_2_vector);
-        double M_spacing_set =  math::typical_spacing(M_set_2_vector);
-        double E_spacing     =  fmax(E_spacing_set,math::typical_spacing(E_bins));
-        double M_spacing     =  fmax(M_spacing_set,math::typical_spacing(M_bins));
+        double E_spacing =  math::typical_spacing(E_set_2_vector);
+        double M_spacing =  math::typical_spacing(M_set_2_vector);
+//        double E_spacing     =  fmax(E_spacing_set,math::typical_spacing(E_bins));
+//        double M_spacing     =  fmax(M_spacing_set,math::typical_spacing(M_bins));
         int E_maxElem     = (int) ceil((E_max_local - E_min_local + E_spacing) / E_spacing);
         int M_maxElem     = (int) ceil((M_max_global - M_min_global + M_spacing) / M_spacing);
 
@@ -403,10 +478,10 @@ void class_worker::compute_number_of_bins(int & E_new_size, int & M_new_size) {
                 ++it;
             }
         }
-        E_new_size = max(constants::bins , (int) E_set.size()); //What if there is a jump in E_set?
-        E_new_size = max(E_new_size      , E_maxElem);
-        M_new_size = max(constants::bins , (int) M_set.size());
-        M_new_size = max(M_new_size      , M_maxElem);
+        E_new_size = max(constants::bins , E_maxElem); //What if there is a jump in E_set?
+//        E_new_size = max(E_new_size      , E_maxElem);
+        M_new_size = max(constants::bins , M_maxElem);
+//        M_new_size = max(M_new_size      , M_maxElem);
         M_new_size = constants::rw_dims == 1 ? 1 : M_new_size;
         MPI_Allreduce( MPI_IN_PLACE, &M_new_size, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
         if (debug_comp_numb_bins) {
@@ -414,7 +489,6 @@ void class_worker::compute_number_of_bins(int & E_new_size, int & M_new_size) {
                 if (i == world_ID) {
                     cout << "ID: " << world_ID << endl
                          << "    Spacing         = " << E_spacing        << " " << M_spacing     << endl
-                         << "    Spacing (sets)  = " << E_spacing_set    << " " << M_spacing_set << endl
                          << "    MaxElems        = " << E_maxElem        << " " << M_maxElem     << endl
                          << "    Set sizes       = " << E_set.size()     << " " << M_set.size()  << endl
                          << "    E local bounds  = " << E_min_local      << " " << E_max_local   << endl
