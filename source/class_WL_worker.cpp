@@ -313,8 +313,8 @@ void class_worker::resize_local_bins() {
     compute_number_of_bins(E_new_size, M_new_size);
     histogram_temp  = ArrayXXi::Zero(E_new_size, M_new_size);
     dos_temp        = ArrayXXd::Zero(E_new_size, M_new_size);
-    dE              = (E_max_local - E_min_local) / (max(E_new_size,E_old_size) * 2.0);
-    dM              = (M_max_local - M_min_local) / (max(M_new_size,M_old_size) * 2.0);
+    dE              = (E_max_local - E_min_local) / (max(E_new_size,E_old_size) * 2.0);    //New spacing in E_bins
+    dM              = (M_max_local - M_min_local) / (max(M_new_size,M_old_size) * 2.0);    //New spacing in
     dR              = sqrt(dE * dE + dM * dM);
     ArrayXd X_bins = E_bins;
     ArrayXd Y_bins = M_bins;
@@ -328,11 +328,8 @@ void class_worker::resize_local_bins() {
             zero        = false;
             for (y = 0; y < M_old_size; y++) {
                 for (x = 0; x < E_old_size; x++) {
-                    if (dos(x, y) == 0) {
-                        zero = true;
-                        break;
-                    }else{zero = false;}
-                    dx = fabs(E_bins(i) - X_bins(x));
+                    if (dos(x, y) == 0) {zero = true; break;}else{zero = false;}
+                    dx = fabs(E_bins(i) - X_bins(x));             //Distance between old and new bins
                     dy = fabs(M_bins(j) - Y_bins(y));
                     if (dx >= dE) { continue; }
                     if (dy >= dM) { continue; }
@@ -357,6 +354,7 @@ void class_worker::resize_local_bins() {
     }
     dos             = dos_temp;
     histogram       = histogram_temp;
+    math::subtract_min_nonzero(histogram);
     if (debug_resize_local_bins)
     for (int w = 0 ; w < world_size; w++){
         if (w == world_ID){
