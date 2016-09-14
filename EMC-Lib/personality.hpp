@@ -23,18 +23,22 @@ public:
 	personality(objective_function &ref)
             :obj_fun(ref),
              born(0),
-             genome(ref){
-	};
+             genome(ref),
+			 H(ref.fitness(genome.parameters)) //Set fitness
+	{
+    };
 	personality(objective_function &ref, bool toggle) :
             obj_fun(ref),
             born(0),
             genome(ref,toggle) {
-	};
-	long double H;					//Fitness, or energy
+        cout << "Personality Snooker Constructor OK" << endl;
+
+    };
 	double t; 							//temperature
 	long double value;				//Actual fitting-value
 	int born;							//Generation when DNA first emerged
 	DNA genome;							//Contains binary and real representation of parameters
+	long double H;					//Fitness, or energy
 	friend ostream &operator<<(std::ostream &os, personality const &);
 
 };

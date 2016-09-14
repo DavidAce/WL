@@ -9,9 +9,9 @@
 namespace math {
 
     ArrayXXd mean_depthwise(std::vector<ArrayXXd> &array3D) {
-        auto rows = array3D[0].rows();
-        auto cols = array3D[0].cols();
-        auto dept = array3D.size();
+        auto rows = (int)array3D[0].rows();
+        auto cols = (int)array3D[0].cols();
+        auto dept = (int)array3D.size();
         ArrayXXd result(rows,cols);
         ArrayXd  depth_array(dept);
         for(auto j = 0 ; j < cols; j++ ){
@@ -36,7 +36,7 @@ namespace math {
         ArrayXd  depth_array(dept);
         for(auto j = 0 ; j < cols; j++ ){
             for(auto i = 0; i < rows; i++){
-                for(auto k = 0; k < dept; k++){
+                for(unsigned long int k = 0; k < dept; k++){
                     depth_array(k) = array3D[k](i,j);
                 }
                 if (depth_array.hasNaN()){
@@ -172,7 +172,6 @@ namespace math {
 //        ArrayXd sum(E1.size());
         ArrayXXd sum(E1.size(), M1.size());
         sum.fill(0);
-        int num;
         int E_merge_idx;    //Index of merging point
 
         if (dos1.rows() < 3 || dos2.rows() < 3){
@@ -185,7 +184,6 @@ namespace math {
             if (E1(i) <  E2.minCoeff()) { continue; }
             if (E1(i) >  E2.maxCoeff()) { continue; }
             x = math::binary_search(E2, E1(i));
-            num = 0;
             for (int j = 0; j < M1.size(); j++) {
                 if (dos1(i,j) == 0 || std::isnan(dos1(i,j)))  { continue; }
                 y = math::binary_search(M2, M1(j));

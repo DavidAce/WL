@@ -29,7 +29,8 @@ void do_simulations(class_worker &worker){
 
 void wanglandau(class_worker &worker){
     int finish_line = 0;
-    outdata out(worker.world_ID,worker.iteration);
+    outdata out(worker.world_ID);
+    out.create_one_folder(worker.iteration);
     while(finish_line == 0){
         sweep               (worker)              ;
         mpi::swap           (worker)              ;
@@ -211,14 +212,14 @@ void check_saturation(class_worker &worker) {
     double Sx = 0, Sxy = 0, mX = 0, mY = 0;
     j = 0;
     //Compute means of the last 10%:
-    for (i = idx; i < worker.saturation.size(); i++) {
+    for (i = idx; i < (int)worker.saturation.size(); i++) {
         mX += i;//X(i);
         mY += worker.saturation[i];
         j++;
     }
     mX /= fmax(j,1);
     mY /= fmax(j,1);
-    for (i = idx; i < worker.saturation.size(); i++) {
+    for (i = idx; i < (int)worker.saturation.size(); i++) {
         Sx += pow(i - mX, 2);
         Sxy += (worker.saturation[i] - mY) * (i - mX);
     }

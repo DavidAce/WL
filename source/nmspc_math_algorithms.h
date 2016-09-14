@@ -172,99 +172,102 @@ namespace math{
         vec = vec_temp.topRows(k);
     }
 
-
-
-    template <typename Derived, typename T>
-    inline int binary_search(const ArrayBase<Derived> &list , const T& x){
-        //Now find the point in list closest to x
-        auto low  = std::lower_bound(list.derived().data(), list.derived().data() + list.size(), x);
-        if (low-list.derived().data() >= list.size() ){
-            low--;
-        }
-        return  low-list.derived().data();
-
-    }
-
-    template <typename Derived, typename T, typename T_idx>
-    inline int binary_search(const ArrayBase<Derived> &list , const T& x, const T &y, const T_idx &y_idx){
-        //Now find the point in list closest to x, from below
-        if (x == y){
-            return y_idx;
-        }
-        if (x > y){
-            auto low = std::lower_bound(list.derived().data() + y_idx, list.derived().data() + list.size(), x);
-            while (low-list.derived().data() >= list.size() ){
-                low--;
-            }
-            return  low-list.derived().data();
-
-        }
-        else if(x < y){
-            auto low =  std::lower_bound(list.derived().data(), list.derived().data() + y_idx, x) ;
-            while (low-list.derived().data() >= list.size() ){
-                low--;
-            }
-            return  low-list.derived().data();
-
-        }
-
-    }
-
 //
-////Finds the element nearest x in an Eigen array
+//
 //    template <typename Derived, typename T>
 //    inline int binary_search(const ArrayBase<Derived> &list , const T& x){
 //        //Now find the point in list closest to x
-//
-//        //CPP REFERENCE lower_bound: Iterator pointing to the first element that is not less than value,
-//        // or last if no such element is found.
-//        auto idx  = std::lower_bound(list.derived().data(), list.derived().data() + list.size(), x) - list.derived().data() ;
-//        if (list(idx) == x){
-//            return idx >= list.size() ? idx-1 : idx;
+//        auto low  = std::lower_bound(list.derived().data(), list.derived().data() + list.size(), x);
+//        if (low-list.derived().data() >= list.size() ){
+//            low--;
 //        }
-//        if(idx > 0) {
-//            if (fabs(list(idx - 1) - x) < fabs(list(idx) - x)) { idx--; }
-//        }
-//        return idx >= list.size() ? idx-1 : idx;
+//        return  low-list.derived().data();
 //
 //    }
 //
-////Finds the element nearest x in an Eigen array if we already know the index of the current value
 //    template <typename Derived, typename T, typename T_idx>
-//    inline int binary_search(const ArrayBase<Derived> &list , const T& x, const T &y, const T_idx &y_idx) {
+//    inline int binary_search(const ArrayBase<Derived> &list , const T& x, const T &y, const T_idx &y_idx){
 //        //Now find the point in list closest to x, from below
+//        if (x == y){
+//            return y_idx;
+//        }
+//        if (x > y){
+//            auto low = std::lower_bound(list.derived().data() + y_idx, list.derived().data() + list.size(), x);
+//            while (low-list.derived().data() >= list.size() ){
+//                low--;
+//            }
+//            return  low-list.derived().data();
 //
-//        //CPP REFERENCE lower_bound: Iterator pointing to the first element that is not less than value,
-//        // or last if no such element is found.
+//        }
+//        else if(x < y){
+//            auto low =  std::lower_bound(list.derived().data(), list.derived().data() + y_idx, x) ;
+//            while (low-list.derived().data() >= list.size() ){
+//                low--;
+//            }
+//            return  low-list.derived().data();
 //
-//        if (x == y) {
-//            return y_idx >= list.size() ? y_idx-1 : y_idx;
 //        }
 //
-//        if (x > y) {
-//            auto idx = std::lower_bound(list.derived().data() + y_idx, list.derived().data() + list.size(), x) -
-//                       list.derived().data();
-//            if (list(idx) == x) {
-//                return idx >= list.size() ? idx-1 : idx;
-//            }
-//            if (idx > 0) {
-//                if (fabs(list(idx - 1) - x) < fabs(list(idx) - x)) { idx--; }
-//            }
-//
-//            return idx >= list.size() ? idx-1 : idx;
-//
-//        } else {
-//            auto idx =  std::lower_bound(list.derived().data(), list.derived().data() + y_idx, x) - list.derived().data();
-//            if (list(idx) == x) {
-//                return idx >= list.size() ? idx-1 : idx;
-//            }
-//            if (idx > 0) {
-//                if (fabs(list(idx - 1) - x) < fabs(list(idx) - x)) { idx--; }
-//            }
-//            return idx >= list.size() ? idx-1 : idx;
-//        }
 //    }
 
+//Finds the element nearest x in an Eigen array
+    template <typename Derived, typename T>
+    inline int binary_search(const ArrayBase<Derived> &list , const T& x){
+        //Now find the point in list closest to x
+
+        //CPP REFERENCE lower_bound: Iterator pointing to the first element that is not less than value,
+        // or last if no such element is found.
+        auto idx  = std::lower_bound(list.derived().data(), list.derived().data() + list.size(), x) - list.derived().data() ;
+        //This number idx is potentially out of bounds, one past last element!!
+        idx = idx >= list.size() ? idx-1: idx;
+
+        if (list(idx) == x){
+            return idx;
+        }
+        if(idx > 0) {
+            if (fabs(list(idx - 1) - x) < fabs(list(idx) - x)) { idx--; }
+        }
+
+        return idx;
+
+    }
+
+//Finds the element nearest x in an Eigen array if we already know the index of the current value
+    template <typename Derived, typename T, typename T_idx>
+    inline int binary_search(const ArrayBase<Derived> &list , const T& x, const T &y, const T_idx &y_idx) {
+        //Now find the point in list closest to x, from below
+
+        //CPP REFERENCE lower_bound: Iterator pointing to the first element that is not less than value,
+        // or last if no such element is found.
+//        std::cout << "x = "<< x << " size = " << list.size() << " y = " << y <<" y_idx = " << y_idx << std::endl;
+        if (x == y) {
+            return  y_idx >= list.size() ? y_idx -1 : y_idx;
+        }
+
+        if (x > y) {
+            auto idx = std::lower_bound(list.derived().data() + y_idx, list.derived().data() + list.size(), x) -
+                       list.derived().data();
+            idx = idx >= list.size() ? idx-1: idx;
+            if (list(idx) == x) {
+                return idx;
+            }
+            if (idx > 0) {
+                if (fabs(list(idx - 1) - x) < fabs(list(idx) - x)) { idx--; }
+            }
+            return idx;
+
+        } else {
+            auto idx =  std::lower_bound(list.derived().data(), list.derived().data() + y_idx, x) - list.derived().data();
+            idx = idx >= list.size() ? idx-1: idx;
+            if (list(idx) == x) {
+                return idx;
+            }
+            if (idx > 0) {
+                if (fabs(list(idx - 1) - x) < fabs(list(idx) - x)) { idx--; }
+            }
+            return idx;
+        }
+    }
 }
 
 #endif //WL_NMSPC_MATH_ALGORITHMS_H

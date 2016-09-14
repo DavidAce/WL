@@ -202,21 +202,20 @@ void outdata::create_folder(){
 
     if (mkdir_p(folder.c_str()) == 0)
     {
-        cout << "Created folder successfully: " << folder << endl;
+        cout << "Created folder: " << folder << endl;
 
     }else{
         cout << "Failed to create folder: " << folder << endl;
     }
 }
 
-
-//void outdata::create_folder(){
-//    path.assign(folder);
-//    if (!fs::exists(path)) { // Check if folder exists
-//        fs::create_directories(path); // create src folder
-//    }
-//}
-
+void outdata::create_one_folder(const int &iter){
+    if(world_ID == 0){
+        iteration = iter;
+        set_folder(iteration);
+        create_folder();
+    }
+}
 
 void outdata::create_and_set_folder(const int &iter){
     iteration = iter;

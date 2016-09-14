@@ -25,21 +25,27 @@ void population::getFitness(const Array<long double, Dynamic, 1> &p, personality
     guy.H = obj_fun.fitness(guy.genome.parameters);
 }
 
-void population::getFitness4All(){
-        for (int i = 0; i < N; i++) {
-            guys[i].H = obj_fun.fitness(guys[i].genome.parameters);
-			cout << "Initial parameters " << i << " " << guys[i].genome.parameters << endl;
-		}
-    }
+//void population::getFitness4All(){
+//        for (int i = 0; i < N; i++) {
+//            cout << "Getting fitness for guy " << i << " from parameters: " << guys[i].genome.parameters.transpose() << endl;
+//            guys[i].H = obj_fun.fitness(guys[i].genome.parameters);
+//		}
+//    }
 
-void population::wakeUpPop(){
-	wakeUpGuys();
-	getFitness4All();
-	//Wake up newguys by copying the old guys
-	for (int i = 0; i < N; i++) {
-		copy(newguys[i], guys[i]);
-	}
-	wakeUpBest();
+//void population::wakeUpPop(){
+////	wakeUpGuys();
+////	getFitness4All();
+//	//Wake up newguys by copying the old guys
+//	for (int i = 0; i < N; i++) {
+//		copy(newguys[i], guys[i]);
+//	}
+//	wakeUpBest();
+//}
+
+void population::wakeUpNewGuys(){
+    for (int i = 0; i < N; i++) {
+        copy(newguys[i], guys[i]);
+    }
 }
 
 void population::wakeUpGuys() {

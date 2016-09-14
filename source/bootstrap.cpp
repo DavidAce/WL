@@ -3,7 +3,9 @@
 //
 
 #include "bootstrap.h"
-
+#define debug_boot      1
+#define debug_thermo    1
+#define debug_stats     1
 void do_bootstrap(class_worker &worker){
     //Each worker loads its segment from random iteration
     //Then merge, then write out new bootstrapped DOS.
@@ -20,8 +22,7 @@ void do_bootstrap(class_worker &worker){
         worker.iteration = i + constants::simulation_reps;
         in.load_random_section(worker);
         mpi::merge    (worker) ;
-        mpi::broadcast(worker) ;
-        out.create_and_set_folder(worker.iteration);
+        out.create_one_folder(worker.iteration);
         out.write_data_master(worker) ;
     }
     MPI_Barrier(MPI_COMM_WORLD);

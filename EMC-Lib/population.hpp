@@ -22,9 +22,10 @@ class paramLine{
         ArrayXd  d;
 	public:
 		paramLine(objective_function &ref)
-                :obj_fun(ref),
-                 o(nGenes),
-                 d(nGenes){};
+                :obj_fun(ref){
+            o.resize(nGenes);
+            d.resize(nGenes);
+        };
 		//Always use "Through" first, to set "o" and "d".
 		void Through(Array<long double, Dynamic, 1> &p1, Array<long double, Dynamic, 1>  &p2){ //Points in parameter space p1 and p2
             ArrayXd p1_temp = p1.cast<double>().array();
@@ -57,8 +58,9 @@ class population{
 private:
 //	void getFitness(personality& guy);
 	void wakeUpGuys();
+	void wakeUpNewGuys();
 	void wakeUpBest();
-    void getFitness4All();
+//    void getFitness4All();
 	objective_function &obj_fun;
 public:
 	population(objective_function &ref)
@@ -68,8 +70,12 @@ public:
 			 bestguys       (N_best,ref),
 			 snookerGuys    (r_num,ref),
              line           (ref),
-			 generation(0){
-
+			 generation(0)
+	{
+                wakeUpGuys();
+                wakeUpNewGuys();
+                wakeUpBest();
+//		wakeUpPop();
     };
     vector<personality> guys; 			     //Make an array of N guys
 	vector<personality> newguys; 			 //Make a temporary array of N guinneapigs
@@ -78,7 +84,6 @@ public:
 
     paramLine line;	//for doing the snooker crossover
     int generation;  //Number of generations for this population
-	void wakeUpPop ();
 
     void getFitness(personality &guy);
     void getFitness(const Array<long double, Dynamic, 1> &point, personality &guy);

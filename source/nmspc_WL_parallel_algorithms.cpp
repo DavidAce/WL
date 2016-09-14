@@ -23,7 +23,7 @@ namespace mpi {
             double dos_X, dos_Y;
             double E_X, E_Y, M_X, M_Y;
             int    E_X_idx, E_Y_idx, M_X_idx, M_Y_idx;
-            int    in_window_up, in_window_dn;
+            int    in_window_up;
             double E_min_up, E_max_up;
             double P_swap;      //Swap probability
             bool myTurn = math::mod(worker.world_ID, 2) == math::mod(counter::swaps, 2);

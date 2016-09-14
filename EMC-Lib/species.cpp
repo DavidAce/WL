@@ -131,10 +131,3 @@ void species::copy(personality &destination, personality &source) {
 	destination.genome.chromosomes = source.genome.chromosomes;
 }
 
-void species::wakeUpPop() {
-    for (int i = 0; i < M; i++){
-        pop[i].wakeUpPop();
-    }
-
-}
-

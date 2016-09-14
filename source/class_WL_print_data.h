@@ -34,6 +34,7 @@ public:
     outdata(const int &id);
     outdata();
     void create_folder();
+    void create_one_folder(const int &iter);
     void set_folder(const int &iter);
     void create_and_set_folder(const int &iter);
     int mkdir_p(const char *path);

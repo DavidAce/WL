@@ -63,7 +63,6 @@ void class_thermodynamics::compute(class_worker &worker) {
 long double temperature_to_specific_heat(objective_function &obj_fun, Array<long double, Dynamic,1> &input){
     auto &dos1D     = obj_fun.aux[0];
     auto &E_bins    = obj_fun.aux[1];
-    auto &M_bins    = obj_fun.aux[2];
     auto &T         = input(0);
     auto beta = (double) (1 / T);
     auto lambda = math::nanmaxCoeff(dos1D - E_bins*beta);
@@ -141,7 +140,8 @@ long double temperature_to_free_energy(objective_function &obj_fun, Array<long d
     double beta     = (double) (1 / t);
     double lambda   = math::nanmaxCoeff((-beta*E_bins + math::nanmaxCoeff(dos_total)));
     double ZT       = math::nansum(math::nansum_rowwise(  (dos_total.colwise() - (beta*E_bins.col(0) + lambda) ).exp()));
-    ArrayXd P       = math::nansum_colwise( ( dos_total.colwise() - (beta*E_bins.col(0) + lambda) ).exp()) / ZT;
+    //Important to transpose below, or else P cant be properly initialized!! (Eigen will complain)
+    ArrayXd P       = math::nansum_colwise( ( dos_total.colwise() - (beta*E_bins.col(0) + lambda) ).exp()).transpose() / ZT;
 
     int mid      = (int)((M_bins.size()-1)/2);
     int mid_mid  = (int)(mid/2);
@@ -165,5 +165,4 @@ void class_thermodynamics::get_Tc_free_energy(class_worker &worker) {
     minimize(obj_fun);
     Tc_F.resize(1);
     Tc_F(0) = (double) obj_fun.optimum(0);
-
 }

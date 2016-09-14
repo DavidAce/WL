@@ -11,9 +11,7 @@
 #include "nmspc_math_algorithms.h"
 #include "nmspc_WL_parallel_algorithms.h"
 #include "class_WL_thermo.h"
-static const int debug_boot                 =	1;
-static const int debug_thermo                =	1;
-static const int debug_stats                 =	1;
+
 void do_bootstrap(class_worker &worker);
 void do_thermodynamics(class_worker &worker);
 void do_statistics(class_worker &worker);
