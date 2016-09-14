@@ -9,7 +9,7 @@
 void do_bootstrap(class_worker &worker){
     //Each worker loads its segment from random iteration
     //Then merge, then write out new bootstrapped DOS.
-    outdata out(worker.world_ID);
+    outdata out;
     indata  in;
     if (worker.world_ID == 0 && debug_boot) {
         cout << "Bootstrap: Starting" << endl;
@@ -22,7 +22,7 @@ void do_bootstrap(class_worker &worker){
         worker.iteration = i + constants::simulation_reps;
         in.load_random_section(worker);
         mpi::merge    (worker) ;
-        out.create_one_folder(worker.iteration);
+        out.create_iteration_folder_master(worker.iteration, worker.world_ID);
         out.write_data_master(worker) ;
     }
     MPI_Barrier(MPI_COMM_WORLD);
@@ -31,11 +31,12 @@ void do_bootstrap(class_worker &worker){
     do_thermodynamics(worker);
     //And get a good error estimation
     do_statistics(worker);
+    MPI_Barrier(MPI_COMM_WORLD);
 
 }
 
 void do_thermodynamics(class_worker &worker){
-    outdata out(worker.world_ID);
+    outdata out;
     indata  in;
     class_thermodynamics thermo;
     worker.iteration = worker.world_ID;
@@ -95,6 +96,6 @@ void do_statistics(class_worker &worker){
             std::this_thread::sleep_for(std::chrono::microseconds(1000));
         }
         outdata out;
-        out.write_final_data(stats);
+        out.write_final_data(stats, worker.world_ID);
     }
 }

@@ -25,25 +25,21 @@ using namespace Eigen;
 class outdata {
 private:
     string      folder;
-//    fs::path path;
-    int   world_ID;
-    int   iteration;
-    int   precision = 10;
+    int         iteration;
+    int         precision = 12;
 public:
-    outdata(const int &id, const int &iter);
-    outdata(const int &id);
     outdata();
-    void create_folder();
-    void create_one_folder(const int &iter);
-    void set_folder(const int &iter);
-    void create_and_set_folder(const int &iter);
+    void create_folder(string folder_name);
+    void create_iteration_folder_master(const int &iter, const int &id);
+    void create_iteration_folder_worker(const int &iter);
+    void set_foldername_to_iteration(const int &iter);
     int mkdir_p(const char *path);
     //File streams
 
     void write_data_worker(class_worker &);
     void write_data_master(class_worker &);
     void write_data_thermo(class_thermodynamics &, const int &iter);
-    void write_final_data(class_stats &stats);
+    void write_final_data(class_stats &stats, const int &id);
 //    void write_data_worker_binary(class_worker &);
 //    void write_data_master_binary(class_worker &);
     template<typename Derived>

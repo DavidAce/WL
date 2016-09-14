@@ -29,8 +29,8 @@ void do_simulations(class_worker &worker){
 
 void wanglandau(class_worker &worker){
     int finish_line = 0;
-    outdata out(worker.world_ID);
-    out.create_one_folder(worker.iteration);
+    outdata out;
+    out.create_iteration_folder_master(worker.iteration, worker.world_ID);
     while(finish_line == 0){
         sweep               (worker)              ;
         mpi::swap           (worker)              ;
@@ -129,8 +129,8 @@ void check_convergence(class_worker &worker, int &finish_line){
             }else{
                 timer::check_saturation++;
             }
-            if(worker.lnf < pow(constants::one_over_t_factor/counter::MCS, constants::one_over_t_exponent)){
-                worker.lnf =  pow(constants::one_over_t_factor/counter::MCS, constants::one_over_t_exponent);
+            if(worker.lnf < 1.0/counter::MCS){
+                worker.lnf =   1.0/counter::MCS;
                 worker.flag_one_over_t = 1;         //Change to 1/t algorithm
             }
             break;
@@ -238,7 +238,7 @@ void check_saturation(class_worker &worker) {
         std::this_thread::sleep_for(std::chrono::microseconds(10));
 
     }
-    math::subtract_min_nonzero(worker.histogram);
+//    math::subtract_min_nonzero(worker.histogram);
     if (worker.slope < 0) {
         worker.next_WL_iteration();
         if (worker.lnf < constants::minimum_lnf) {
@@ -248,7 +248,7 @@ void check_saturation(class_worker &worker) {
 }
 
 void check_one_over_t (class_worker &worker){
-    worker.lnf =  pow(constants::one_over_t_factor/counter::MCS, constants::one_over_t_exponent);
+    worker.lnf =   1.0/counter::MCS;
     if (worker.lnf < constants::minimum_lnf){
         worker.finish_line = 1;
     }

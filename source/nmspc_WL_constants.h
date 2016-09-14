@@ -19,7 +19,7 @@ namespace constants{
 
     //Lattice Properties
     static const int d = 2;               //Dimension
-    static const int L = 16;               //Linear size
+    static const int L = 6;               //Linear size
     static const int N = (int) pow(L,d);  //Number of spins/particles
 
     //DOS and Histogram properties
@@ -28,7 +28,7 @@ namespace constants{
 
     //Rates for checking and printing (MCS units)
     static const int    rate_add_hist_volume   = 100;       //How often to append reduced volume to an array called "saturation", which indicates if the current walk has converged when it flattens out.
-    static const int    rate_check_finish_line = 5000;      //Check if everybodies modification factor is below minimum_lnf
+    static const int    rate_check_finish_line = 10000;      //Check if everybodies modification factor is below minimum_lnf
     static const int    rate_check_saturation  = 10000;      //How often to check if saturation has flattened out
     static const int    rate_check_limits      = 1000;       //How often to check if global limits need to be increased, and bin-sizes recalculated.
     static const int    rate_split_windows     = 10000;     //How often to check if we can merge all dos and split energy subwindows in a smarter way.
@@ -38,12 +38,10 @@ namespace constants{
 
     //Wang-Landau convergence criteria
     static const double minimum_lnf            = 1e-5;
-    static const double check_saturation_from  = 0.9    ;
+    static const double check_saturation_from  = 0.8    ;
     static const double reduce_factor_lnf      = 0.5;           // 131 s (check from 0.9
     static const double overlap_factor_energy  = 0.25;
     static const double overlap_factor_dos_vol = 0.5;
-    static const double one_over_t_factor      = 1.0;
-    static const double one_over_t_exponent    = 1.0;
 
     //Parameters for sub-window splitting
     static const int     min_walks             = 3;

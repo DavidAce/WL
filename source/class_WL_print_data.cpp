@@ -14,7 +14,7 @@
 
 
 void outdata::write_data_worker(class_worker &worker) {
-    set_folder(worker.iteration);
+    set_foldername_to_iteration(worker.iteration);
     string name_dos = folder + string("dos") + to_string(worker.world_ID) + string(".dat");
     string name_E_bins = folder + string("E") + to_string(worker.world_ID) + string(".dat");
     string name_M_bins = folder + string("M") + to_string(worker.world_ID) + string(".dat");
@@ -25,7 +25,7 @@ void outdata::write_data_worker(class_worker &worker) {
 
 void outdata::write_data_master(class_worker &worker){
     if (worker.world_ID == 0) {
-        set_folder(worker.iteration);
+        set_foldername_to_iteration(worker.iteration);
         string name_dos    = folder + string("dos.dat");
         string name_E_bins = folder + string("E.dat");
         string name_M_bins = folder + string("M.dat");
@@ -36,9 +36,7 @@ void outdata::write_data_master(class_worker &worker){
 }
 
 void outdata::write_data_thermo(class_thermodynamics &thermo, const int &iter){
-    iteration = iter;
-    set_folder(iteration);
-
+    create_iteration_folder_worker(iter);
     string name_T       = folder + string("T.dat");
     string name_s       = folder + string("s.dat");
     string name_c       = folder + string("c.dat");
@@ -69,10 +67,10 @@ void outdata::write_data_thermo(class_thermodynamics &thermo, const int &iter){
     write_to_file(thermo.P, name_P);
 }
 
-void outdata::write_final_data(class_stats &stats){
-    if (world_ID == 0) {
+void outdata::write_final_data(class_stats &stats, const int &id){
+    if (id == 0) {
         folder = "outdata/final/";
-        create_folder();
+        create_folder(folder);
         string name_E       = folder + string("E.dat");
         string name_M       = folder + string("M.dat");
         string name_T       = folder + string("T.dat");
@@ -143,7 +141,7 @@ void outdata::write_final_data(class_stats &stats){
 
 
 
-void outdata::set_folder(const int &iter){
+void outdata::set_foldername_to_iteration(const int &iter){
     iteration = iter;
     //Set folder for out data storage
     switch (os) {
@@ -198,41 +196,30 @@ int outdata::mkdir_p(const char *path)
     return 0;
 }
 
-void outdata::create_folder(){
+void outdata::create_folder(string folder_name){
 
-    if (mkdir_p(folder.c_str()) == 0)
+    if (mkdir_p(folder_name.c_str()) == 0)
     {
-        cout << "Created folder: " << folder << endl;
+        cout << "Set folder: " << folder_name << endl;
 
     }else{
-        cout << "Failed to create folder: " << folder << endl;
+        cout << "Failed to set folder: " << folder_name << endl;
     }
 }
 
-void outdata::create_one_folder(const int &iter){
-    if(world_ID == 0){
-        iteration = iter;
-        set_folder(iteration);
-        create_folder();
+void outdata::create_iteration_folder_master(const int &iter, const int &id){
+    if(id == 0){
+        set_foldername_to_iteration(iter);
+        create_folder(folder);
     }
 }
 
-void outdata::create_and_set_folder(const int &iter){
-    iteration = iter;
-    set_folder(iter);
-    create_folder();
+void outdata::create_iteration_folder_worker(const int &iter){
+    set_foldername_to_iteration(iter);
+    create_folder(folder);
 }
 
-//Constructor
-outdata::outdata(const int &id, const int &iter): world_ID(id), iteration(iter) {
-    set_folder(iter);
-    create_folder();
-}
 
-//Constructor (does not set folder! make sure to set it yourself!
-outdata::outdata(const int &id): world_ID(id) {
-
-}
 //Default constructor (does not set folder! make sure to set it yourself!
 outdata::outdata() {
 
