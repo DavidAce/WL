@@ -357,7 +357,7 @@ void print_status(class_worker &worker) {
                     << worker.dos.topLeftCorner(1,1) << " "
                     << worker.dos.topRightCorner(1,1) << " "
 //                    << endl
-//                    << worker.dos << endl
+//                    << worker.histogram << endl
                     << "  -----"
                     << endl;
         }
