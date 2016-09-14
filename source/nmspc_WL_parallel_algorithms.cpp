@@ -193,8 +193,6 @@ namespace mpi {
 //            MPI_Barrier(MPI_COMM_WORLD);
 //        }
         worker.dos = math::Zero_to_NaN(worker.dos);
-
-
         ArrayXXd dos_total, dos_temp, dos_recv;
         ArrayXd E_total, M_total, E_temp, M_temp, E_recv, M_recv;
         int E_sizes[worker.world_size];

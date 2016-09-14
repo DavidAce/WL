@@ -261,7 +261,7 @@ void backup_data(class_worker &worker, outdata &out){
        int need_to_resize;
         MPI_Allreduce(&worker.in_window     , &all_in_window,  1, MPI_INT, MPI_MIN,MPI_COMM_WORLD);
         MPI_Allreduce(&worker.need_to_resize_global, &need_to_resize, 1, MPI_INT, MPI_MAX,MPI_COMM_WORLD);
-       if (need_to_resize == 0 && all_in_window == 1){
+       if (need_to_resize == 0 && all_in_window == 1 && counter::merges > 0){
            mpi::merge(worker);
            out.write_data_master(worker);
        }
@@ -352,16 +352,15 @@ void print_status(class_worker &worker) {
             cout    << "-----"
                     << " MaxWalks: "   << fixed << setprecision(0) << ceil(log(constants::minimum_lnf)/log(constants::reduce_factor_lnf))
                     << " Iteration: "   << fixed << setprecision(0) << worker.iteration
-                    << " Total Time: " << fixed << setprecision(3) << timer::elapsed_time_total.count() << " s "
-                    << " Edge dos: " << fixed << setprecision(3)
-                    << worker.dos.topLeftCorner(1,1) << " "
-                    << worker.dos.topRightCorner(1,1) << " "
-                    << endl
-                    << worker.dos << endl
-                    << "  -----"
+                    << " Total Time: " << fixed << setprecision(3) << timer::elapsed_time_total.count() << " s ";
+                    if(debug_status){
+                        cout    << " Edge dos: " << fixed << setprecision(3)
+                                << worker.dos.topLeftCorner(1,1) << " "
+                                << worker.dos.topRightCorner(1,1) << " ";
+                    }
+                    cout << "  -----"
                     << endl;
         }
         timer::print_tic = std::chrono::high_resolution_clock::now();
     }
-
 }
