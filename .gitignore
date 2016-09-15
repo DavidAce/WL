@@ -4,3 +4,6 @@ bin/
 **/.idea/tasks.xml
 **/.idea/WL.iml
 build/
+outdata/
+.ycm_extra_conf.py
+*.m~
