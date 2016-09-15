@@ -62,8 +62,8 @@ message("Compiling with: ${CMAKE_CXX_COMPILER_ID}")
 file(GLOB_RECURSE WL_SOURCES "source/*.cpp")
 file(GLOB_RECURSE WL_HEADERS "source/*.h")
 
-file(GLOB_RECURSE EMC_SOURCES "EMC-Lib/*.cpp")
-file(GLOB_RECURSE EMC_HEADERS "EMC-Lib/*.hpp")
+file(GLOB_RECURSE EMC_SOURCES "EMC-Lib/source/*.cpp")
+file(GLOB_RECURSE EMC_HEADERS "EMC-Lib/source/*.hpp")
 
 set (WL_INCLUDE_DIRS "")
 foreach (_headerFile ${WL_HEADERS})
