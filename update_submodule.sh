@@ -4,3 +4,4 @@ cd EMC-Lib
 git pull
 cd ..
 git commit -am 'Updated EMC-Lib'
+echo "Finished updating"
