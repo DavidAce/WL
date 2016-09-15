@@ -83,8 +83,8 @@ namespace math {
                 for (int j = 0; j < M.size() - 1; j++) {
                     for (int i = 0; i < E.size() - 1; i++) {
                         if (dos(i, j) == 0 || std::isnan(dos(i,j))) { continue; }
-//                        vol += (E(i + 1) - E(i)) * (M(j + 1) - M(j)) * dos(i, j);
-                        vol += (E(i + 1) - E(i)) * (M(j + 1) - M(j)) ;
+                        vol += (E(i + 1) - E(i)) * (M(j + 1) - M(j)) * dos(i, j);
+//                        vol += (E(i + 1) - E(i)) * (M(j + 1) - M(j)) ;
                     }
                 }
                 break;
@@ -115,8 +115,8 @@ namespace math {
                 for (int i = 0; i < E.size() - 1; i++) {
                     for (int j = 0; j < M.size() - 1; j++) {
                         if (dos(i, j) == 0 || std::isnan(dos(i,j))) { continue; }
-//                        vol += (E(i + 1) - E(i)) * (M(j + 1) - M(j)) * dos(i, j);
-                        vol += (E(i + 1) - E(i)) * (M(j + 1) - M(j)) ;
+                        vol += (E(i + 1) - E(i)) * (M(j + 1) - M(j)) * dos(i, j);
+//                        vol += (E(i + 1) - E(i)) * (M(j + 1) - M(j)) ;
                     }
                     if (vol >= vol_limit){
                         return i;
