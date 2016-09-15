@@ -24,8 +24,7 @@ namespace constants{
 
     //DOS and Histogram properties
     static const int rw_dims    = 2;       //Dimension of random walks (1D or 2D WL)
-    static const int bins       = 10;      //No lower than 3!
-
+    static const int bins       = 3;      //No lower than 10! (per worker)
     //Rates for checking and printing (MCS units)
     static const int    rate_add_hist_volume   = 100;       //How often to append reduced volume to an array called "saturation", which indicates if the current walk has converged when it flattens out.
     static const int    rate_check_finish_line = 10000;      //Check if everybodies modification factor is below minimum_lnf
@@ -40,7 +39,7 @@ namespace constants{
     static const double minimum_lnf            = 1e-5;
     static const double check_saturation_from  = 0.9    ;
     static const double reduce_factor_lnf      = 0.5;           // 131 s (check from 0.9
-    static const double overlap_factor_energy  = 0.75;
+    static const double overlap_factor_energy  = 0.25;
     static const double overlap_factor_dos_vol = 0.5;
 
     //Parameters for sub-window splitting

@@ -15,7 +15,7 @@
 #define debug_convergence               0
 #define debug_global_limits             0
 #define debug_saturation                0
-#define debug_status                    0
+#define debug_status                    1
 
 using namespace std;
 
@@ -299,6 +299,8 @@ void print_status(class_worker &worker) {
                         if(debug_status){
                    cout << " E: "     << left << setw(9) << setprecision(2)   << worker.E
                         << " M: "     << left << setw(9) << setprecision(2)   << worker.M;
+                   cout << " E_tr: "     << left << setw(9) << setprecision(2)   << worker.E_trial
+                        << " M_tr: "     << left << setw(9) << setprecision(2)   << worker.M_trial;
                         }
                    cout << " dE: "    << left << setw(7) << setprecision(2)   << worker.E_max_local - worker.E_min_local
                         << " : ["     << left << setw(7) << setprecision(1)   << worker.E_bins(0) << " " << left << setw(7) << setprecision(1) << worker.E_bins(worker.E_bins.size()-1) << "]"

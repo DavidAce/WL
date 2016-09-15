@@ -254,6 +254,14 @@ void class_worker::divide_global_range_energy(){
     double x                =  constants::overlap_factor_energy/2 ;
     //Add a little bit extra if there are too many workers (Add nothing if world_size == 2, and up to local_volume if world_size == inf)
     double overlap_range = local_range * x ;// * 2.0*(world_size - 2.0 + x)/world_size;
+    //Make sure the overlap covers at least a hefty percent of the global range.
+    //This is needed when you have too many workers on a small global energy range.
+    if (overlap_range*2 + local_range < global_range * 0.2){
+        if (world_ID == 0) {
+            cout << "Force readjust of local energy range" << endl;
+        }
+        overlap_range = (global_range * 0.2 - local_range)/2;
+    }
 
     if (world_ID == 0){
         E_min_local = E_min_global;
@@ -573,8 +581,9 @@ void class_worker::walk_towards_window(){
         //Step towards window from above
         accept = true;
     } else{
+        accept = rn::uniform_double_1() < 0.5;
 
-        accept = false;
+//        accept = false;
 
     }
 }
@@ -708,7 +717,7 @@ void class_worker::accept_MC_trial() {
     if (in_window) {
         E_idx                       = E_idx_trial;
         M_idx                       = M_idx_trial;
-        dos(E_idx, M_idx)       += lnf;
+        dos(E_idx, M_idx)       += lnf ;
         histogram(E_idx, M_idx) += 1;
 
     }

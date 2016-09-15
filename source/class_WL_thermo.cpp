@@ -75,7 +75,6 @@ long double temperature_to_specific_heat(objective_function &obj_fun, Array<long
     return -(beta * beta * (eSqAvg - eAvg*eAvg)) / constants::N;
 }
 
-
 void class_thermodynamics::get_c_peak(class_worker &worker){
     ArrayXd lower_bound(1);
     ArrayXd upper_bound(1);
@@ -91,7 +90,6 @@ void class_thermodynamics::get_c_peak(class_worker &worker){
 
 
 }
-
 
 long double temperature_to_susceptibility(objective_function &obj_fun, Array<long double, Dynamic,1> &input){
     auto &dos_total = obj_fun.aux[0];
@@ -145,7 +143,7 @@ long double temperature_to_free_energy(objective_function &obj_fun, Array<long d
 
     int mid      = (int)((M_bins.size()-1)/2);
     int mid_mid  = (int)(mid/2);
-    ArrayXd F       = P.log().array() /(-beta)/ constants::N;
+    ArrayXd F       = P.log().array() /(-beta);/// constants::N;
     F              -= F(mid);
     if (F.hasNaN()){
         F.fill(std::numeric_limits<double>::infinity());
