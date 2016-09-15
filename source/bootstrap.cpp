@@ -41,19 +41,19 @@ void do_thermodynamics(class_worker &worker){
     class_thermodynamics thermo;
     worker.iteration = worker.world_ID;
     while (worker.iteration < (constants::bootstrap_reps + constants::simulation_reps)){
-        if (debug_stats) {
+        if (debug_thermo) {
             cout << "ID: "<< worker.world_ID << " Thermo: Loading..." << endl;
             cout.flush();
             std::this_thread::sleep_for(std::chrono::microseconds(1000));
         }
         in.load_full(worker);
-        if (debug_stats) {
+        if (debug_thermo) {
             cout << "ID: "<< worker.world_ID << " Thermo: Computing avgs..." << endl;
             cout.flush();
             std::this_thread::sleep_for(std::chrono::microseconds(1000));
         }
         thermo.compute(worker);
-        if (debug_stats) {
+        if (debug_thermo) {
             cout << "ID: "<< worker.world_ID << " Thermo: Computing Peaks..." << endl;
             cout.flush();
             std::this_thread::sleep_for(std::chrono::microseconds(1000));
@@ -62,7 +62,7 @@ void do_thermodynamics(class_worker &worker){
         thermo.get_x_peak(worker);
         thermo.get_Tc_free_energy(worker);
 
-        if (debug_stats) {
+        if (debug_thermo) {
             cout << "ID: "<< worker.world_ID << " Thermo: Writing Data..." << endl;
             cout.flush();
             std::this_thread::sleep_for(std::chrono::microseconds(1000));
