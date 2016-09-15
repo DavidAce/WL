@@ -734,6 +734,9 @@ void class_worker::rewind_to_lowest_walk(){
     int min_walks;
     MPI_Allreduce(&counter::walks, &min_walks, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
     counter::walks = min_walks;
+    if (flag_one_over_t){
+
+    }
     lnf = pow(constants::reduce_factor_lnf, min_walks);
 
     timer::add_hist_volume  = 0;
@@ -742,6 +745,7 @@ void class_worker::rewind_to_lowest_walk(){
     saturation.clear();
     counter::MCS            = (int) (1.0/lnf);
     cout << "New MCS = " << counter::MCS << endl;
+    flag_one_over_t = 0;
     finish_line = lnf > constants::minimum_lnf ? 0 : 1;
 }
 
