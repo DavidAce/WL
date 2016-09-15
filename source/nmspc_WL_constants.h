@@ -19,7 +19,7 @@ namespace constants{
 
     //Lattice Properties
     static const int d = 2;               //Dimension
-    static const int L = 6;               //Linear size
+    static const int L = 16;               //Linear size
     static const int N = (int) pow(L,d);  //Number of spins/particles
 
     //DOS and Histogram properties
@@ -43,7 +43,7 @@ namespace constants{
     static const double overlap_factor_dos_vol = 0.5;
 
     //Parameters for sub-window splitting
-    static const int     min_walks             = 4;
+    static const int     min_walks             = 1;
     static const int     max_merges            = 1;
 }
 

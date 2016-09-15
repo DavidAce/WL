@@ -60,6 +60,63 @@ void class_thermodynamics::compute(class_worker &worker) {
 }
 
 
+void resize_bins(ArrayXXd &dos, ArrayXXd &E_bins, ArrayXXd & M_bins, const int &E_new_size, const int &M_new_size) {
+    // This function does rebinning of dos and histograms.
+    // If E_set contains more than the default number of bins, then enlarge E_bins, otherwise shrink it!
+    // If M_set contains more ----" " ---
+    int x, y, i, j, k;
+    double dE, dM, dR, dx, dy, w;
+    bool zero;
+
+    //Check if we need more bins
+    int E_old_size = (int) E_bins.size();
+    int M_old_size = (int) M_bins.size();
+    double E_max_local = E_bins.maxCoeff();
+    double E_min_local = E_bins.minCoeff();
+    double M_max_local = M_bins.maxCoeff();
+    double M_min_local = M_bins.minCoeff();
+
+    ArrayXXd dos_new        = ArrayXXd::Zero(E_new_size, M_new_size);
+    dE              = fabs(E_max_local - E_min_local) / E_new_size;    //New spacing in E_bins
+    dM              = fabs(M_max_local - M_min_local) / M_new_size;    //New spacing in M_bins
+    dR              = sqrt(dE * dE + dM * dM);                         //Diagonal distance ?
+    ArrayXXd E_old = E_bins;
+    ArrayXXd M_old = M_bins;
+    E_bins          = ArrayXd::LinSpaced(E_new_size, E_min_local, E_max_local);
+    M_bins          = ArrayXd::LinSpaced(M_new_size, M_min_local, M_max_local);
+    ArrayXXd weight = ArrayXXd::Zero(E_new_size, M_new_size);
+    //Coarsen the histogram and dos.
+    for (y = 0; y < M_old_size; y++) {
+        for (x = 0; x < E_old_size; x++) {
+            for (j = 0; j < M_new_size; j++) {
+                for (i = 0; i < E_new_size; i++) {
+                    dx = fabs(E_bins(i) - E_old(x));   //Distance between old and new bins
+                    dy = fabs(M_bins(j) - M_old(y));   //Distance between old and new bins
+                    //Distance between old and new bins should not exceed dE/2
+                    //This is so to avoid double counting
+                    if (dx >= dE/2 || dy >= dM/2) { continue; }
+//                      w          = fabs(1.0 - 4*dx*dy/dE/dM);
+                    w          = fabs(1.0 - sqrt(dx * dx + dy * dy) / dR);
+
+                    weight(i,j)              += w;
+                    dos_new(i,j)             +=  dos(x,y) * w;
+//                    dos(x,y)                 -= 0 ; //This entry has been used
+                }
+            }
+
+        }
+    }
+    //We have now inserted all old entries to the new dos and histogram, and we only need to divide by the weight.
+    for (j = 0; j < M_new_size; j++) {
+        for (i = 0; i < E_new_size; i++) {
+            dos_new(i,j)        = weight(i,j) > 0  ? dos_new(i,j)/weight(i,j) : 0;
+
+        }
+    }
+    dos             = dos_new;
+}
+
+
 long double temperature_to_specific_heat(objective_function &obj_fun, Array<long double, Dynamic,1> &input){
     auto &dos1D     = obj_fun.aux[0];
     auto &E_bins    = obj_fun.aux[1];
@@ -138,23 +195,41 @@ long double temperature_to_free_energy(objective_function &obj_fun, Array<long d
     auto &dos_total =  obj_fun.aux[0];
     auto &E_bins    =  obj_fun.aux[1];
     auto &M_bins    =  obj_fun.aux[2];
-
-    auto &t         =  input(0);
-    double beta     = (double) (1 / t);
-    double lambda   = math::nanmaxCoeff((-beta*E_bins + math::nanmaxCoeff(dos_total)));
-    double ZT       = math::nansum(math::nansum_rowwise(  (dos_total.colwise() - (beta*E_bins.col(0) + lambda) ).exp()));
-    //Important to transpose below, or else P cant be properly initialized!! (Eigen will complain)
-    ArrayXd P       = math::nansum_colwise( ( dos_total.colwise() - (beta*E_bins.col(0) + lambda) ).exp()).transpose() / ZT;
-
+    auto &T         = input(0);
+    double lambda   = (-E_bins/ T + dos_total.maxCoeff()).maxCoeff();
+    //Important to transpose below, or else P can't be properly initialized!! (Eigen will complain)
+    ArrayXd F       = (((dos_total.colwise() - (E_bins.col(0)/ T + lambda) ).exp()).colwise().sum().transpose());
+//    F /= F.sum();
     int mid      = (int)((M_bins.size()-1)/2);
     int mid_mid  = (int)(mid/2);
-    ArrayXd F       = P.log().array() /(-beta);/// constants::N;
+    F            = F.log().array() * (-T);/// constants::N;
     F              -= F(mid);
     if (F.hasNaN()){
         F.fill(std::numeric_limits<double>::infinity());
     }
-    return math::nansum(F.segment(mid-mid_mid, mid).abs());
+    return (F.segment(mid-mid_mid, mid).abs()).sum();
 }
+
+
+//
+//
+//
+//    auto &t         =  input(0);
+//    double beta     = (double) (1 / t);
+//    double lambda   = math::nanmaxCoeff((-beta*E_bins + math::nanmaxCoeff(dos_total)));
+//    double ZT       = math::nansum(math::nansum_rowwise(  (dos_total.colwise() - (beta*E_bins.col(0) + lambda) ).exp()));
+//    //Important to transpose below, or else P cant be properly initialized!! (Eigen will complain)
+//    ArrayXd P       = math::nansum_colwise( ( dos_total.colwise() - (beta*E_bins.col(0) + lambda) ).exp()).transpose() / ZT;
+//
+//    int mid      = (int)((M_bins.size()-1)/2);
+//    int mid_mid  = (int)(mid/2);
+//    ArrayXd F       = P.log().array() /(-beta);/// constants::N;
+//    F              -= F(mid);
+//    if (F.hasNaN()){
+//        F.fill(std::numeric_limits<double>::infinity());
+//    }
+//    return math::nansum(F.segment(mid-mid_mid, mid).abs());
+//}
 
 
 void class_thermodynamics::get_Tc_free_energy(class_worker &worker) {
@@ -162,8 +237,9 @@ void class_thermodynamics::get_Tc_free_energy(class_worker &worker) {
     ArrayXd upper_bound(1);
     lower_bound << constants::T_min;
     upper_bound << constants::T_max;
-    double tolerance = 1e-8;
-    objective_function obj_fun(temperature_to_free_energy, lower_bound, upper_bound, tolerance, worker.dos_total,
+    double tolerance = 1e-6;
+    ArrayXXd dos_no_nan = math::NaN_to_Zero(worker.dos_total);
+    objective_function obj_fun(temperature_to_free_energy, lower_bound, upper_bound, tolerance, dos_no_nan,
                                worker.E_bins_total, worker.M_bins_total);
     obj_fun.id      = worker.world_ID;
     obj_fun.threads = 1;

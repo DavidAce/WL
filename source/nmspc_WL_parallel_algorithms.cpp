@@ -181,18 +181,9 @@ namespace mpi {
             std::this_thread::sleep_for(std::chrono::microseconds(1000));
         }
 
-//        //set zero_values to nan
-//        for (int w = 0; w < worker.world_size ; w++){
-//            if(w == worker.world_ID){
-//                cout << worker.dos << endl << endl;
-//                cout << worker.dos << endl << endl << endl;
-//
-//                cout.flush();
-//                std::this_thread::sleep_for(std::chrono::microseconds(1000));
-//            }
-//            MPI_Barrier(MPI_COMM_WORLD);
-//        }
+        //Set zero values to nan
         worker.dos = math::Zero_to_NaN(worker.dos);
+
         ArrayXXd dos_total, dos_temp, dos_recv;
         ArrayXd E_total, M_total, E_temp, M_temp, E_recv, M_recv;
         int E_sizes[worker.world_size];
@@ -376,42 +367,33 @@ namespace mpi {
         }
 
         MPI_Barrier(MPI_COMM_WORLD);
-        double global_volume = math::volume(worker.dos_total, worker.E_bins_total, worker.M_bins_total);
-        double local_volume = global_volume / worker.world_size;
+
+        double global_range = math::volume(worker.dos_total, worker.E_bins_total, worker.M_bins_total);
+        double local_range = global_range / worker.world_size;
         double x = constants::overlap_factor_dos_vol / (1 - constants::overlap_factor_dos_vol / 2)  ;
-        //Add a little bit if there are too many workers (Add nothing if world_size == 2, and up to local_volume if world_size == inf)
-        double overlap_range = local_volume * x ;//2.0*(worker.world_size - 2.0 + x)/worker.world_size;
-//        cout << local_volume / global_volume << overlap_range << " " << local_volume*x << endl << endl;
+        double overlap_range = local_range * x ;//2.0*(worker.world_size - 2.0 + x)/worker.world_size;
+        //The overlap_range is the total range in a domain that will have overlap, either up or down.
         //Find the boundaries of the DOS domain that gives every worker the  same DOS volume to work on
         int E_min_local_idx, E_max_local_idx;
-//        if (worker.world_ID == 0){
-//            cout << "dos volume " << global_volume << endl;
-//        }
-        int min_width = 10;
-        if (worker.world_ID == 0) {
-            E_min_local_idx = 0;
-            E_max_local_idx = math::volume_idx(worker.dos_total, worker.E_bins_total, worker.M_bins_total,
-                                               (worker.world_ID + 1) * local_volume + overlap_range / 2);
-            while (E_max_local_idx - E_min_local_idx < min_width) { E_max_local_idx++; }
 
-        } else if (worker.world_ID == worker.world_size - 1) {
-            E_min_local_idx = math::volume_idx(worker.dos_total, worker.E_bins_total, worker.M_bins_total,
-                                               worker.world_ID * local_volume - overlap_range / 2);
-            E_max_local_idx = (int) worker.E_bins_total.size() - 1;
-            while (E_max_local_idx - E_min_local_idx < min_width) { E_min_local_idx--; }
+        if      (worker.world_ID == 0)                    {overlap_range = overlap_range/2;}
+        else if (worker.world_ID == worker.world_size - 1){overlap_range = overlap_range/2;}
+        else                                              {overlap_range = overlap_range/4;}
+//        E_min_local_idx = math::binary_search(worker.E_bins_total, worker.world_ID*local_range     - overlap_range);
+//        E_max_local_idx = math::binary_search(worker.E_bins_total, (worker.world_ID+1)*local_range + overlap_range);
+//
 
-        } else {
-            E_min_local_idx = math::volume_idx(worker.dos_total, worker.E_bins_total, worker.M_bins_total,
-                                               worker.world_ID * local_volume - overlap_range / 4);
-            E_max_local_idx = math::volume_idx(worker.dos_total, worker.E_bins_total, worker.M_bins_total,
-                                               (worker.world_ID + 1) * local_volume + overlap_range / 4);
-            while (E_max_local_idx - E_min_local_idx < min_width) {
-                E_min_local_idx--;
-                E_max_local_idx++;
-            }
+        E_min_local_idx = math::volume_idx(worker.dos_total, worker.E_bins_total, worker.M_bins_total,
+                                           worker.world_ID * local_range - overlap_range);
+        E_max_local_idx = math::volume_idx(worker.dos_total, worker.E_bins_total, worker.M_bins_total,
+                                           (worker.world_ID + 1) * local_range + overlap_range);
+
+        while (E_max_local_idx - E_min_local_idx < constants::bins) {
+            E_min_local_idx--;
+            E_max_local_idx++;
+            E_min_local_idx = max(E_min_local_idx, 0);
+            E_max_local_idx = min(E_max_local_idx, (int)worker.E_bins_total.size()-1);
         }
-        E_min_local_idx = max(E_min_local_idx, 0);
-        E_max_local_idx = min(E_max_local_idx, (int)worker.E_bins_total.size()-1);
 
         worker.E_min_local = worker.E_bins_total(E_min_local_idx);
         worker.E_max_local = worker.E_bins_total(E_max_local_idx);
@@ -494,5 +476,146 @@ namespace mpi {
 
 
     }
+
+
+//    void divide_global_range_dos_volume(class_worker &worker) {
+//        //Update limits
+//        if (worker.world_ID == 0 && debug_divide) {
+//            cout << "Dividing. ";
+//            cout.flush();
+//            std::this_thread::sleep_for(std::chrono::microseconds(10000));
+//        }
+//
+//        MPI_Barrier(MPI_COMM_WORLD);
+//        math::subtract_min_nonnan(worker.dos_total);
+//        if (worker.world_ID == 0){
+//            cout << "dos size " << worker.dos_total.rows()    << " x " << worker.dos_total.cols() << endl;
+//            cout << "E   size " << worker.E_bins_total.rows() << " x " << worker.E_bins_total.cols() << endl;
+//        }
+//        if (worker.world_ID == 0 && debug_divide) {
+//            cout << "Computing Volume ";
+//            cout.flush();
+//            std::this_thread::sleep_for(std::chrono::microseconds(10000));
+//        }
+//
+//        MPI_Barrier(MPI_COMM_WORLD);
+//        double global_volume = math::volume(worker.dos_total, worker.E_bins_total, worker.M_bins_total);
+//        double local_volume = global_volume / worker.world_size;
+//        double x = constants::overlap_factor_dos_vol / (1 - constants::overlap_factor_dos_vol / 2)  ;
+//        //Add a little bit if there are too many workers (Add nothing if world_size == 2, and up to local_volume if world_size == inf)
+//        double overlap_range = local_volume * x ;//2.0*(worker.world_size - 2.0 + x)/worker.world_size;
+////        cout << local_volume / global_volume << overlap_range << " " << local_volume*x << endl << endl;
+//        //Find the boundaries of the DOS domain that gives every worker the  same DOS volume to work on
+//        int E_min_local_idx, E_max_local_idx;
+////        if (worker.world_ID == 0){
+////            cout << "dos volume " << global_volume << endl;
+////        }
+//        int min_width = 10;
+//        if (worker.world_ID == 0) {
+//            E_min_local_idx = 0;
+//            E_max_local_idx = math::volume_idx(worker.dos_total, worker.E_bins_total, worker.M_bins_total,
+//                                               (worker.world_ID + 1) * local_volume + overlap_range / 2);
+//            while (E_max_local_idx - E_min_local_idx < min_width) { E_max_local_idx++; }
+//
+//        } else if (worker.world_ID == worker.world_size - 1) {
+//            E_min_local_idx = math::volume_idx(worker.dos_total, worker.E_bins_total, worker.M_bins_total,
+//                                               worker.world_ID * local_volume - overlap_range / 2);
+//            E_max_local_idx = (int) worker.E_bins_total.size() - 1;
+//            while (E_max_local_idx - E_min_local_idx < min_width) { E_min_local_idx--; }
+//
+//        } else {
+//            E_min_local_idx = math::volume_idx(worker.dos_total, worker.E_bins_total, worker.M_bins_total,
+//                                               worker.world_ID * local_volume - overlap_range / 4);
+//            E_max_local_idx = math::volume_idx(worker.dos_total, worker.E_bins_total, worker.M_bins_total,
+//                                               (worker.world_ID + 1) * local_volume + overlap_range / 4);
+//            while (E_max_local_idx - E_min_local_idx < min_width) {
+//                E_min_local_idx--;
+//                E_max_local_idx++;
+//            }
+//        }
+//        E_min_local_idx = max(E_min_local_idx, 0);
+//        E_max_local_idx = min(E_max_local_idx, (int)worker.E_bins_total.size()-1);
+//
+//        worker.E_min_local = worker.E_bins_total(E_min_local_idx);
+//        worker.E_max_local = worker.E_bins_total(E_max_local_idx);
+//        worker.M_min_local = worker.M_min_global;
+//        worker.M_max_local = worker.M_max_global;
+//        MPI_Barrier(MPI_COMM_WORLD);
+//        if (worker.world_ID == 0 && debug_divide) {
+//            cout << "...OK. Inherit from dos_total ";
+//            cout.flush();
+//            std::this_thread::sleep_for(std::chrono::microseconds(10000));
+//        }
+//        MPI_Barrier(MPI_COMM_WORLD);
+//
+//
+//        //Inherit the corresponding part of the dos
+//        int from = E_min_local_idx;
+//        int rows = E_max_local_idx - E_min_local_idx + 1;
+//
+//        if (from + rows > worker.E_bins_total.size()) {
+//            cout << "TOO MANY ROWS   |  from + rows = " << from+rows << " E_bins_total.size() = " << worker.E_bins_total.size() << endl;
+//            cout << worker << endl;
+//            cout.flush();
+//            std::this_thread::sleep_for(std::chrono::seconds(1));
+//            MPI_Finalize();
+//            exit(15);
+//        }
+//
+//        MPI_Barrier(MPI_COMM_WORLD);
+//
+//        if (E_max_local_idx <= E_min_local_idx) {
+//            cout << "Local range backwards! " << endl;
+//            cout << worker << endl;
+//            cout.flush();
+//            std::this_thread::sleep_for(std::chrono::seconds(1));
+//            MPI_Finalize();
+//            exit(16);
+//        }
+//        MPI_Barrier(MPI_COMM_WORLD);
+//
+//        worker.dos = worker.dos_total.middleRows(from, rows);
+//        worker.E_bins = worker.E_bins_total.segment(from, rows);
+//        worker.in_window = worker.check_in_window(worker.E);
+//        worker.histogram = ArrayXXi::Zero(worker.dos.rows(), worker.dos.cols());
+//
+//        if (worker.in_window) {
+//            worker.E_idx = math::binary_search(worker.E_bins, worker.E);
+//            worker.M_idx = math::binary_search(worker.M_bins, worker.M);
+//        }
+//        if (worker.model.discrete_model) {
+//            worker.E_set.clear();
+//            for (int i = 0; i < worker.E_bins.size(); i++) {
+//                worker.E_set.insert(worker.E_bins(i));
+//            }
+//        }
+//        MPI_Barrier(MPI_COMM_WORLD);
+//
+//        if (worker.world_ID == 0 && debug_divide) {
+//            cout << "...OK " << endl;
+//            cout.flush();
+//            std::this_thread::sleep_for(std::chrono::microseconds(1000));
+//        }
+//        MPI_Barrier(MPI_COMM_WORLD);
+//        if (debug_divide) {
+//            for (int w = 0; w < worker.world_size; w++) {
+//                if (w == worker.world_ID) {
+//                    cout << setprecision(2);
+//                    cout << "ID: " << w << " Bounds : " << worker.E_min_local << " " << worker.E_max_local << endl;
+//                    cout << worker.E_bins.transpose() << endl;
+//                    cout.flush();
+//                    std::this_thread::sleep_for(std::chrono::microseconds(1000));
+//                }
+//                MPI_Barrier(MPI_COMM_WORLD);
+//            }
+//            cout.flush();
+//            std::this_thread::sleep_for(std::chrono::microseconds(1000));
+//        }
+//        worker.dos_total.resize(1, 1);
+//        worker.E_bins_total.resize(1);
+//        worker.M_bins_total.resize(1);
+//
+//
+//    }
 
 }

@@ -251,7 +251,7 @@ void class_worker::divide_global_range_energy(){
     //Update limits
     double global_range     = fabs(E_max_global - E_min_global);
     double local_range      = global_range / (double)(world_size);
-    double x                =  constants::overlap_factor_energy/2 ;
+    double x                =  constants::overlap_factor_energy;
     //Add a little bit extra if there are too many workers (Add nothing if world_size == 2, and up to local_volume if world_size == inf)
     double overlap_range = local_range * x ;// * 2.0*(world_size - 2.0 + x)/world_size;
     //Make sure the overlap covers at least a hefty percent of the global range.
@@ -262,18 +262,13 @@ void class_worker::divide_global_range_energy(){
         }
         overlap_range = (global_range * 0.2 - local_range)/2;
     }
+    if      (world_ID == 0)             {overlap_range = overlap_range/1;}
+    else if (world_ID == world_size - 1){overlap_range = overlap_range/1;}
+    else                                {overlap_range = overlap_range/2;}
 
-    if (world_ID == 0){
-        E_min_local = E_min_global;
-        E_max_local = E_min_global + local_range + overlap_range*2;
-    }else if (world_ID == world_size - 1){
-        E_min_local = E_max_global - local_range - overlap_range*2;
-        E_max_local = E_max_global;
+    E_min_local = E_min_global + (world_ID     *local_range)  - overlap_range;
+    E_max_local = E_min_global + (world_ID +1) *local_range   + overlap_range;
 
-    }else{
-        E_min_local = E_min_global + (world_ID     *local_range) - overlap_range;
-        E_max_local = E_min_global + (world_ID +1) *local_range   + overlap_range;
-    }
     E_max_local = fmin(E_max_local,  E_max_global);
     E_min_local = fmax(E_min_local,  E_min_global);
     M_min_local = M_min_global;
