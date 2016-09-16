@@ -40,18 +40,6 @@ void wanglandau(class_worker &worker){
         backup_data         (worker,out)          ;
         print_status        (worker)              ;
 
-//        if (counter::MCS > 5000){
-//            MPI_Finalize();
-//            exit(0);
-//        }
-        for (int w = 0; w << worker.world_size; w++){
-            if (w == worker.world_ID){
-                cout << worker << endl;
-                cout.flush();
-                std::this_thread::sleep_for(std::chrono::microseconds(10));
-            }
-            MPI_Barrier(MPI_COMM_WORLD);
-        }
     }
     out.write_data_worker (worker) ;
     mpi::merge            (worker) ;
@@ -170,10 +158,11 @@ void check_global_limits(class_worker &worker){
             if (debug_global_limits){debug_print(worker," PrevIteration ok ");}
             worker.in_window = worker.check_in_window(worker.E);
             if (debug_global_limits){debug_print(worker," CheckInWindow ok ");}
-
             if (worker.in_window){
                 worker.find_current_state();
             }
+//            worker.P_increment = 1.0/sqrt(math::count_num_elements(worker.dos));
+//            cout << "P = " << worker.P_increment << " Count = " << sqrt(math::count_num_elements(worker.dos))<< endl;
             if (debug_global_limits){debug_print(worker," FindCurrentState ok ");}
             worker.need_to_resize_global = 0;
 
@@ -193,6 +182,8 @@ void divide_range(class_worker &worker){
             mpi::broadcast (worker) ;
             mpi::divide_global_range_dos_volume(worker);
             worker.rewind_to_lowest_walk();
+            worker.P_increment = 1.0/sqrt(math::count_num_elements(worker.dos));
+            cout << "P = " << worker.P_increment << " Count = " << sqrt(math::count_num_elements(worker.dos))<< endl;
         }
     }
 }

@@ -61,6 +61,7 @@ class_worker::class_worker(): 	model(),
     need_to_resize_global = 0;
     update_global_range();
     start_counters();
+    P_increment = 1;
     cout << "ID: " << world_ID << " Started OK"<<endl;
 }
 
@@ -273,8 +274,7 @@ void class_worker::divide_global_range_energy(){
     E_min_local = fmax(E_min_local,  E_min_global);
     M_min_local = M_min_global;
     M_max_local = M_max_global;
-    P_increment = 1.0/sqrt(math::count_num_elements(dos));
-    cout << "P = " << P_increment << " Count = " << sqrt(math::count_num_elements(dos));
+
     if(debug_divide_energy){
         if (world_ID == 0){
             cout << "Dividing according to energy range" << endl;
@@ -713,6 +713,7 @@ void class_worker::accept_MC_trial() {
         E_idx                       = E_idx_trial;
         M_idx                       = M_idx_trial;
         if ( rn::uniform_double_1() < P_increment) {
+//        if (true) {
             dos(E_idx, M_idx) += lnf;
             if(!flag_one_over_t){
                 histogram(E_idx, M_idx) += 1;
@@ -726,6 +727,7 @@ void class_worker::accept_MC_trial() {
 void class_worker::reject_MC_trial() {
     if (in_window) {
         if (rn::uniform_double_1() < P_increment) {
+//        if (true) {
             dos(E_idx, M_idx)       += lnf;
             if(!flag_one_over_t){
                 histogram(E_idx, M_idx) += 1;
