@@ -437,7 +437,9 @@ namespace mpi {
         worker.E_bins = worker.E_bins_total.segment(from, rows);
         worker.in_window = worker.check_in_window(worker.E);
         worker.histogram = ArrayXXi::Zero(worker.dos.rows(), worker.dos.cols());
+        worker.P_increment = 1.0/sqrt(math::count_num_elements(worker.dos));
 
+        cout << "P = " << worker.P_increment << " Count = " << sqrt(math::count_num_elements(worker.dos));
         if (worker.in_window) {
             worker.E_idx = math::binary_search(worker.E_bins, worker.E);
             worker.M_idx = math::binary_search(worker.M_bins, worker.M);
@@ -473,8 +475,6 @@ namespace mpi {
         worker.dos_total.resize(1, 1);
         worker.E_bins_total.resize(1);
         worker.M_bins_total.resize(1);
-
-
     }
 
 

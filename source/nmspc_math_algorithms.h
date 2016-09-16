@@ -58,6 +58,7 @@ namespace math{
     }
 
 
+
     template <typename Derived>
     typename Derived::Scalar nansquared(const ArrayBase<Derived> & array)  {
         return (array == array).select(array,0).cwiseAbs2();
@@ -66,6 +67,10 @@ namespace math{
     template <typename Derived>
     typename Derived::Scalar nansum(const ArrayBase<Derived> & array)  {
         return (array == array).select(array,0).sum();
+    }
+    template <typename Derived>
+    typename Derived::Scalar count_num_elements(const ArrayBase<Derived> & array)  {
+        return (array == array && array>0).select(ArrayXd::Ones(array.rows(),array.cols()),0).sum();
     }
     template <typename Derived>
     typename Derived::PlainObject nansum_rowwise(const ArrayBase<Derived> & array)  {

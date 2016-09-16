@@ -9,8 +9,8 @@
 namespace constants{
 
     //WL boostrap properties
-    static const int simulation_reps = 2;      //Number of independent do_simulations
-    static const int bootstrap_reps  = 2;
+    static const int simulation_reps = 3;      //Number of independent do_simulations
+    static const int bootstrap_reps  = 3;
 
     //WL thermodynamics properties
     static const int    T_num = 500;             //Number of temperatures for thermodynamic quantities
@@ -19,7 +19,7 @@ namespace constants{
 
     //Lattice Properties
     static const int d = 2;               //Dimension
-    static const int L = 12;               //Linear size
+    static const int L = 24;               //Linear size
     static const int N = (int) pow(L,d);  //Number of spins/particles
 
     //DOS and Histogram properties
@@ -31,13 +31,13 @@ namespace constants{
     static const int    rate_check_saturation  = 10000;      //How often to check if saturation has flattened out
     static const int    rate_check_limits      = 1000;       //How often to check if global limits need to be increased, and bin-sizes recalculated.
     static const int    rate_split_windows     = 10000;     //How often to check if we can merge all dos and split energy subwindows in a smarter way.
-    static const int    rate_swap              = 500;       //How often to swap walkers in adjacent windows
+    static const int    rate_swap              = 100;       //How often to swap walkers in adjacent windows
     static const int    rate_backup_data       = 500000;    //How often to backup progress
     static const int    rate_print_status      = 10000;        //How often to print in terminal
 
     //Wang-Landau convergence criteria
-    static const double minimum_lnf            = 1e-5;
-    static const double check_saturation_from  = 0.9    ;
+    static const double minimum_lnf            = 1e-6;
+    static const double check_saturation_from  = 0.8    ;
     static const double reduce_factor_lnf      = 0.5;           // 131 s (check from 0.9
     static const double overlap_factor_energy  = 0.5;
     static const double overlap_factor_dos_vol = 1;

@@ -38,8 +38,9 @@ private:
 public:
     class_worker();                 //Constructor
     //Main data structures of the WL algorithm. Needed very often.
-    double   lnf;                         //Modification factor of WL-algorithm
-    double P_accept;    //Acceptance probability
+    double   lnf;       //Modification factor of WL-algorithm
+    double P_increment;    //Increment probability should be proportional to number of bins
+
     //WL DOS and Histograms
     ArrayXXd dos;
     ArrayXXi histogram;

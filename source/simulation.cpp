@@ -294,7 +294,7 @@ void print_status(class_worker &worker) {
                 cout << fixed << showpoint;
                 cout    << "ID: "        << left << setw(3) << i
                         << " Walk: "  << left << setw(3) << counter::walks
-                        << " f: "     << left << setw(16)<< fixed << setprecision(12) << exp(worker.lnf)
+                        << " lnf: "     << left << setw(16)<< fixed << setprecision(12) << worker.lnf
                         << " Bins: [" << left << setw(4) << worker.dos.rows() << " " << worker.dos.cols() << "]";
                         if(debug_status){
                    cout << " E: "     << left << setw(9) << setprecision(2)   << worker.E

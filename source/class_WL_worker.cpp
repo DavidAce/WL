@@ -273,6 +273,8 @@ void class_worker::divide_global_range_energy(){
     E_min_local = fmax(E_min_local,  E_min_global);
     M_min_local = M_min_global;
     M_max_local = M_max_global;
+    P_increment = 1.0/sqrt(math::count_num_elements(dos));
+    cout << "P = " << P_increment << " Count = " << sqrt(math::count_num_elements(dos));
     if(debug_divide_energy){
         if (world_ID == 0){
             cout << "Dividing according to energy range" << endl;
@@ -673,8 +675,7 @@ void class_worker::acceptance_criterion(){
             insert_state();
             if (check_in_window(E_trial)) {
                 find_next_state(in_window);
-                P_accept  =  exp(dos(E_idx, M_idx) - dos(E_idx_trial, M_idx_trial));
-                accept = rn::uniform_double_1() < P_accept;
+                accept = rn::uniform_double_1() < fmin(1,exp(dos(E_idx, M_idx) - dos(E_idx_trial, M_idx_trial)));
             } else {
                 accept = false;
             }
@@ -708,19 +709,30 @@ void class_worker::accept_MC_trial() {
     E                           = E_trial;
     M                           = M_trial;
     model.flip();
-    if (in_window) {
+    if (in_window  ) {
         E_idx                       = E_idx_trial;
         M_idx                       = M_idx_trial;
-        dos(E_idx, M_idx)       += lnf*P_accept ;
-        histogram(E_idx, M_idx) += 1;
-
+        if ( rn::uniform_double_1() < P_increment) {
+            dos(E_idx, M_idx) += lnf;
+            if(!flag_one_over_t){
+                histogram(E_idx, M_idx) += 1;
+            }
+        }
+//        dos(E_idx, M_idx) += lnf * P_accept;
+//        histogram(E_idx, M_idx) += 1;
     }
 }
 
 void class_worker::reject_MC_trial() {
     if (in_window) {
-        dos(E_idx, M_idx)       += lnf;
-        histogram(E_idx, M_idx) += 1;
+        if (rn::uniform_double_1() < P_increment) {
+            dos(E_idx, M_idx)       += lnf;
+            if(!flag_one_over_t){
+                histogram(E_idx, M_idx) += 1;
+            }
+        }
+//        dos(E_idx, M_idx)       += lnf;
+//        histogram(E_idx, M_idx) += 1;
     }
 }
 
