@@ -39,6 +39,7 @@ public:
     class_worker();                 //Constructor
     //Main data structures of the WL algorithm. Needed very often.
     double   lnf;                         //Modification factor of WL-algorithm
+    double P_accept;    //Acceptance probability
     //WL DOS and Histograms
     ArrayXXd dos;
     ArrayXXi histogram;

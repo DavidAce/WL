@@ -673,7 +673,8 @@ void class_worker::acceptance_criterion(){
             insert_state();
             if (check_in_window(E_trial)) {
                 find_next_state(in_window);
-                accept = rn::uniform_double_1() < exp(dos(E_idx, M_idx) - dos(E_idx_trial, M_idx_trial));
+                P_accept  =  exp(dos(E_idx, M_idx) - dos(E_idx_trial, M_idx_trial));
+                accept = rn::uniform_double_1() < P_accept;
             } else {
                 accept = false;
             }
@@ -710,7 +711,7 @@ void class_worker::accept_MC_trial() {
     if (in_window) {
         E_idx                       = E_idx_trial;
         M_idx                       = M_idx_trial;
-        dos(E_idx, M_idx)       += lnf ;
+        dos(E_idx, M_idx)       += lnf*P_accept ;
         histogram(E_idx, M_idx) += 1;
 
     }
