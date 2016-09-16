@@ -64,6 +64,30 @@ class_worker::class_worker(): 	model(),
     P_increment = 1;
     cout << "ID: " << world_ID << " Started OK"<<endl;
 }
+class_worker::class_worker(int help): 		model(),
+                                             finish_line 			(false),
+                                             t_sweep                (profiling_sweep)                ,
+                                             t_swap                 (profiling_swap)                 ,
+                                             t_check_global_limits  (profiling_check_global_limits)  ,
+                                             t_check_convergence    (profiling_check_convergence)    ,
+                                             t_make_MC_trial        (profiling_make_MC_trial)        ,
+                                             t_acceptance_criterion (profiling_acceptance_criterion)
+
+{
+    MPI_Comm_rank(MPI_COMM_WORLD, &world_ID);           //Establish thread number of this worker
+    MPI_Comm_size(MPI_COMM_WORLD, &world_size);         //Get total number of threads
+    rn::rng.seed((unsigned long)world_ID);
+    whos_helping_who.resize(world_size);
+    whos_helping_who.fill(-1);
+    available.resize(world_size);
+    available.fill(0);
+    helping_id = -1;
+    helping_out  = false;
+    need_to_resize_global = 0;
+    start_counters();
+    P_increment = 1;
+    cout << "Helper ID: " << world_ID << " Started OK"<<endl;
+}
 
 void class_worker::find_current_state(){
     switch(constants::rw_dims){

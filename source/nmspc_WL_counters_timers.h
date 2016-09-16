@@ -24,7 +24,8 @@ namespace timer {
     extern int backup;
     extern int print;
     extern int swap;
-	
+    extern int help_out;
+
     extern int split_windows;
     extern std::chrono::duration<double> elapsed_time_total;
     extern std::chrono::duration<double> elapsed_time_print;

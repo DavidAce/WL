@@ -37,6 +37,7 @@ private:
 
 public:
     class_worker();                 //Constructor
+    class_worker(int  help);                 //Constructor
     //Main data structures of the WL algorithm. Needed very often.
     double   lnf;       //Modification factor of WL-algorithm
     double P_increment;    //Increment probability should be proportional to number of bins
@@ -46,8 +47,6 @@ public:
     ArrayXXi histogram;
     ArrayXd E_bins, M_bins;
     //Model with lattice etc
-    class_model lattice;
-
     //MPI Communicator
     int world_ID;                   //Thread number
     int world_size;                 //Total number of threads
@@ -91,6 +90,11 @@ public:
 					t_make_MC_trial 		,
 					t_acceptance_criterion 	;
     int iteration;
+    //Used when finished and helping others out
+    bool helping_out;
+    int helping_id;
+    ArrayXi whos_helping_who;
+    ArrayXi available;
     //Functions
     void find_current_state();           //Compute current E and M (and their indices)
     void find_next_state();

@@ -16,7 +16,8 @@
 
 void do_simulations     (class_worker &);
 void wanglandau         (class_worker &);
-void sweep              (class_worker &); //Function that accepts/rejects new configurations
+void sweep              (class_worker &);
+void help_out           (class_worker &, class_worker &);
 void check_convergence  (class_worker &, int &);
 void add_hist_volume    (class_worker &);
 void check_saturation   (class_worker &);

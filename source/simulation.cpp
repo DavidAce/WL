@@ -16,6 +16,7 @@
 #define debug_global_limits             0
 #define debug_saturation                0
 #define debug_status                    0
+#define debug_help_out                  0
 
 using namespace std;
 
@@ -31,15 +32,21 @@ void wanglandau(class_worker &worker){
     int finish_line = 0;
     outdata out;
     out.create_iteration_folder_master(worker.iteration, worker.world_ID);
+    class_worker helper(1);
     while(finish_line == 0){
-        sweep               (worker)              ;
+        if(worker.helping_out){
+            sweep(helper);
+        }else{
+            sweep(worker);
+        }
+//        sweep               (worker)              ;
+        help_out            (worker,helper)                ;
         mpi::swap           (worker)              ;
         check_global_limits (worker)              ;
         check_convergence   (worker, finish_line) ;
         divide_range        (worker)              ;
         backup_data         (worker,out)          ;
         print_status        (worker)              ;
-
     }
     out.write_data_worker (worker) ;
     mpi::merge            (worker) ;
@@ -94,6 +101,108 @@ void sweep(class_worker &worker){
     counter::MCS++;
     worker.t_sweep.toc();
 }
+
+void help_out(class_worker &worker, class_worker &helper){
+    //With some time interval
+    timer::help_out++;
+    if (timer::help_out > constants::rate_help_out) {
+        if (debug_help_out){debug_print(worker,"Helping out ");}
+        timer::help_out = 0;
+        //Find out who's finished
+        ArrayXi new_available(worker.world_size);
+        MPI_Allgather(&worker.finish_line,1,MPI_INT, new_available.data(),1, MPI_INT,MPI_COMM_WORLD );
+
+        //if nobody is finished, return.
+        if (new_available.maxCoeff() == 0){return;}
+
+        //Otherwise, start by offloading any help that may already be gotten already
+        for (int w = 0; w < worker.world_size; w++) {
+            if(worker.world_ID == helper.whos_helping_who(w)){
+                //You should receive help
+                ArrayXi histogram_temp = ArrayXi::Zero(worker.histogram.rows(), worker.histogram.cols());
+                mpi::recv_dynamic(histogram_temp, MPI_INT, helper.whos_helping_who(w));
+                worker.dos += histogram_temp*worker.lnf;
+            }else if(worker.world_ID == w && helper.helping_out){
+                //You should send help
+                mpi::send_dynamic(helper.histogram, MPI_INT, helper.whos_helping_who(w));
+
+            }
+            MPI_Barrier(MPI_COMM_WORLD);
+        }
+
+        //Now, if nobody has finished since last we checked, we can return as well and just keep helping.
+        if(( helper.available == new_available).sum() == 0 ){
+            return;
+        }else{
+            helper.available = new_available;
+        }
+
+
+
+
+        //Now find out who to help next. compute max amount of helpers per worker.
+        int max_helpers = (int)ceil((double)helper.available.sum()/(worker.world_size - helper.available.sum()));
+        ArrayXi given_help(worker.world_size);
+        given_help.fill(0);
+        helper.whos_helping_who.fill(-1); //Potentially you can get help from several others.
+        helper.helping_id  = -1;
+        helper.helping_out = false;
+
+        for (int w = 0; w < worker.world_size; w++){
+            if (w == worker.world_ID){
+                if (worker.finish_line){
+                    for(int i = 0; i < worker.world_size; i++){
+                        if (helper.available(i) == 0 && given_help(i) < max_helpers){
+                            given_help(i)++;
+                            helper.helping_out = true;
+                            helper.helping_id  = i;
+                            break;
+                        }
+                    }
+                }
+            }
+            MPI_Barrier(MPI_COMM_WORLD);
+
+            MPI_Bcast(given_help.data(),worker.world_size,MPI_INT, w, MPI_COMM_WORLD );
+        }
+        MPI_Allgather(&helper.helping_id, 1, MPI_INT, helper.whos_helping_who.data(),1, MPI_INT,MPI_COMM_WORLD);
+        worker.helping_out = helper.helping_out;
+
+        //Now every available guy knows who to help, and the helpees know who to send their info to.
+        //Start sending out.
+        for (int w = 0; w < worker.world_size; w++) {
+            if(worker.world_ID == helper.whos_helping_who(w)){
+                //You should send
+                mpi::send_dynamic(worker.dos   , MPI_DOUBLE,w);
+                mpi::send_dynamic(worker.E_bins, MPI_DOUBLE,w);
+                mpi::send_dynamic(worker.M_bins, MPI_DOUBLE,w);
+                MPI_Send(&worker.lnf, 1, MPI_DOUBLE, w, 4,MPI_COMM_WORLD);
+            }else if(worker.world_ID == w){
+                //You should receive
+                mpi::recv_dynamic(helper.dos,MPI_DOUBLE   ,helper.whos_helping_who(w));
+                mpi::recv_dynamic(helper.E_bins,MPI_DOUBLE,helper.whos_helping_who(w));
+                mpi::recv_dynamic(helper.M_bins,MPI_DOUBLE,helper.whos_helping_who(w));
+                MPI_Recv(&helper.lnf, 1, MPI_DOUBLE, helper.whos_helping_who(w), 4,MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                //Set all values needed to sweep
+                helper.E_min_local = helper.E_bins.minCoeff();
+                helper.E_max_local = helper.E_bins.maxCoeff();
+                helper.M_min_local = helper.M_bins.minCoeff();
+                helper.M_max_local = helper.M_bins.maxCoeff();
+                helper.model.lattice = worker.model.lattice;
+                helper.E = worker.E;
+                helper.in_window = helper.check_in_window(helper.E);
+                helper.P_increment = 1.0/sqrt(math::count_num_elements(helper.dos));
+                helper.histogram.resize(helper.dos.rows(), helper.dos.cols());
+                helper.histogram.fill(0);
+            }
+            MPI_Barrier(MPI_COMM_WORLD);
+        }
+
+    }
+
+    //
+}
+
 
 void check_convergence(class_worker &worker, int &finish_line){
     switch(worker.flag_one_over_t){
@@ -172,7 +281,7 @@ void check_global_limits(class_worker &worker){
 
 void divide_range(class_worker &worker){
     timer::split_windows++;
-    if (timer::split_windows >= constants::rate_split_windows) {
+    if (timer::split_windows >= constants::rate_split_windows  ) {
         timer::split_windows = 0;
         int min_walks, need_to_resize;
         MPI_Allreduce(&counter::walks, &min_walks, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
@@ -181,9 +290,11 @@ void divide_range(class_worker &worker){
             mpi::merge(worker);
             mpi::broadcast (worker) ;
             mpi::divide_global_range_dos_volume(worker);
-            worker.rewind_to_lowest_walk();
+//            worker.rewind_to_lowest_walk();
             worker.P_increment = 1.0/sqrt(math::count_num_elements(worker.dos));
             cout << "P = " << worker.P_increment << " Count = " << sqrt(math::count_num_elements(worker.dos))<< endl;
+            worker.rewind_to_zero();
+
         }
     }
 }

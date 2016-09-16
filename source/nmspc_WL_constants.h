@@ -19,7 +19,7 @@ namespace constants{
 
     //Lattice Properties
     static const int d = 2;               //Dimension
-    static const int L = 32;               //Linear size
+    static const int L = 6;               //Linear size
     static const int N = (int) pow(L,d);  //Number of spins/particles
 
     //DOS and Histogram properties
@@ -28,6 +28,7 @@ namespace constants{
     //Rates for checking and printing (MCS units)
     static const int    rate_add_hist_volume   = 500;       //How often to append reduced volume to an array called "saturation", which indicates if the current walk has converged when it flattens out.
     static const int    rate_check_finish_line = 10000;      //Check if everybodies modification factor is below minimum_lnf
+    static const int    rate_help_out          = 1000;
     static const int    rate_check_saturation  = 10000;      //How often to check if saturation has flattened out
     static const int    rate_check_limits      = 10000;       //How often to check if global limits need to be increased, and bin-sizes recalculated.
     static const int    rate_split_windows     = 50000;     //How often to check if we can merge all dos and split energy subwindows in a smarter way.
