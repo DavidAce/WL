@@ -29,6 +29,7 @@ int timer::check_limits;
 int timer::backup;
 int timer::print;
 int timer::swap;
+int timer::help_out;
 int timer::split_windows;
 std::chrono::duration<double> timer::elapsed_time_total;
 std::chrono::duration<double> timer::elapsed_time_print;
@@ -199,7 +200,8 @@ void class_worker::start_counters() {
     timer::check_limits         = 0;
     timer::backup               = 0;
     timer::print                = 0;
-	timer::swap 				= 0;
+    timer::swap 				= 0;
+    timer::help_out				= 0;
     timer::split_windows        = 0;
     timer::total_tic            = std::chrono::high_resolution_clock::now();
     timer::print_tic            = std::chrono::high_resolution_clock::now();

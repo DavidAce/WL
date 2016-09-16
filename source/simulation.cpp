@@ -121,7 +121,11 @@ void help_out(class_worker &worker, class_worker &helper){
                 //You should receive help
                 ArrayXi histogram_temp = ArrayXi::Zero(worker.histogram.rows(), worker.histogram.cols());
                 mpi::recv_dynamic(histogram_temp, MPI_INT, helper.whos_helping_who(w));
-                worker.dos += histogram_temp*worker.lnf;
+                for (int j = 0; j < worker.dos.cols(); j++){
+                    for (int i = 0; i < worker.dos.rows(); i++){
+                        worker.dos(i,j) += histogram_temp(i,j)*worker.lnf;
+                    }
+                }
             }else if(worker.world_ID == w && helper.helping_out){
                 //You should send help
                 mpi::send_dynamic(helper.histogram, MPI_INT, helper.whos_helping_who(w));
@@ -198,6 +202,8 @@ void help_out(class_worker &worker, class_worker &helper){
             MPI_Barrier(MPI_COMM_WORLD);
         }
 
+    }else{
+        timer::help_out++;
     }
 
     //
