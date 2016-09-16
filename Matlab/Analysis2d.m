@@ -1,14 +1,12 @@
 close all
 clear all
-L = 8;
+L = 12;
 N = L^2;
-
-for i = 0:5
-    dos = importdata(['../outdata/1/dos' num2str(i) '.dat']);
-    E = importdata(['../outdata/1/E' num2str(i) '.dat']);
-    M = importdata(['../outdata/1/M' num2str(i) '.dat']);
-    E = E(any(~isnan(dos')));
-    dos = dos(any(~isnan(dos')) ,:);
+j = 0;
+for i = 0:15
+    dos = load(['../outdata/' num2str(j) '/dos' num2str(i) '.dat']);
+    E   = load(['../outdata/' num2str(j) '/E'   num2str(i) '.dat']);
+    M = load(  ['../outdata/' num2str(j) '/M' num2str(i) '.dat']);
     [c,u,T, dosE] = thermo2d(dos,E,M,N);
     figure(1);
     subplot(1,2,1);

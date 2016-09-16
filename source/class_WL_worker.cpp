@@ -375,7 +375,7 @@ void class_worker::resize_local_bins() {
     // This function does rebinning of dos and histograms.
     // If E_set contains more than the default number of bins, then enlarge E_bins, otherwise shrink it!
     // If M_set contains more ----" " ---
-    int x, y, i, j, k;
+    int x, y, i, j;
     double dE, dM, dR, dx, dy;
     bool zero;
 
@@ -408,16 +408,14 @@ void class_worker::resize_local_bins() {
                     dy = fabs(M_bins(j) - M_old(y));   //Distance between old and new bins
                     //Distance between old and new bins should not exceed dE/2
                     //This is so to avoid double counting
-                    if (dx >= dE/2) { continue; }
-                    if (dy >= dM/2) { continue; }
-
+                    if (dx >= dE) { continue; }
+                    if (dy >= dM) { continue; }
+                    double w                  = fabs(1.0 - sqrt(dx * dx + dy * dy) / dR);
 //                    weight(i,j)              += fabs(1.0 - 4*dx*dy/dE/dM);
-                    weight(i,j)              += fabs(1.0 - sqrt(dx * dx + dy * dy) / dR);
+                    weight(i,j)              += w;
                     count (i,j)              += 1;
-                    dos_new(i,j)             += weight(i,j) * dos(x,y);
+                    dos_new(i,j)             += w * dos(x,y);
                     histogram_new(i,j)       += histogram(x,y);
-                    dos(x,y)                  = 0; //This entry has been used
-                    histogram(x,y)            = 0; //This entry has been used
                 }
             }
         }
@@ -425,7 +423,7 @@ void class_worker::resize_local_bins() {
     //We have now inserted all old entries to the new dos and histogram, and we only need to divide by the weight.
     for (j = 0; j < M_new_size; j++) {
         for (i = 0; i < E_new_size; i++) {
-            dos_new(i,j)        = count(i,j) > 0  ? dos_new(i,j)/weight(i,j) : 0;
+            dos_new(i,j)        = weight(i,j) > 0  ? dos_new(i,j)/weight(i,j) : 0;
             histogram_new(i,j)  = count(i,j) > 0  ? histogram_new(i,j)  / count(i,j)  : 0;
 
         }
@@ -576,7 +574,7 @@ void class_worker::walk_towards_window(){
         //Step towards window from above
         accept = true;
     } else{
-        accept = rn::uniform_double_1() < 0.5;
+        accept = rn::uniform_double_1() < 0.1;
 
 //        accept = false;
 

@@ -15,7 +15,7 @@
 #define debug_convergence               0
 #define debug_global_limits             0
 #define debug_saturation                0
-#define debug_status                    0
+#define debug_status                    1
 
 using namespace std;
 
