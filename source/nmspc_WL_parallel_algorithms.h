@@ -54,7 +54,7 @@ namespace mpi {
 
 
     template <typename T>
-    void debug_print        (class_worker &worker, T &input){
+    void debug_print        (class_worker &worker, T input){
         MPI_Barrier(MPI_COMM_WORLD);
         if (worker.world_ID == 0) {
             cout << input;

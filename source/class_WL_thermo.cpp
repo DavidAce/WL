@@ -201,12 +201,14 @@ long double temperature_to_free_energy(objective_function &obj_fun, Array<long d
 //    F /= F.sum();
     int mid      = (int)((M_bins.size()-1)/2);
     int mid_mid  = (int)(mid/2);
-    F            = F.log().array() * (-T);/// constants::N;
+    F            = F.log().array() * (-T);
     F              -= F(mid);
     if (F.hasNaN()){
         F.fill(std::numeric_limits<double>::infinity());
     }
-    return (F.segment(mid-mid_mid, mid).abs()).sum();
+    return (F.segment(mid - mid_mid, mid).abs()).sum() + 1/fabs(F(0));
+
+//    return (F.segment(mid-mid_mid, mid).abs()).sum();
 }
 
 

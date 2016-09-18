@@ -3,18 +3,23 @@
 //
 #include "class_WL_worker.h"
 
-#define profiling_sweep                	0
-#define profiling_swap                 	0
-#define profiling_check_global_limits  	0
-#define profiling_check_convergence	    0
-#define profiling_make_MC_trial 		0
-#define profiling_acceptance_criterion 	0
+#define profiling_total                	1
+#define profiling_print                	1
+#define profiling_sweep                	1
+#define profiling_swap                 	1
+#define profiling_help                 	1
+#define profiling_divide_range        	1
+#define profiling_check_convergence	    1
+#define profiling_make_MC_trial 		1
+#define profiling_acceptance_criterion 	1
+
 #define debug_comp_numb_bins            1
 #define debug_divide_energy             0
 #define debug_resize_local_bins         0
 #define debug_resize_local_range        1
 #define debug_insert_state              1
 #define debug_accept_trial              1
+
 using namespace std;
 using namespace Eigen;
 int counter::MCS;
@@ -31,13 +36,6 @@ int timer::swap;
 int timer::take_help;
 int timer::setup_help;
 int timer::divide_range;
-std::chrono::duration<double> timer::elapsed_time_total;
-std::chrono::duration<double> timer::elapsed_time_print;
-std::chrono::high_resolution_clock::time_point timer::total_tic;
-std::chrono::high_resolution_clock::time_point timer::total_toc;
-std::chrono::high_resolution_clock::time_point timer::print_tic;
-std::chrono::high_resolution_clock::time_point timer::print_toc;
-
 
 //Constructors
 class_worker::class_worker(int & id, int & size):
@@ -46,12 +44,15 @@ class_worker::class_worker(int & id, int & size):
                                 world_size(size),
                                 model(),
                                 finish_line 			(false),
-                                t_sweep                (profiling_sweep)                ,
-                                t_swap                 (profiling_swap)                 ,
-                                t_check_global_limits  (profiling_check_global_limits)  ,
-                                t_check_convergence    (profiling_check_convergence)    ,
-                                t_make_MC_trial        (profiling_make_MC_trial)        ,
-                                t_acceptance_criterion (profiling_acceptance_criterion)
+                                t_total                (profiling_total,                3,"Total Time"),
+                                t_print                (profiling_print,                3,"Time"),
+                                t_sweep                (profiling_sweep,                3,"t_sweep"),
+                                t_swap                 (profiling_swap,                 3,"t_swap" ),
+                                t_help                 (profiling_help,                 3,"t_help" ),
+                                t_divide_range         (profiling_divide_range,         3,"t_divr" ),
+                                t_check_convergence    (profiling_check_convergence,    3,"t_conv") ,
+                                t_make_MC_trial        (profiling_make_MC_trial,        3,"t_mkMC") ,
+                                t_acceptance_criterion (profiling_acceptance_criterion, 3,"t_accr")
 {
 
     rn::rng.seed((unsigned long)world_ID);
@@ -198,8 +199,6 @@ void class_worker::start_counters() {
     timer::take_help        	= 0;
     timer::setup_help			= 0;
     timer::divide_range         = 0;
-    timer::total_tic            = std::chrono::high_resolution_clock::now();
-    timer::print_tic            = std::chrono::high_resolution_clock::now();
     flag_one_over_t             = 0;
 }
 
@@ -538,20 +537,16 @@ void class_worker::acceptance_criterion(){
 
     //  4a)in_window = false, E_trial not in_window, E_trial towards window = accept, otherwise accept 50% chance?
     //  5) need_to_resize_global = true (because E_trial out of global bounds) -> accept with 50% chance?
+    t_acceptance_criterion.tic();
     if (!need_to_resize_global) {
         if (in_window) {
-            t_acceptance_criterion.tic();
             insert_state();
             if (check_in_window(E_trial)) {
-                if (!check_in_window(E)){
-                    cout << "Imminent crash at MCS = " << counter::MCS << " by ID: " << world_ID << endl;
-                }
                 find_next_state(in_window);
                 accept = rn::uniform_double_1() < fmin(1,exp(dos(E_idx, M_idx) - dos(E_idx_trial, M_idx_trial)));
             } else {
                 accept = false;
             }
-            t_acceptance_criterion.toc();
         } else {
             if (check_in_window(E_trial)) {
                 //Reentering the window
@@ -575,6 +570,8 @@ void class_worker::acceptance_criterion(){
         insert_state();
         walk_away_from_window();
     }
+    t_acceptance_criterion.toc();
+
 
 }
 
@@ -582,10 +579,10 @@ void class_worker::accept_MC_trial() {
     E                           = E_trial;
     M                           = M_trial;
     model.flip();
-    if (in_window  ) {
+    if (in_window) {
         E_idx                       = E_idx_trial;
         M_idx                       = M_idx_trial;
-        if ( rn::uniform_double_1() < P_increment) {
+        if (rn::uniform_double_1() < P_increment) {
             dos(E_idx, M_idx) += lnf;
             if(!flag_one_over_t || help.giving_help){
                 histogram(E_idx, M_idx) += 1;
@@ -606,7 +603,7 @@ void class_worker::reject_MC_trial() {
 }
 
 void class_worker::next_WL_iteration() {
-    lnf = fmax(1e-12, lnf*constants::reduce_factor_lnf);
+    lnf = fmax(1e-14, lnf*constants::reduce_factor_lnf);
     histogram.fill(0);
     saturation.clear();
     counter::walks++;
@@ -632,11 +629,11 @@ void class_worker::rewind_to_lowest_walk(){
 void class_worker::rewind_to_zero(){
     counter::walks = 0;
     lnf = 1;
+    int save_merges = counter::merges;
     start_counters();
-    counter::merges = 1;
+    counter::merges = save_merges;
     finish_line = 0;
     dos.fill(0);
-    timer::check_saturation = 0;
     histogram = ArrayXXi::Zero(dos.rows(), dos.cols());
     saturation.clear();
     help.reset();
@@ -660,6 +657,58 @@ void class_worker::prev_WL_iteration() {
 
 }
 
+void class_worker::add_hist_volume(){
+    if (timer::add_hist_volume > constants::rate_add_hist_volume) {
+        timer::add_hist_volume = 0;
+        if (flag_one_over_t == 0) {
+            t_check_convergence.tic();
+            math::subtract_min_nonzero_one(histogram);
+            saturation.push_back(histogram.sum());
+            t_check_convergence.toc();
+        }
+    }else{
+        timer::add_hist_volume++;
+    }
+}
+
+void class_worker::check_saturation(){
+    if (timer::check_saturation >= constants::rate_check_saturation) {
+        timer::check_saturation = 0;
+        if (flag_one_over_t == 0) {
+            t_check_convergence.tic();
+            int i, j;
+            //counter::saturation tells how many elements are in worker.saturation
+            int idx_to = (int) saturation.size() - 1;
+            int idx_from = (int) (constants::check_saturation_from * idx_to);
+            double Sx = 0, Sxy = 0;
+            double mX, mY;
+            //Compute means of the last 10%:
+            mY = std::accumulate(saturation.begin() + idx_from, saturation.end(), 0);
+            mX = (idx_to + idx_from) * (idx_to - idx_from + 1) / 2;
+            mX /= fmax(idx_to - idx_from, 1);
+            mY /= fmax(idx_to - idx_from, 1);
+
+            for (i = idx_from; i <= idx_to; i++) {
+                Sx += (i - mX) * (i - mX);//pow(i - mX, 2);
+                Sxy += (saturation[i] - mY) * (i - mX);
+            }
+            slope = Sxy / fmax(Sx, 1);
+            if (slope < 0) {
+                next_WL_iteration();
+                if (lnf < constants::minimum_lnf) {
+                    finish_line = 1;
+                }
+            }
+            if (lnf < 1.0 / counter::MCS) {
+                lnf = 1.0 / counter::MCS;
+                flag_one_over_t = 1;         //Change to 1/t algorithm
+            }
+            t_check_convergence.toc();
+        }
+    } else {
+        timer::check_saturation++;
+    }
+}
 
 //Function for printing the lattice. Very easy if L is an Eigen matrix.
 std::ostream &operator<<(std::ostream &os, const class_worker &worker) {

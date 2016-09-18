@@ -17,9 +17,9 @@ namespace mpi {
         if (timer::swap > constants::rate_swap) {
             timer::swap = 0;
             int abort;
-            MPI_Allreduce(&worker.need_to_resize_global, &abort, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-            if (abort) { return; }
             worker.t_swap.tic();
+            MPI_Allreduce(&worker.need_to_resize_global, &abort, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+            if (abort) { worker.t_swap.toc();return; }
             counter::swaps++;
             int swap, copy;
             double dos_X, dos_Y;
@@ -168,7 +168,6 @@ namespace mpi {
                 }
             }
             counter::swap_accepts += swap;
-            worker.t_swap.toc();
             if (debug_swap) {
                 for (int w = 0; w < worker.world_size; w++) {
                     if (w == worker.world_ID) {
@@ -177,6 +176,7 @@ namespace mpi {
                     MPI_Barrier(MPI_COMM_WORLD);
                 }
             }
+            worker.t_swap.toc();
         } else {
             timer::swap++;
         }
@@ -480,25 +480,25 @@ namespace mpi {
 
     void take_help(class_worker &worker) {
         //Offload help
+        bool got_help = false;
+
         for (int w = 0; w < worker.world_size; w++) {
             if (worker.world_ID == worker.help.whos_helping_who(w)) {
                 //You should receive help
+                got_help = true;
                 MPI_Recv(worker.help.histogram_recv.data(), (int) worker.help.histogram_recv.size(), MPI_INT, w, w, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                 if (worker.flag_one_over_t == 0){
-                    worker.histogram += worker.help.histogram_recv;
-//                    if (rn::uniform_double_1() < constants::rate_take_help/constants::rate_add_hist_volume){
-//                        math::subtract_min_nonzero_one(worker.histogram);
-//                        worker.saturation.push_back(worker.histogram.sum());
-//                    }
+                    worker.histogram        += worker.help.histogram_recv;
                 }
-                counter::MCS           += constants::rate_take_help;
-                timer::add_hist_volume += constants::rate_take_help;
-                timer::check_saturation+= constants::rate_take_help;
                 worker.dos += worker.help.histogram_recv.cast<double>() * worker.lnf;
+                counter::MCS                += constants::rate_take_help;
+                timer::add_hist_volume      += constants::rate_take_help - 1;
+                timer::check_saturation     += constants::rate_take_help - 1;
+                worker.add_hist_volume();
+                worker.check_saturation();
 
             } else if (worker.world_ID == w && worker.help.whos_helping_who(w) >= 0) {
                 //You should send help
-//                math::subtract_min_nonzero_one(worker.histogram);
                 MPI_Send(worker.histogram.data(), (int) worker.histogram.size(), MPI_INT, worker.help.whos_helping_who(w), w, MPI_COMM_WORLD);
                 worker.histogram.fill(0);
             }
@@ -618,15 +618,13 @@ namespace mpi {
 //        cout << endl <<"ID: " << worker.world_ID << " In_window = " << worker.in_window << " [" << worker.E_min_local << " " << worker.E << " " << worker.E_max_local <<"]" <<endl;
     }
 
-
     void help(class_worker &worker, class_backup &backup) {
         if (timer::take_help > constants::rate_take_help) {
             timer::take_help = 0;
-//            if(worker.world_ID == 0){
-//                cout << worker.help.whos_helping_who.transpose()<<endl;
-//            }
             if (worker.help.giving_help || worker.help.getting_help) {
+                worker.t_help.tic();
                 take_help(worker);
+                worker.t_help.toc();
             }
 
         } else {

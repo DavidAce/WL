@@ -90,9 +90,12 @@ public:
     int iteration;
 
 	//Used for profiling functions in worker
-    class_profiling t_sweep 				,
+    class_profiling t_total                 ,
+                    t_print                 ,
+                    t_sweep 				,
 					t_swap 					,
-					t_check_global_limits 	,
+                    t_help                  ,
+					t_divide_range          ,
 					t_check_convergence 	,
 					t_make_MC_trial 		,
 					t_acceptance_criterion 	;
@@ -147,6 +150,8 @@ public:
     void prev_WL_iteration();
     void rewind_to_lowest_walk();
     void rewind_to_zero();
+    void add_hist_volume();
+    void check_saturation();
     friend std::ostream &operator<<(std::ostream &, const class_worker &);
 };
 
@@ -178,6 +183,7 @@ public:
             E_set           = worker.E_set;
             M_set           = worker.M_set;
             in_window       = worker.in_window;
+            slope           = worker.slope;
             backed_up       = true;
             cout << "ID: " << worker.world_ID << " Is backed up" << endl;
         }
@@ -203,6 +209,7 @@ public:
             worker.E_set        = E_set;
             worker.M_set        = M_set;
             worker.in_window    = in_window;
+            worker.slope        = slope;
             backed_up = false;
             cout << "ID: " << worker.world_ID << " Is now restored" << endl;
         }
@@ -229,6 +236,7 @@ public:
     std::set<double> M_set;              //Set of found energies, used in discrete do_simulations.
 
     bool in_window;
+    double slope;
 
 
 };

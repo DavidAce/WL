@@ -142,18 +142,18 @@ xlabel('M');
 ylabel('T');
 zlabel('log(g(E,M))');
 
-
+%%
 figure(7)
-Tc_idx = nearestpoint(Tc_F, T);
+Tc_idx = nearestpoint( 2.6976205200244232074, T);
 Tc_near= Tc_idx-20:10:Tc_idx+20;
-shadedErrorBar(M/N, F(Tc_idx,:),F_err(Tc_idx,:)),hold all;
+shadedErrorBar(M/N, (F(Tc_idx,:)),F_err(Tc_idx,:)),hold all;
 for i = 1:length(Tc_near)
 plot(M/N,(F(Tc_near(i),:))),hold on
 end
 hold on;
 xlabel('M');
 ylabel('\Delta f(\beta,m)');
-
+%%
 
 
 figure(8)

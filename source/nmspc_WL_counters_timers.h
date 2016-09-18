@@ -28,21 +28,8 @@ namespace timer {
     extern int divide_range;
 
 
-    extern std::chrono::duration<double> elapsed_time_total;
-    extern std::chrono::duration<double> elapsed_time_print;
-    extern std::chrono::high_resolution_clock::time_point total_tic;
-    extern std::chrono::high_resolution_clock::time_point total_toc;
-    extern std::chrono::high_resolution_clock::time_point print_tic;
-    extern std::chrono::high_resolution_clock::time_point print_toc;
+
 }
 
-namespace profiling {
-    extern std::chrono::duration<double> elapsed_time_total;
-    extern std::chrono::duration<double> elapsed_time_print;
-    extern std::chrono::high_resolution_clock::time_point total_tic;
-    extern std::chrono::high_resolution_clock::time_point total_toc;
-    extern std::chrono::high_resolution_clock::time_point print_tic;
-    extern std::chrono::high_resolution_clock::time_point print_toc;
-}
 
 #endif //WL_COUNTERS_TIMERS_H

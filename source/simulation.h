@@ -7,6 +7,8 @@
 #include <iomanip>
 #include <thread>
 #include <chrono>
+#include <ratio>
+#include <numeric>
 #include "class_tic_toc.h"
 #include "class_WL_print_data.h"
 #include "nmspc_math_algorithms.h"
@@ -25,10 +27,10 @@ void check_one_over_t   (class_worker &);
 void check_global_limits(class_worker &);
 void divide_range       (class_worker &);
 void print_status       (class_worker &);
-void backup_data        (class_worker &, outdata &);
+void backup_to_file(class_worker &, outdata &);
 
 template <typename T>
-void debug_print        (class_worker &worker, T &input){
+void debug_print        (class_worker &worker, T input){
     MPI_Barrier(MPI_COMM_WORLD);
     if (worker.world_ID == 0) {
         cout << input;
