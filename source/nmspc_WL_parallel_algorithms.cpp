@@ -585,6 +585,9 @@ namespace mpi {
                 mpi::send_dynamic(worker.E_bins, MPI_DOUBLE, w);
                 mpi::send_dynamic(worker.M_bins, MPI_DOUBLE, w);
                 MPI_Send(&worker.lnf, 1, MPI_DOUBLE, w, 4, MPI_COMM_WORLD);
+                MPI_Send(&worker.E, 1, MPI_DOUBLE, w, 5, MPI_COMM_WORLD);
+                MPI_Send(&worker.M, 1, MPI_DOUBLE, w, 6, MPI_COMM_WORLD);
+                MPI_Send(worker.model.lattice.data(), (int) worker.model.lattice.size(), MPI_INT, w,7, MPI_COMM_WORLD);
                 worker.help.histogram_recv.resizeLike(worker.histogram);
                 worker.help.histogram_recv.fill(0);
 
@@ -596,6 +599,9 @@ namespace mpi {
                 mpi::recv_dynamic(worker.E_bins, MPI_DOUBLE, worker.help.whos_helping_who(w));
                 mpi::recv_dynamic(worker.M_bins, MPI_DOUBLE, worker.help.whos_helping_who(w));
                 MPI_Recv(&worker.lnf, 1, MPI_DOUBLE, worker.help.whos_helping_who(w), 4, MPI_COMM_WORLD,  MPI_STATUS_IGNORE);
+                MPI_Recv(&worker.E, 1, MPI_DOUBLE, worker.help.whos_helping_who(w), 5, MPI_COMM_WORLD,  MPI_STATUS_IGNORE);
+                MPI_Recv(&worker.M, 1, MPI_DOUBLE, worker.help.whos_helping_who(w), 6, MPI_COMM_WORLD,  MPI_STATUS_IGNORE);
+                MPI_Recv(worker.model.lattice.data(), (int) worker.model.lattice.size(), MPI_INT, worker.help.whos_helping_who(w),7, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
                 //Set all values needed to sweep
                 worker.E_min_local = worker.E_bins.minCoeff();
                 worker.E_max_local = worker.E_bins.maxCoeff();

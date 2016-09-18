@@ -6,12 +6,12 @@
 #define profiling_total                	1
 #define profiling_print                	1
 #define profiling_sweep                	1
-#define profiling_swap                 	1
+#define profiling_swap                 	0
 #define profiling_help                 	1
-#define profiling_divide_range        	1
-#define profiling_check_convergence	    1
-#define profiling_make_MC_trial 		1
-#define profiling_acceptance_criterion 	1
+#define profiling_divide_range        	0
+#define profiling_check_convergence	    0
+#define profiling_make_MC_trial 		0
+#define profiling_acceptance_criterion 	0
 
 #define debug_comp_numb_bins            1
 #define debug_divide_energy             0
@@ -521,7 +521,7 @@ void class_worker::walk_towards_window(){
         //Step towards window from above
         accept = true;
     } else{
-        accept = rn::uniform_double_1() < 0.1;
+        accept = rn::uniform_double_1() < 0.01;
 
 //        accept = false;
 
@@ -553,7 +553,6 @@ void class_worker::acceptance_criterion(){
                 accept    = true;
                 in_window = true;
                 find_next_state();
-
             } else {
                 //Still out of window... prefer to move towards window.
                 in_window = false;
@@ -582,7 +581,8 @@ void class_worker::accept_MC_trial() {
     if (in_window) {
         E_idx                       = E_idx_trial;
         M_idx                       = M_idx_trial;
-        if (rn::uniform_double_1() < P_increment) {
+//        if (rn::uniform_double_1() < P_increment) {
+        if (true){
             dos(E_idx, M_idx) += lnf;
             if(!flag_one_over_t || help.giving_help){
                 histogram(E_idx, M_idx) += 1;
@@ -593,7 +593,8 @@ void class_worker::accept_MC_trial() {
 
 void class_worker::reject_MC_trial() {
     if (in_window) {
-        if (rn::uniform_double_1() < P_increment) {
+//        if (rn::uniform_double_1() < P_increment) {
+        if (true) {
             dos(E_idx, M_idx)       += lnf;
             if(!flag_one_over_t || help.giving_help){
                 histogram(E_idx, M_idx) += 1;
@@ -662,7 +663,11 @@ void class_worker::add_hist_volume(){
         timer::add_hist_volume = 0;
         if (flag_one_over_t == 0) {
             t_check_convergence.tic();
-            math::subtract_min_nonzero_one(histogram);
+            if (counter::merges < constants::max_merges){
+                math::subtract_min_nonzero(histogram);
+            }else{
+                math::subtract_min_nonzero_one(histogram);
+            }
             saturation.push_back(histogram.sum());
             t_check_convergence.toc();
         }

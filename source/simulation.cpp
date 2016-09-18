@@ -237,8 +237,8 @@ void print_status(class_worker &worker) {
                     worker.t_acceptance_criterion.print_total_reset();
                     worker.t_swap                .print_total_reset();
                     worker.t_help                .print_total_reset();
-                    worker.t_divide_range        .print_total_reset<double,std::milli>();cout<<"ms";
-                    worker.t_check_convergence   .print_total_reset<double,std::milli>();cout<<"ms";
+                    worker.t_divide_range        .print_total_reset<double,std::milli>();
+                    worker.t_check_convergence   .print_total_reset<double,std::milli>();
                     cout << endl;
             }
             cout.flush();
