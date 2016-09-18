@@ -203,34 +203,14 @@ long double temperature_to_free_energy(objective_function &obj_fun, Array<long d
     int mid_mid  = (int)(mid/2);
     F            = F.log().array() * (-T);
     F              -= F(mid);
-    if (F.hasNaN()){
-        F.fill(std::numeric_limits<double>::infinity());
-    }
-    return (F.segment(mid - mid_mid, mid).abs()).sum() + 1/fabs(F(0));
+    long double result = (F.segment(mid - mid_mid, mid).abs()).sum() + 1/fabs(F(0));
+    if (isinf(result)){result = 1e6;}
+    if (isnan(result)){result = 1e6;}
+    return result;
 
 //    return (F.segment(mid-mid_mid, mid).abs()).sum();
 }
 
-
-//
-//
-//
-//    auto &t         =  input(0);
-//    double beta     = (double) (1 / t);
-//    double lambda   = math::nanmaxCoeff((-beta*E_bins + math::nanmaxCoeff(dos_total)));
-//    double ZT       = math::nansum(math::nansum_rowwise(  (dos_total.colwise() - (beta*E_bins.col(0) + lambda) ).exp()));
-//    //Important to transpose below, or else P cant be properly initialized!! (Eigen will complain)
-//    ArrayXd P       = math::nansum_colwise( ( dos_total.colwise() - (beta*E_bins.col(0) + lambda) ).exp()).transpose() / ZT;
-//
-//    int mid      = (int)((M_bins.size()-1)/2);
-//    int mid_mid  = (int)(mid/2);
-//    ArrayXd F       = P.log().array() /(-beta);/// constants::N;
-//    F              -= F(mid);
-//    if (F.hasNaN()){
-//        F.fill(std::numeric_limits<double>::infinity());
-//    }
-//    return math::nansum(F.segment(mid-mid_mid, mid).abs());
-//}
 
 
 void class_thermodynamics::get_Tc_free_energy(class_worker &worker) {
