@@ -25,6 +25,7 @@ private:
 public:
     indata();
     void load_random_section(class_worker &worker);
+    void load_your_section  (class_worker &worker);
     void load_full(class_worker &worker);
     void load_full(class_stats &stats, class_worker &worker);
     ArrayXXd read_file(string file);

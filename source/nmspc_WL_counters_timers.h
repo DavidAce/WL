@@ -20,13 +20,14 @@ namespace timer {
     extern int add_hist_volume;
     extern int check_finish_line;
     extern int check_saturation;
-    extern int check_limits;
     extern int backup;
     extern int print;
     extern int swap;
-    extern int help_out;
+    extern int take_help;
+    extern int setup_help;
+    extern int divide_range;
 
-    extern int split_windows;
+
     extern std::chrono::duration<double> elapsed_time_total;
     extern std::chrono::duration<double> elapsed_time_print;
     extern std::chrono::high_resolution_clock::time_point total_tic;

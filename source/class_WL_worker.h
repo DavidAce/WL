@@ -32,12 +32,17 @@ std::ostream& operator<< (std::ostream& out, const std::vector<T>& v) {
     return out;
 }
 
+namespace worker_duties{
+
+
+}
+
+
 class class_worker {
 private:
 
 public:
-    class_worker();                 //Constructor
-    class_worker(int  help);                 //Constructor
+    class_worker(int &, int &);                 //Constructor
     //Main data structures of the WL algorithm. Needed very often.
     double   lnf;       //Modification factor of WL-algorithm
     double P_increment;    //Increment probability should be proportional to number of bins
@@ -46,10 +51,11 @@ public:
     ArrayXXd dos;
     ArrayXXi histogram;
     ArrayXd E_bins, M_bins;
-    //Model with lattice etc
+
     //MPI Communicator
     int world_ID;                   //Thread number
     int world_size;                 //Total number of threads
+
 
     //Lattice
     class_model model;
@@ -81,6 +87,7 @@ public:
     //Holders for total, merged data
     ArrayXXd dos_total;
     ArrayXd E_bins_total, M_bins_total;
+    int iteration;
 
 	//Used for profiling functions in worker
     class_profiling t_sweep 				,
@@ -89,17 +96,37 @@ public:
 					t_check_convergence 	,
 					t_make_MC_trial 		,
 					t_acceptance_criterion 	;
-    int iteration;
+
     //Used when finished and helping others out
-    bool helping_out;
-    int helping_id;
-    ArrayXi whos_helping_who;
-    ArrayXi available;
+    class helper{
+    private:
+        int world_size;
+    public:
+        helper(int &size):world_size(size){
+            reset();
+        }
+        void reset(){
+            giving_help = false;
+            getting_help = false;
+            helping_id  = -1;
+            whos_helping_who.resize(world_size);
+            whos_helping_who.fill(-1);
+            available = 0;
+        }
+        ArrayXXi histogram_recv; //Receive histogram from helpers
+        bool    giving_help;
+        bool    getting_help;
+        int     helping_id;
+        ArrayXi whos_helping_who;
+        int     available;
+
+    };
+    helper help;
+
     //Functions
     void find_current_state();           //Compute current E and M (and their indices)
     void find_next_state();
     void find_next_state(bool&);
-
     void find_initial_limits();
     void start_counters();
     void set_initial_local_bins();
@@ -121,6 +148,88 @@ public:
     void rewind_to_lowest_walk();
     void rewind_to_zero();
     friend std::ostream &operator<<(std::ostream &, const class_worker &);
+};
+
+
+class class_backup{
+private:
+    bool backed_up;
+public:
+    class_backup(){
+        backed_up = false;
+    }
+    void backup_state(class_worker &worker){
+        if (!backed_up) {
+            lnf             = worker.lnf;
+            P_increment     = worker.P_increment;
+            dos             = worker.dos;
+            histogram       = worker.histogram;
+            E_bins          = worker.E_bins;
+            M_bins          = worker.M_bins;
+            model.lattice   = worker.model.lattice;
+            E               = worker.E;
+            M               = worker.M;
+            E_idx           = worker.E_idx;
+            M_idx           = worker.M_idx;
+            E_min_local     = worker.E_min_local;
+            E_max_local     = worker.E_max_local;
+            M_min_local     = worker.M_min_local;
+            M_max_local     = worker.M_max_local;
+            E_set           = worker.E_set;
+            M_set           = worker.M_set;
+            in_window       = worker.in_window;
+            backed_up       = true;
+            cout << "ID: " << worker.world_ID << " Is backed up" << endl;
+        }
+    }
+
+    void restore_state(class_worker &worker){
+        if (backed_up) {
+            worker.lnf          = lnf;
+            worker.P_increment  = P_increment;
+            worker.dos          = dos;
+            worker.histogram    = histogram;
+            worker.E_bins       = E_bins;
+            worker.M_bins       = M_bins;
+            worker.model.lattice= model.lattice;
+            worker.E            = E;
+            worker.M            = M;
+            worker.E_idx        = E_idx;
+            worker.M_idx        = M_idx;
+            worker.E_min_local  = E_min_local;
+            worker.E_max_local  = E_max_local;
+            worker.M_min_local  = M_min_local;
+            worker.M_max_local  = M_max_local;
+            worker.E_set        = E_set;
+            worker.M_set        = M_set;
+            worker.in_window    = in_window;
+            backed_up = false;
+            cout << "ID: " << worker.world_ID << " Is now restored" << endl;
+        }
+    }
+
+    //Main data structures of the WL algorithm. Needed very often.
+    double lnf;             //Modification factor of WL-algorithm
+    double P_increment;     //Increment probability should be proportional to number of bins
+
+    //WL DOS and Histograms
+    ArrayXXd dos;
+    ArrayXXi histogram;
+    ArrayXd E_bins, M_bins;
+
+    //Lattice
+    class_model model;
+    //WL Energy and Order parameter and their limits
+    double E,M;                         //Current Energy and Order parameter
+    int E_idx, M_idx;
+    double E_min_local , M_min_local ;    //Local minimum
+    double E_max_local , M_max_local ;    //Local maximum
+    //Sets containing discrete spectrums
+    std::set<double> E_set;              //Set of found energies, used in discrete do_simulations.
+    std::set<double> M_set;              //Set of found energies, used in discrete do_simulations.
+
+    bool in_window;
+
 
 };
 

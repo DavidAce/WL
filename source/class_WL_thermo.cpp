@@ -64,9 +64,8 @@ void resize_bins(ArrayXXd &dos, ArrayXXd &E_bins, ArrayXXd & M_bins, const int &
     // This function does rebinning of dos and histograms.
     // If E_set contains more than the default number of bins, then enlarge E_bins, otherwise shrink it!
     // If M_set contains more ----" " ---
-    int x, y, i, j, k;
+    int x, y, i, j;
     double dE, dM, dR, dx, dy, w;
-    bool zero;
 
     //Check if we need more bins
     int E_old_size = (int) E_bins.size();

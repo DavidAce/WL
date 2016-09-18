@@ -25,6 +25,9 @@ namespace math{
     }
     extern double   volume(const ArrayXXd &dos,const ArrayXd &E,const ArrayXd &M);
     int             volume_idx(const ArrayXXd &dos,const ArrayXd &E,const ArrayXd &M, const double &vol_limit);
+    extern double   area(const ArrayXXd &dos,const ArrayXd &E,const ArrayXd &M);
+    int             area_idx(const ArrayXXd &dos,const ArrayXd &E,const ArrayXd &M, const double &area_limit);
+
     extern Vector3d gradient_vector(const ArrayXXd &dos, const ArrayXd &E, const ArrayXd &M, const int &i, const int &j);
     extern int     find_matching_slope(const ArrayXXd &dos1, const ArrayXXd &dos2,
                                        const ArrayXd &E1  , const ArrayXd &E2,
@@ -68,10 +71,7 @@ namespace math{
     typename Derived::Scalar nansum(const ArrayBase<Derived> & array)  {
         return (array == array).select(array,0).sum();
     }
-    template <typename Derived>
-    typename Derived::Scalar count_num_elements(const ArrayBase<Derived> & array)  {
-        return (array == array).select(ArrayXd::Ones(array.rows(),array.cols()),0).sum();
-    }
+
     template <typename Derived>
     typename Derived::PlainObject nansum_rowwise(const ArrayBase<Derived> & array)  {
         return (array == array).select(array,0).rowwise().sum();
@@ -120,6 +120,12 @@ namespace math{
     }
 
     template <typename Derived>
+    int count_num_elements(const ArrayBase<Derived> & array)  {
+        auto temp = Zero_to_NaN(array);
+        return (int) nansum((temp == temp).select(temp/temp, 0));
+    }
+
+    template <typename Derived>
     typename Derived::Scalar find_min_positive(const ArrayBase<Derived> &array){
         return nanminCoeff((array > 0 && array == array ).select(array, nanmaxCoeff(array)));
     }
@@ -155,6 +161,7 @@ namespace math{
     template <typename Derived, typename T>
     void add_to_nonzero_nonnan(ArrayBase<Derived> &array, const T &x){
         array = (array > 0 && array == array).select(array+x, array);
+        array = (array < 0).select(0,array);
     }
 
 

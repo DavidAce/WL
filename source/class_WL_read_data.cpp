@@ -37,14 +37,20 @@ void indata::load_random_section(class_worker &worker) {
     worker.E_bins = read_file(name_E_bins);
     worker.M_bins = read_file(name_M_bins);
 }
+void indata::load_your_section(class_worker &worker) {
+    int iteration       = worker.iteration;
+    string name_dos     = folder + to_string(iteration) + string("/dos") + to_string(worker.world_ID) + string(".dat");
+    string name_E_bins  = folder + to_string(iteration) + string("/E") + to_string(worker.world_ID) + string(".dat");
+    string name_M_bins  = folder + to_string(iteration) + string("/M") + to_string(worker.world_ID) + string(".dat");
+    worker.dos          = read_file(name_dos);
+    worker.E_bins       = read_file(name_E_bins);
+    worker.M_bins       = read_file(name_M_bins);
+
+}
+
 
 
 void indata::load_full(class_worker &worker) {
-    if (debug_load_full_thermo) {
-        cout << "ID: "<< worker.world_ID << " Thermo: Loading..." << endl;
-        cout.flush();
-        std::this_thread::sleep_for(std::chrono::microseconds(1000));
-    }
     string name_dos     = folder + to_string(worker.iteration) + string("/dos.dat");
     string name_E_bins  = folder + to_string(worker.iteration) + string("/E.dat");
     string name_M_bins  = folder + to_string(worker.iteration) + string("/M.dat");

@@ -2,6 +2,8 @@
 // Created by david on 2016-07-24.
 //
 #include "simulation.h"
+#include "class_WL_read_data.h"
+
 #define profiling_sweep                	0
 #define profiling_swap                 	0
 #define profiling_check_global_limits  	0
@@ -13,10 +15,9 @@
 #define debug_trial                     0
 #define debug_acceptance                0
 #define debug_convergence               0
-#define debug_global_limits             0
+#define debug_divide_range              1
 #define debug_saturation                0
-#define debug_status                    0
-#define debug_help_out                  0
+#define debug_status                    1
 
 using namespace std;
 
@@ -31,26 +32,21 @@ void do_simulations(class_worker &worker){
 void wanglandau(class_worker &worker){
     int finish_line = 0;
     outdata out;
+    class_backup backup;
     out.create_iteration_folder_master(worker.iteration, worker.world_ID);
-    class_worker helper(1);
     while(finish_line == 0){
-        if(worker.helping_out){
-            sweep(helper);
-        }else{
-            sweep(worker);
-        }
-//        sweep               (worker)              ;
-        help_out            (worker,helper)                ;
+        sweep(worker);
+        mpi::help           (worker,backup)       ;
         mpi::swap           (worker)              ;
-        check_global_limits (worker)              ;
-        check_convergence   (worker, finish_line) ;
+        check_convergence   (worker, out,finish_line) ;
         divide_range        (worker)              ;
-        backup_data         (worker,out)          ;
+//        backup_data         (worker,out)          ;
         print_status        (worker)              ;
     }
-    out.write_data_worker (worker) ;
-    mpi::merge            (worker) ;
-    out.write_data_master (worker) ;
+    backup.restore_state   (worker) ;
+    out.write_data_worker  (worker) ;
+    mpi::merge             (worker,false,true) ;
+    out.write_data_master  (worker) ;
 }
 
 void sweep(class_worker &worker){
@@ -99,211 +95,166 @@ void sweep(class_worker &worker){
     }
 
     counter::MCS++;
+    if (worker.flag_one_over_t) {
+            worker.lnf = 1.0 / counter::MCS;
+    } else {
+        if (worker.lnf < 1.0 / max(1, counter::MCS)) {
+            worker.flag_one_over_t = 1;
+        }else{
+            worker.flag_one_over_t = 0;
+        }
+    }
+
     worker.t_sweep.toc();
 }
 
-void help_out(class_worker &worker, class_worker &helper){
-    //With some time interval
-    timer::help_out++;
-    if (timer::help_out > constants::rate_help_out) {
-        if (debug_help_out){debug_print(worker,"Helping out ");}
-        timer::help_out = 0;
-        //Find out who's finished
-        ArrayXi new_available(worker.world_size);
-        MPI_Allgather(&worker.finish_line,1,MPI_INT, new_available.data(),1, MPI_INT,MPI_COMM_WORLD );
-
-        //if nobody is finished, return.
-        if (new_available.maxCoeff() == 0){return;}
-
-        //Otherwise, start by offloading any help that may already be gotten already
-        for (int w = 0; w < worker.world_size; w++) {
-            if(worker.world_ID == helper.whos_helping_who(w)){
-                //You should receive help
-                ArrayXi histogram_temp = ArrayXi::Zero(worker.histogram.rows(), worker.histogram.cols());
-                mpi::recv_dynamic(histogram_temp, MPI_INT, helper.whos_helping_who(w));
-                for (int j = 0; j < worker.dos.cols(); j++){
-                    for (int i = 0; i < worker.dos.rows(); i++){
-                        worker.dos(i,j) += histogram_temp(i,j)*worker.lnf;
-                    }
-                }
-            }else if(worker.world_ID == w && helper.helping_out){
-                //You should send help
-                mpi::send_dynamic(helper.histogram, MPI_INT, helper.whos_helping_who(w));
-
-            }
-            MPI_Barrier(MPI_COMM_WORLD);
-        }
-
-        //Now, if nobody has finished since last we checked, we can return as well and just keep helping.
-        if(( helper.available == new_available).sum() == 0 ){
-            return;
-        }else{
-            helper.available = new_available;
-        }
-
-
-
-
-        //Now find out who to help next. compute max amount of helpers per worker.
-        int max_helpers = (int)ceil((double)helper.available.sum()/(worker.world_size - helper.available.sum()));
-        ArrayXi given_help(worker.world_size);
-        given_help.fill(0);
-        helper.whos_helping_who.fill(-1); //Potentially you can get help from several others.
-        helper.helping_id  = -1;
-        helper.helping_out = false;
-
-        for (int w = 0; w < worker.world_size; w++){
-            if (w == worker.world_ID){
-                if (worker.finish_line){
-                    for(int i = 0; i < worker.world_size; i++){
-                        if (helper.available(i) == 0 && given_help(i) < max_helpers){
-                            given_help(i)++;
-                            helper.helping_out = true;
-                            helper.helping_id  = i;
-                            break;
-                        }
-                    }
-                }
-            }
-            MPI_Barrier(MPI_COMM_WORLD);
-
-            MPI_Bcast(given_help.data(),worker.world_size,MPI_INT, w, MPI_COMM_WORLD );
-        }
-        MPI_Allgather(&helper.helping_id, 1, MPI_INT, helper.whos_helping_who.data(),1, MPI_INT,MPI_COMM_WORLD);
-        worker.helping_out = helper.helping_out;
-
-        //Now every available guy knows who to help, and the helpees know who to send their info to.
-        //Start sending out.
-        for (int w = 0; w < worker.world_size; w++) {
-            if(worker.world_ID == helper.whos_helping_who(w)){
-                //You should send
-                mpi::send_dynamic(worker.dos   , MPI_DOUBLE,w);
-                mpi::send_dynamic(worker.E_bins, MPI_DOUBLE,w);
-                mpi::send_dynamic(worker.M_bins, MPI_DOUBLE,w);
-                MPI_Send(&worker.lnf, 1, MPI_DOUBLE, w, 4,MPI_COMM_WORLD);
-            }else if(worker.world_ID == w){
-                //You should receive
-                mpi::recv_dynamic(helper.dos,MPI_DOUBLE   ,helper.whos_helping_who(w));
-                mpi::recv_dynamic(helper.E_bins,MPI_DOUBLE,helper.whos_helping_who(w));
-                mpi::recv_dynamic(helper.M_bins,MPI_DOUBLE,helper.whos_helping_who(w));
-                MPI_Recv(&helper.lnf, 1, MPI_DOUBLE, helper.whos_helping_who(w), 4,MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                //Set all values needed to sweep
-                helper.E_min_local = helper.E_bins.minCoeff();
-                helper.E_max_local = helper.E_bins.maxCoeff();
-                helper.M_min_local = helper.M_bins.minCoeff();
-                helper.M_max_local = helper.M_bins.maxCoeff();
-                helper.model.lattice = worker.model.lattice;
-                helper.E = worker.E;
-                helper.in_window = helper.check_in_window(helper.E);
-                helper.P_increment = 1.0/sqrt(math::count_num_elements(helper.dos));
-                helper.histogram.resize(helper.dos.rows(), helper.dos.cols());
-                helper.histogram.fill(0);
-            }
-            MPI_Barrier(MPI_COMM_WORLD);
-        }
-
-    }else{
-        timer::help_out++;
-    }
-
-    //
-}
-
-
-void check_convergence(class_worker &worker, int &finish_line){
-    switch(worker.flag_one_over_t){
-        case 0:
+void check_convergence(class_worker &worker, outdata &out, int &finish_line){
+    if(!worker.help.giving_help) {
+        if (worker.flag_one_over_t == 0) {
             if (timer::add_hist_volume > constants::rate_add_hist_volume) {
                 timer::add_hist_volume = 0;
-                if (debug_convergence){debug_print(worker,"Add hist volume ");}
+                if (debug_convergence) { debug_print(worker, "Add hist volume "); }
                 worker.t_check_convergence.tic();
                 add_hist_volume(worker);
                 worker.t_check_convergence.toc();
-
-            }else{
+            } else {
                 timer::add_hist_volume++;
             }
             if (timer::check_saturation >= constants::rate_check_saturation) {
                 timer::check_saturation = 0;
-                if (debug_convergence){debug_print(worker,"Check_saturation ");}
+                if (debug_convergence) { debug_print(worker, "Check_saturation "); }
                 worker.t_check_convergence.tic();
                 check_saturation(worker);
+                if (worker.lnf < 1.0 / counter::MCS) {
+                    worker.lnf = 1.0 / counter::MCS;
+                    worker.flag_one_over_t = 1;         //Change to 1/t algorithm
+                }
                 worker.t_check_convergence.toc();
-            }else{
+            } else {
                 timer::check_saturation++;
             }
-            if(worker.lnf < 1.0/counter::MCS){
-                worker.lnf =   1.0/counter::MCS;
-                worker.flag_one_over_t = 1;         //Change to 1/t algorithm
-            }
-            break;
-        case 1:
-            if (debug_convergence){debug_print(worker,"Check one over t ");}
-            worker.t_check_convergence.tic();
-            check_one_over_t(worker);
-            worker.t_check_convergence.toc();
-            break;
-        default:
-            cout << "Error: check_convergence has wrong flag" << endl;
-            MPI_Finalize();
-            exit(2);
+        }
     }
-    timer::check_finish_line++;
     if (timer::check_finish_line > constants::rate_check_finish_line) {
         timer::check_finish_line = 0;
-        if (debug_convergence){debug_print(worker,"Check Finish line ");}
-        MPI_Allreduce(&worker.finish_line, &finish_line, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
-    }
-}
-
-void check_global_limits(class_worker &worker){
-    timer::check_limits++;
-    if (timer::check_limits >= constants::rate_check_limits) {
-        timer::check_limits = 0;
-        MPI_Allreduce(MPI_IN_PLACE, &worker.need_to_resize_global,  1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-        if (worker.need_to_resize_global == 1) {
-            if (debug_global_limits){debug_print(worker,"Check Global Limits ");}
-            worker.resize_global_range();
-            if (debug_global_limits){debug_print(worker," ResizedRange ok ");}
-            worker.divide_global_range_energy();
-            if (debug_global_limits){debug_print(worker," Divided ok ");}
-            worker.resize_local_bins();
-            if (debug_global_limits){debug_print(worker," ResizedBins ok ");}
-            worker.prev_WL_iteration();
-            if (debug_global_limits){debug_print(worker," PrevIteration ok ");}
-            worker.in_window = worker.check_in_window(worker.E);
-            if (debug_global_limits){debug_print(worker," CheckInWindow ok ");}
-            if (worker.in_window){
-                worker.find_current_state();
+        if (debug_convergence) { debug_print(worker, "Check Finish line "); }
+        if (!worker.help.giving_help){
+            if (worker.lnf < constants::minimum_lnf){
+                worker.finish_line = 1;
+                worker.help.available = 1;
             }
-//            worker.P_increment = 1.0/sqrt(math::count_num_elements(worker.dos));
-//            cout << "P = " << worker.P_increment << " Count = " << sqrt(math::count_num_elements(worker.dos))<< endl;
-            if (debug_global_limits){debug_print(worker," FindCurrentState ok ");}
-            worker.need_to_resize_global = 0;
-
         }
+        MPI_Allreduce(&worker.finish_line, &finish_line, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+    }else{
+        timer::check_finish_line++;
     }
+
 }
+
+//void check_global_limits(class_worker &worker){
+//    if (timer::check_limits >= constants::rate_check_limits) {
+//        timer::check_limits = 0;
+//        worker.need_to_resize_global = worker.need_to_resize_global * (1-worker.help.available);
+//        MPI_Allreduce(MPI_IN_PLACE, &worker.need_to_resize_global, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+//        if (worker.need_to_resize_global == 1) {
+//            worker.resize_global_range();
+//            worker.divide_global_range_energy();
+//            worker.resize_local_bins();
+//            worker.prev_WL_iteration();
+//            worker.in_window = worker.check_in_window(worker.E);
+//            worker.need_to_resize_global = 0;
+//            if (worker.in_window) {
+//                worker.find_current_state();
+//            }
+//
+//        }
+//        worker.P_increment = 1.0 / sqrt(math::count_num_elements(worker.dos));
+//    }else{
+//        timer::check_limits++;
+//    }
+//
+//}
 
 void divide_range(class_worker &worker){
-    timer::split_windows++;
-    if (timer::split_windows >= constants::rate_split_windows  ) {
-        timer::split_windows = 0;
-        int min_walks, need_to_resize;
-        MPI_Allreduce(&counter::walks, &min_walks, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
-        MPI_Allreduce(&worker.need_to_resize_global, &need_to_resize, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-        if (min_walks > constants::min_walks && need_to_resize == 0 &&   counter::merges< constants::max_merges ) {
-            mpi::merge(worker);
-            mpi::broadcast (worker) ;
-            mpi::divide_global_range_dos_volume(worker);
-//            worker.rewind_to_lowest_walk();
-            worker.P_increment = 1.0/sqrt(math::count_num_elements(worker.dos));
-            cout << "P = " << worker.P_increment << " Count = " << sqrt(math::count_num_elements(worker.dos))<< endl;
-            worker.rewind_to_zero();
+    //Three situations, and they can only happen IF nobody is helping out or is finished.
+
+    //1) We need to resize global range.
+    //2) We have done far too few walks to do a dos_volume resize. Then we do a dos_area instead, only if everybody is in window!!
+    //3) We have done enough walks to do a dos_volume resize
+    if (timer::divide_range >= constants::rate_divide_range) {
+        timer::divide_range = 0;
+        int any_helping = worker.help.getting_help;
+        int all_in_window, min_walks, need_to_resize;
+        MPI_Allreduce(MPI_IN_PLACE, &any_helping, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+        if (any_helping == 0){
+            MPI_Allreduce(&worker.need_to_resize_global,&need_to_resize, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+            MPI_Allreduce(&counter::walks, &min_walks, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+            MPI_Allreduce(&worker.in_window, &all_in_window, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+            if (need_to_resize){
+                if(debug_divide_range){debug_print(worker,"Dividing global energy\n");}
+                //divide global energy
+                worker.resize_global_range();
+                worker.divide_global_range_energy();
+                worker.resize_local_bins();
+                worker.prev_WL_iteration();
+                worker.dos.fill(0);
+                worker.need_to_resize_global = 0;
+                worker.find_current_state();
+                worker.P_increment = 1.0 / sqrt(math::count_num_elements(worker.dos));
+
+            }else if(min_walks < constants::min_walks && counter::merges < constants::max_merges && all_in_window == 1){
+                //divide dos area
+                if(debug_divide_range){debug_print(worker,"Dividing dos area \n");}
+                mpi::merge(worker,true,false);
+                mpi::divide_global_range_dos_area(worker);
+                worker.P_increment = 1.0 / sqrt(math::count_num_elements(worker.dos));
+
+            }else if (counter::merges < constants::max_merges && all_in_window == 1){
+                //divide dos vol
+                if(debug_divide_range){debug_print(worker,"Dividing dos vol \n");}
+                mpi::merge(worker,true,false);
+                mpi::divide_global_range_dos_volume(worker);
+                counter::merges++;
+                worker.rewind_to_zero();
+                worker.P_increment = 1.0 / sqrt(math::count_num_elements(worker.dos));
+
+            }
 
         }
+
+
+    }else{
+        timer::divide_range++;
     }
+
 }
+
+//
+//void divide_range(class_worker &worker){
+//    //Three situations.
+//    //1) We need to resize global range.
+//    //2) We have done far too few walks to do a dos_volume resize. Then we do a dos_area instead.
+//    //3) We have done enough walks to do a dos_volume resize
+//    timer::divide_dos_vol++;
+//    if (timer::divide_dos_vol >= constants::rate_divide_dos_vol) {
+//        timer::divide_dos_vol = 0;
+//        //If anybody needs to resize or is help.helping out then we need to abort!
+//        int min_walks = counter::walks * (1- worker.help.giving_help) * (1-worker.need_to_resize_global);
+//        MPI_Allreduce(MPI_IN_PLACE, &min_walks, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+//        if (min_walks > constants::min_walks && counter::merges < constants::max_merges) {
+//            mpi::merge(worker);
+//            mpi::broadcast_raw(worker);
+//            mpi::divide_global_range_dos_volume(worker);
+////            worker.rewind_to_lowest_walk();
+//            worker.P_increment = 1.0 / sqrt(math::count_num_elements(worker.dos));
+//            cout << "P = " << worker.P_increment << " Count = " << sqrt(math::count_num_elements(worker.dos)) << endl;
+//            worker.rewind_to_zero();
+//        }else{
+//
+//        }
+//    }
+//
+//}
 
 void add_hist_volume(class_worker &worker) {
     //Subtract the smallest positive number plus one
@@ -363,30 +314,24 @@ void check_one_over_t (class_worker &worker){
 }
 
 void backup_data(class_worker &worker, outdata &out){
-    if(timer::backup > constants::rate_backup_data) {
-       timer::backup = 0;
-       int all_in_window;
-       int need_to_resize;
-        MPI_Allreduce(&worker.in_window     , &all_in_window,  1, MPI_INT, MPI_MIN,MPI_COMM_WORLD);
-        MPI_Allreduce(&worker.need_to_resize_global, &need_to_resize, 1, MPI_INT, MPI_MAX,MPI_COMM_WORLD);
-       if (need_to_resize == 0 && all_in_window == 1 && counter::merges > 0){
-           mpi::merge(worker);
-           out.write_data_master(worker);
-       }
-    }else{
-        timer::backup++;
+    if (!worker.help.giving_help) {
+        if (timer::backup > constants::rate_backup_data) {
+            timer::backup = 0;
+            int all_in_window;
+            int need_to_resize;
+            MPI_Allreduce(&worker.in_window, &all_in_window, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+            MPI_Allreduce(&worker.need_to_resize_global, &need_to_resize, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+            if (need_to_resize == 0 && all_in_window == 1 && counter::merges > 0) {
+                mpi::merge(worker,false,false);
+                out.write_data_master(worker);
+            }
+        } else {
+            timer::backup++;
+        }
     }
 }
 
-void debug_print(class_worker & worker, string input){
-    MPI_Barrier(MPI_COMM_WORLD);
-    if (worker.world_ID == 0) {
-        cout << input;
-        cout.flush();
-        std::this_thread::sleep_for(std::chrono::microseconds(10));
-    }
-    MPI_Barrier(MPI_COMM_WORLD);
-}
+
 
 void print_status(class_worker &worker) {
     timer::print++;
@@ -413,6 +358,8 @@ void print_status(class_worker &worker) {
                    cout << " dE: "    << left << setw(7) << setprecision(2)   << worker.E_max_local - worker.E_min_local
                         << " : ["     << left << setw(7) << setprecision(1)   << worker.E_bins(0) << " " << left << setw(7) << setprecision(1) << worker.E_bins(worker.E_bins.size()-1) << "]"
                         << " Sw: "    << left << setw(5) << counter::swap_accepts
+                        << " H: "     << right<< setw(3) <<  worker.help.helping_id
+                        << " P: "     << left << setw(5) << 1/worker.P_increment
                         << " iw: "    << worker.in_window
                         << " NR: "    << worker.need_to_resize_global
                         << " 1/t: "   << worker.flag_one_over_t
@@ -466,7 +413,9 @@ void print_status(class_worker &worker) {
                     if(debug_status){
                         cout    << " Edge dos: " << fixed << setprecision(3)
                                 << worker.dos.topLeftCorner(1,1) << " "
-                                << worker.dos.topRightCorner(1,1) << " ";
+                                << worker.dos.topRightCorner(1,1) << " " << endl;
+//                                << worker.dos << endl << endl
+//                                << worker.histogram << endl;
                     }
                     cout << "  -----"
                     << endl;

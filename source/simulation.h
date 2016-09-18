@@ -17,14 +17,26 @@
 void do_simulations     (class_worker &);
 void wanglandau         (class_worker &);
 void sweep              (class_worker &);
-void help_out           (class_worker &, class_worker &);
-void check_convergence  (class_worker &, int &);
+void help_out           (class_worker &, class_backup &);
+void check_convergence  (class_worker &, outdata &out, int &);
 void add_hist_volume    (class_worker &);
 void check_saturation   (class_worker &);
 void check_one_over_t   (class_worker &);
 void check_global_limits(class_worker &);
 void divide_range       (class_worker &);
-void debug_print        (class_worker &, string);
 void print_status       (class_worker &);
 void backup_data        (class_worker &, outdata &);
+
+template <typename T>
+void debug_print        (class_worker &worker, T &input){
+    MPI_Barrier(MPI_COMM_WORLD);
+    if (worker.world_ID == 0) {
+        cout << input;
+        cout.flush();
+        std::this_thread::sleep_for(std::chrono::microseconds(10));
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+}
+
+
 #endif //WL_SIMULATION_H

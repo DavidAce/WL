@@ -1,9 +1,9 @@
 close all
 clear all
-L = 12;
+L = 6;
 N = L^2;
 j = 0;
-for i = 0:15
+for i = 0:7
     dos = load(['../outdata/' num2str(j) '/dos' num2str(i) '.dat']);
     E   = load(['../outdata/' num2str(j) '/E'   num2str(i) '.dat']);
     M = load(  ['../outdata/' num2str(j) '/M' num2str(i) '.dat']);

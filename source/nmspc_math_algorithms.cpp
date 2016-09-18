@@ -63,12 +63,8 @@ namespace math {
 
     double volume(const ArrayXXd &dos, const ArrayXd &E, const ArrayXd &M) {
         double vol = 0;
-//        ArrayXd dE;
-//        ArrayXd dM;
         switch (constants::rw_dims){
             case 1:
-//                dE = E.head(E.size()-1) - E.tail(E.size()-1);
-//                vol = nansum(dos.topLeftCorner(dE.size(),1) * dE);
                 for (int j = 0; j < M.size(); j++) {
                     for (int i = 0; i < E.size() - 1; i++) {
                         if (dos(i, j) == 0 || std::isnan(dos(i,j))) { continue; }
@@ -77,25 +73,19 @@ namespace math {
                 }
                 break;
             case 2:
-//                dE = E.head(E.size()-1) - E.tail(E.size()-1);
-//                dM = M.head(M.size()-1) - M.tail(M.size()-1);
-//                vol = nansum(dos.topLeftCorner(dE.size(), dM.size()) * (dE.matrix() * dM.matrix().transpose()).array());
                 for (int j = 0; j < M.size() - 1; j++) {
                     for (int i = 0; i < E.size() - 1; i++) {
                         if (dos(i, j) == 0 || std::isnan(dos(i,j))) { continue; }
                         vol += (E(i + 1) - E(i)) * (M(j + 1) - M(j)) * dos(i, j);
-//                        vol += (E(i + 1) - E(i)) * (M(j + 1) - M(j)) ;
                     }
                 }
                 break;
             default:
                 std::cout << "Wrong rw-dimension constants::rw_dims " << std::endl;
                 exit(5);
-
         }
         return vol;
     }
-
 
     int volume_idx(const ArrayXXd &dos, const ArrayXd &E, const ArrayXd &M, const double &vol_limit) {
         double vol = 0;
@@ -116,7 +106,6 @@ namespace math {
                     for (int j = 0; j < M.size() - 1; j++) {
                         if (dos(i, j) == 0 || std::isnan(dos(i,j))) { continue; }
                         vol += (E(i + 1) - E(i)) * (M(j + 1) - M(j)) * dos(i, j);
-//                        vol += (E(i + 1) - E(i)) * (M(j + 1) - M(j)) ;
                     }
                     if (vol >= vol_limit){
                         return i;
@@ -127,7 +116,64 @@ namespace math {
                 std::cout << "Wrong rw-dimension constants::rw_dims " << std::endl;
                 exit(5);
         }
+        return (int)E.size() - 1;
+    }
 
+    double area(const ArrayXXd &dos, const ArrayXd &E, const ArrayXd &M) {
+        double area = 0;
+        switch (constants::rw_dims){
+            case 1:
+                for (int j = 0; j < M.size(); j++) {
+                    for (int i = 0; i < E.size() - 1; i++) {
+                        if (dos(i, j) == 0 || std::isnan(dos(i,j))) { continue; }
+                        area += (E(i + 1) - E(i));
+                    }
+                }
+                break;
+            case 2:
+                for (int j = 0; j < M.size() - 1; j++) {
+                    for (int i = 0; i < E.size() - 1; i++) {
+                        if (dos(i, j) == 0 || std::isnan(dos(i,j))) { continue; }
+                        area += (E(i + 1) - E(i)) * (M(j + 1) - M(j));
+                    }
+                }
+                break;
+            default:
+                std::cout << "Wrong rw-dimension constants::rw_dims " << std::endl;
+                exit(5);
+        }
+        return area;
+    }
+
+    int area_idx(const ArrayXXd &dos, const ArrayXd &E, const ArrayXd &M, const double &area_limit) {
+        double area = 0;
+        switch(constants::rw_dims){
+            case 1:
+                for (int i = 0; i < E.size() - 1; i++) {
+                    for (int j = 0; j < M.size(); j++) {
+                        if (dos(i, j) == 0 || std::isnan(dos(i,j))) { continue; }
+                        area += (E(i + 1) - E(i));
+                    }
+                    if (area >= area_limit){
+                        return i;
+                    }
+                }
+                break;
+            case 2:
+                for (int i = 0; i < E.size() - 1; i++) {
+                    for (int j = 0; j < M.size() - 1; j++) {
+                        if (dos(i, j) == 0 || std::isnan(dos(i,j))) { continue; }
+                        area += (E(i + 1) - E(i)) * (M(j + 1) - M(j));
+                    }
+                    if (area >= area_limit){
+                        return i;
+                    }
+                }
+                break;
+            default:
+                std::cout << "Wrong rw-dimension constants::rw_dims " << std::endl;
+                exit(5);
+        }
         return (int)E.size() - 1;
     }
 
@@ -174,7 +220,7 @@ namespace math {
         sum.fill(0);
         int E_merge_idx;    //Index of merging point
 
-        if (dos1.rows() < 3 || dos2.rows() < 3){
+        if (dos1.rows() < 1 || dos2.rows() < 1){
             std::cout << "Rows too few to merge!!" << std::endl;
             exit(35);
         }

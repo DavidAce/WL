@@ -15,9 +15,9 @@
 
 void outdata::write_data_worker(class_worker &worker) {
     set_foldername_to_iteration(worker.iteration);
-    string name_dos = folder + string("dos") + to_string(worker.world_ID) + string(".dat");
-    string name_E_bins = folder + string("E") + to_string(worker.world_ID) + string(".dat");
-    string name_M_bins = folder + string("M") + to_string(worker.world_ID) + string(".dat");
+    string name_dos     = folder + string("dos") + to_string(worker.world_ID) + string(".dat");
+    string name_E_bins  = folder + string("E") + to_string(worker.world_ID) + string(".dat");
+    string name_M_bins  = folder + string("M") + to_string(worker.world_ID) + string(".dat");
     write_to_file(worker.dos, name_dos);
     write_to_file(worker.E_bins, name_E_bins);
     write_to_file(worker.M_bins, name_M_bins);
