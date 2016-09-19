@@ -129,7 +129,7 @@ public:
     //Functions
     void find_current_state();           //Compute current E and M (and their indices)
     void find_next_state();
-    void find_next_state(bool&);
+    void find_next_state(bool);
     void find_initial_limits();
     void start_counters();
     void set_initial_local_bins();
@@ -138,7 +138,7 @@ public:
     void divide_global_range_energy();
     void resize_local_bins();
     void compute_number_of_bins(int &, int &);
-    bool check_in_window(const double &);
+    bool check_in_window(const double);
     void make_MC_trial() __attribute__((hot));
     void insert_state() __attribute__((hot));
     void walk_away_from_window() __attribute__((hot));

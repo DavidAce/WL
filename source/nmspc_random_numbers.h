@@ -27,7 +27,7 @@ namespace rn{
         return rand_int_1(rng);
     }
 
-    inline int uniform_integer(const int &min, const int &max){
+    inline int uniform_integer(const int min, const int max){
         std::uniform_int_distribution<>  rand_int(min,max);
         return rand_int(rng);
     }
@@ -37,7 +37,7 @@ namespace rn{
     }
 
 
-    extern double gaussian_truncated(const double &lowerLimit, const double &upperLimit, const double &mean, const double &std) ;
+    extern double gaussian_truncated(const double lowerLimit, const double upperLimit, const double mean, const double std) ;
 
 }
 

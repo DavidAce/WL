@@ -20,7 +20,7 @@ namespace math{
 //    extern int      find_min_positive(const arrayXi &);
 //    extern double   find_min_positive(const ArrayXd &);
     extern int      mod2(const int &,const int &);
-    inline int      mod (const int &x, const int &y){
+    inline int      mod (const int x, const int y){
         return x >= 0 ? x%y : x%y + y;
     }
     extern double   volume(const ArrayXXd &dos,const ArrayXd &E,const ArrayXd &M);
@@ -224,7 +224,7 @@ namespace math{
 
 //Finds the element nearest x in an Eigen array
     template <typename Derived, typename T>
-    inline int binary_search(const ArrayBase<Derived> &list , const T& x){
+    inline int binary_search(const ArrayBase<Derived> &list , const T x){
         //Now find the point in list closest to x
 
         //CPP REFERENCE lower_bound: Iterator pointing to the first element that is not less than value,
@@ -246,7 +246,7 @@ namespace math{
 
 //Finds the element nearest x in an Eigen array if we already know the index of the current value
     template <typename Derived, typename T, typename T_idx>
-    inline int binary_search(const ArrayBase<Derived> &list , const T& x, const T &y, const T_idx &y_idx) {
+    inline int binary_search(const ArrayBase<Derived> &list , const T x, const T y, const T_idx y_idx) {
         //Now find the point in list closest to x, from below
 
         //CPP REFERENCE lower_bound: Iterator pointing to the first element that is not less than value,
