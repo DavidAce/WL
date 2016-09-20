@@ -105,11 +105,15 @@ void divide_range(class_worker &worker){
         worker.t_divide_range.tic();
         int any_helping = worker.help.getting_help;
         int all_in_window, min_walks, need_to_resize;
+        int in_window = worker.in_window;
         MPI_Allreduce(MPI_IN_PLACE, &any_helping, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
         if (any_helping == 0){
             MPI_Allreduce(&worker.need_to_resize_global,&need_to_resize, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
             MPI_Allreduce(&counter::walks, &min_walks, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
-            MPI_Allreduce(&worker.in_window, &all_in_window, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+            MPI_Allreduce(&in_window, &all_in_window, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+//            cout << "NR: " << worker.need_to_resize_global
+//                 << " MW: " << min_walks << "(" << counter::walks << ")"
+//                 << " AIW:" << all_in_window <<  "(" << in_window << ")" << endl;
             if (need_to_resize){
                 if(debug_divide_range){debug_print(worker,"Dividing global energy\n");}
                 //divide global energy

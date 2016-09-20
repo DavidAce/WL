@@ -653,7 +653,7 @@ void class_worker::check_saturation(){
         timer::check_saturation = 0;
         if (flag_one_over_t == 0) {
             t_check_convergence.tic();
-            int i, j;
+            int i;
             //counter::saturation tells how many elements are in worker.saturation
             int idx_to = (int) saturation.size() - 1;
             int idx_from = (int) (constants::check_saturation_from * idx_to);

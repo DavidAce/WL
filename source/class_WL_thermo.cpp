@@ -140,6 +140,7 @@ void class_thermodynamics::get_c_peak(class_worker &worker){
     objective_function obj_fun(temperature_to_specific_heat,lower_bound, upper_bound, tolerance, this->dos_total1D, worker.E_bins_total, worker.M_bins_total);
     obj_fun.id      = worker.world_ID;
     obj_fun.threads = 1;
+    obj_fun.name    = "c";
     minimize(obj_fun);
 
     double temp  = (double) obj_fun.fitness(obj_fun.optimum);
@@ -180,7 +181,7 @@ void class_thermodynamics::get_x_peak(class_worker &worker){
     objective_function obj_fun(temperature_to_susceptibility,lower_bound, upper_bound, tolerance, worker.dos_total, worker.E_bins_total, worker.M_bins_total);
     obj_fun.id      = worker.world_ID;
     obj_fun.threads = 1;
-    obj_fun.name    = "F";
+    obj_fun.name    = "x";
 
     minimize(obj_fun);
     double temp  = (double) obj_fun.fitness(obj_fun.optimum);
