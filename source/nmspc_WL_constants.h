@@ -9,8 +9,8 @@
 namespace constants{
 
     //WL boostrap properties
-    static const int simulation_reps = 2;      //Number of independent do_simulations
-    static const int bootstrap_reps  = 2;
+    static const int simulation_reps = 4;      //Number of independent do_simulations
+    static const int bootstrap_reps  = 0;
 
     //WL thermodynamics properties
     static const int    T_num = 500;             //Number of temperatures for thermodynamic quantities
@@ -37,12 +37,12 @@ namespace constants{
     static const int    rate_print_status      = 25000;     //How often to print in terminal
 
     //Wang-Landau convergence criteria
-    static const double minimum_lnf            = 1e-5;
+    static const double minimum_lnf            = 1e-6;
     static const double check_saturation_from  = 0.9;
     static const double reduce_factor_lnf      = 0.5;           // 131 s (check from 0.9
     static const double overlap_factor_energy  = 0.5;
-    static const double overlap_factor_dos_vol = 0.75;
-    static const double overlap_factor_dos_area= 0.75;
+    static const double overlap_factor_dos_vol = 1.0;
+    static const double overlap_factor_dos_area= 1.0;
 
     //Parameters for sub-window splitting
     static const int     min_walks             = 2;
