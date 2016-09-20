@@ -1,6 +1,6 @@
 close all
 clear all;
-L = 6;
+L = 10;
 N = L^2;
 dos1D = load(['../outdata/final/dos1D.dat']);
 E     = load(['../outdata/final/E.dat']);
@@ -144,7 +144,7 @@ zlabel('log(g(E,M))');
 
 %%
 figure(7)
-Tc_idx = nearestpoint( 2.6976205200244232074, T);
+Tc_idx = nearestpoint( Tc_F, T);
 Tc_near= Tc_idx-20:10:Tc_idx+20;
 shadedErrorBar(M/N, (F(Tc_idx,:)),F_err(Tc_idx,:)),hold all;
 for i = 1:length(Tc_near)

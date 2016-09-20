@@ -88,11 +88,7 @@ void class_worker::find_current_state(){
 }
 
 void class_worker::find_next_state(){
-//    if (E_trial < E_min_local || E_trial > E_max_local){
-//        cout << "E_trial is out of bounds! on ID: "<< world_ID << endl;
-//        cout << "E_trial = " << E_trial << " bounds: = ["<< E_min_local << " " << E_max_local << "]" << endl;
-//        exit(1);
-//    }
+
     switch(constants::rw_dims) {
         case 1:
             E_idx_trial = math::binary_search(E_bins, E_trial);
@@ -105,25 +101,10 @@ void class_worker::find_next_state(){
         default:
             cout << "Wrong dimension:  constants::rw_dims" << endl;
     }
-//    if (E_idx_trial < 0 || E_idx_trial > E_bins.size()-1){
-//        cout << "E_idx_trial is out of bounds! on ID: "<< world_ID << endl;
-//        cout << "E_idx_trial = " << E_idx_trial << " Size = "<< E_bins.size() << endl;
-//        exit(1);
-//    }
 
 }
 
 void class_worker::find_next_state(bool dummy){
-//    if (E_trial < E_min_local || E_trial > E_max_local){
-//        cout << "E_trial is out of bounds (inwindow)! on ID: "<< world_ID << endl;
-//        cout << "E_trial = " << E_trial << " bounds: = ["<< E_min_local << " " << E_max_local << "]" << endl;
-//        exit(1);
-//    }
-//    if (E_idx < 0 || E_idx > E_bins.size()-1){
-//        cout << "E_idx is out of bounds (inwindow)! on ID: "<< world_ID << endl;
-//        cout << "E_idx = " << E_idx << " E_bins.size() = " << E_bins.size() << endl;
-//        exit(1);
-//    }
     switch (constants::rw_dims) {
         case 1:
             E_idx_trial = math::binary_search(E_bins, E_trial, E, E_idx);
@@ -137,12 +118,6 @@ void class_worker::find_next_state(bool dummy){
         default:
             cout << "Wrong dimension:  constants::rw_dims" << endl;
     }
-//    if (E_idx_trial < 0 || E_idx_trial > E_bins.size()-1){
-//        cout << "E_idx_trial is out of bounds!" << endl;
-//        cout << "E_idx_trial = " << E_idx_trial << " Size = "<< E_bins.size() << endl;
-//        exit(1);
-//    }
-
 }
 
 void class_worker::find_initial_limits(){
@@ -326,13 +301,11 @@ void class_worker::resize_local_bins() {
     int x, y, i, j;
     double dE, dM, dR, dx, dy;
 
-
     //Check if we need more bins
     int E_old_size = (int) E_bins.size();
     int M_old_size = (int) M_bins.size();
     int E_new_size;
     int M_new_size;
-
 
     compute_number_of_bins(E_new_size, M_new_size);
     ArrayXXi histogram_new  = ArrayXXi::Zero(E_new_size, M_new_size);
@@ -384,7 +357,6 @@ void class_worker::resize_local_bins() {
         }
         MPI_Barrier(MPI_COMM_WORLD);
     }
-
 }
 
 void class_worker::compute_number_of_bins(int & E_new_size, int & M_new_size) {

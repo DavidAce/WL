@@ -10,7 +10,7 @@ namespace constants{
 
     //WL boostrap properties
     static const int simulation_reps = 2;      //Number of independent do_simulations
-    static const int bootstrap_reps  = 8;
+    static const int bootstrap_reps  = 2;
 
     //WL thermodynamics properties
     static const int    T_num = 500;             //Number of temperatures for thermodynamic quantities
@@ -19,7 +19,7 @@ namespace constants{
 
     //Lattice Properties
     static const int d = 2;               //Dimension
-    static const int L = 32;               //Linear size
+    static const int L = 8;               //Linear size
     static const int N = (int) pow(L,d);  //Number of spins/particles
 
     //DOS and Histogram properties
@@ -31,10 +31,10 @@ namespace constants{
     static const int    rate_take_help         = 100;
     static const int    rate_setup_help        = 5000;
     static const int    rate_check_saturation  = 5000;      //How often to check if saturation has flattened out
-    static const int    rate_divide_range      = 10000;      //How often to check if we can merge all dos and split energy subwindows in a smarter way.
+    static const int    rate_divide_range      = 10000;     //How often to check if we can merge all dos and split energy subwindows in a smarter way.
     static const int    rate_swap              = 500;       //How often to swap walkers in adjacent windows
     static const int    rate_backup_data       = 500000;    //How often to backup progress
-    static const int    rate_print_status      = 25000;        //How often to print in terminal
+    static const int    rate_print_status      = 25000;     //How often to print in terminal
 
     //Wang-Landau convergence criteria
     static const double minimum_lnf            = 1e-5;
