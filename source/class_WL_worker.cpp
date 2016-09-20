@@ -553,8 +553,8 @@ void class_worker::accept_MC_trial() {
     if (in_window) {
         E_idx                       = E_idx_trial;
         M_idx                       = M_idx_trial;
-//        if (rn::uniform_double_1() < P_increment) {
-        if (true){
+        if (rn::uniform_double_1() < P_increment) {
+//        if (true){
             dos(E_idx, M_idx) += lnf;
             if(!flag_one_over_t || help.giving_help){
                 histogram(E_idx, M_idx) += 1;
@@ -565,8 +565,8 @@ void class_worker::accept_MC_trial() {
 
 void class_worker::reject_MC_trial() {
     if (in_window) {
-//        if (rn::uniform_double_1() < P_increment) {
-        if (true) {
+        if (rn::uniform_double_1() < P_increment) {
+//        if (true) {
             dos(E_idx, M_idx)       += lnf;
             if(!flag_one_over_t || help.giving_help){
                 histogram(E_idx, M_idx) += 1;
