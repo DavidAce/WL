@@ -638,9 +638,9 @@ namespace mpi {
         }
         if (timer::setup_help > constants::rate_setup_help) {
             timer::setup_help = 0;
-            if (counter::merges >= constants::max_merges) {
+//            if (counter::merges >= constants::max_merges) {
                 setup_help(worker, backup);
-            }
+//            }
         } else {
             timer::setup_help++;
         }

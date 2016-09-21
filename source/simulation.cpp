@@ -33,7 +33,7 @@ void wanglandau(class_worker &worker){
         mpi::help           (worker,backup)       ;
         mpi::swap           (worker)              ;
         check_convergence   (worker, out,finish_line) ;
-        divide_range        (worker)              ;
+        divide_range        (worker, backup)              ;
 //        backup_to_file         (worker,out)          ;
         print_status        (worker)              ;
     }
@@ -94,7 +94,7 @@ void check_convergence(class_worker &worker, outdata &out, int &finish_line){
 }
 
 
-void divide_range(class_worker &worker){
+void divide_range(class_worker &worker, class_backup &backup){
     //Three situations, and they can only happen IF nobody is helping out or is finished.
 
     //1) We need to resize global range.
@@ -128,18 +128,24 @@ void divide_range(class_worker &worker){
 
             }else if(min_walks < constants::min_walks && counter::merges < constants::max_merges && all_in_window == 1){
                 //divide dos area
-                if(debug_divide_range){debug_print(worker,"Dividing dos area \n");}
+                if(worker.world_ID == 0){cout << "Dividing dos area" << endl;}
                 mpi::merge(worker,true,false);
                 mpi::divide_global_range_dos_area(worker);
-                worker.P_increment = 1.0 / sqrt(math::count_num_elements(worker.dos));
+                worker.P_increment = 1.0 / sqrt(worker.E_bins.size());
+
+//                worker.P_increment = 1.0 / sqrt(math::count_num_elements(worker.dos));
 
             }else if (counter::merges < constants::max_merges && all_in_window == 1){
                 //divide dos vol
-                if(debug_divide_range){debug_print(worker,"Dividing dos vol \n");}
+                if(worker.world_ID == 0){cout << "Dividing dos vol" << endl;}
+                //If anybody had started to help they need to be restored
+                backup.restore_state(worker);
+                worker.help.reset();
                 mpi::merge(worker,true,false);
                 mpi::divide_global_range_dos_volume(worker);
                 counter::merges++;
-                worker.P_increment = 1.0 / sqrt(math::count_num_elements(worker.dos));
+                worker.P_increment = 1.0 / sqrt(worker.E_bins.size());
+//                worker.P_increment = 1.0 / sqrt(math::count_num_elements(worker.dos));
                 worker.rewind_to_zero();
 
             }

@@ -255,7 +255,7 @@ void class_worker::divide_global_range_energy(){
     //This is needed when you have too many workers on a small global energy range.
     if (overlap_range*2 + local_range < global_range * 0.2){
         if (world_ID == 0) {
-            cout << "Force readjust of local energy range" << endl;
+            cout << "Forced readjustment of local energy range" << endl;
         }
         overlap_range = (global_range * 0.2 - local_range)/2;
     }
