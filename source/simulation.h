@@ -25,7 +25,7 @@ void add_hist_volume    (class_worker &);
 void check_saturation   (class_worker &);
 void check_one_over_t   (class_worker &);
 void check_global_limits(class_worker &);
-void divide_range       (class_worker &);
+void divide_range       (class_worker &, class_backup &);
 void print_status       (class_worker &);
 void backup_to_file(class_worker &, outdata &);
 
