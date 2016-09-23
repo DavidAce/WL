@@ -206,6 +206,186 @@ namespace mpi {
         int from_total, from_up, rows_total, rows_up;
         int E_merge_idx, E_merge_idx_up;
         int M_merge_idx, M_merge_idx_up;
+        int E_shared_low   , E_shared_high;
+        int E_shared_low_up, E_shared_high_up;
+        vector<ArrayXd> dos_merge;
+        vector<double> E_merge;
+        for (int w = 1; w < worker.world_size; w++) {
+            if (worker.world_ID == 0) {
+                if (debug_merge) {
+                    cout << "Receiving from " << w << endl;
+                    cout.flush();
+                    std::this_thread::sleep_for(std::chrono::microseconds(1000));
+                }
+                dos_recv.resize(E_sizes[w], M_sizes[w]);
+                E_recv.resize(E_sizes[w]);
+                M_recv.resize(M_sizes[w]);
+                MPI_Recv(dos_recv.data(), E_sizes[w] * M_sizes[w], MPI_DOUBLE, w, 60, MPI_COMM_WORLD,
+                         MPI_STATUS_IGNORE);
+                MPI_Recv(E_recv.data(), E_sizes[w], MPI_DOUBLE, w, 61, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                MPI_Recv(M_recv.data(), M_sizes[w], MPI_DOUBLE, w, 62, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+
+                //Find average height of shared sections
+                E_shared_low    = math::binary_search(E_total, fmax(E_recv.minCoeff(), E_total.minCoeff()));
+                E_shared_high   = math::binary_search(E_total, fmin(E_recv.maxCoeff(), E_total.maxCoeff()));
+                E_shared_low_up = math::binary_search(E_recv , fmax(E_recv.minCoeff(), E_total.minCoeff()));
+                E_shared_high_up= math::binary_search(E_recv , fmin(E_recv.maxCoeff(), E_total.maxCoeff()));
+
+                cout << " E:low     "<<E_shared_low       << endl;
+                cout << " E:high    "<< E_shared_high      << endl;
+                cout << " E:low up  "<< E_shared_low_up    << endl;
+                cout << " E:high up "<< E_shared_high_up   << endl;
+                cout << " diff      "<< math::nanmean(dos_total.middleRows(E_shared_low   , E_shared_high    - E_shared_low))<< endl;
+                cout << " diff up   "<< math::nanmean(dos_recv .middleRows(E_shared_low_up, E_shared_high_up - E_shared_low_up))<< endl;
+                diff = math::nanmean(dos_total.middleRows(E_shared_low   , E_shared_high    - E_shared_low))
+                      -math::nanmean(dos_recv .middleRows(E_shared_low_up, E_shared_high_up - E_shared_low_up));
+
+
+
+
+
+//                //Find coordinates on dos_total
+//                E_merge_idx = math::find_matching_slope(dos_total, dos_recv, E_total, E_recv, M_total, M_recv);
+//                M_merge_idx = math::nanmaxCoeff_idx(dos_total.row(E_merge_idx));
+//
+//                dos_total.row(E_merge_idx).maxCoeff(&M_merge_idx);
+//                //Find coordinates on received dos;
+//                E_merge_idx_up = math::binary_search(E_recv, E_total(E_merge_idx));
+//                M_merge_idx_up = math::nanmaxCoeff_idx(dos_recv.row(E_merge_idx_up));
+//                dos_recv.row(E_merge_idx_up).maxCoeff(&M_merge_idx_up);
+//                //Find difference between heights at these points
+//                diff = dos_total(E_merge_idx, M_merge_idx) - dos_recv(E_merge_idx_up, M_merge_idx_up);
+                //Add that difference to the next
+                if (std::isnan(diff)) {
+                    cout << "Tried to concatenate " << w - 1 << " and " << w << ". Diff between two DOS is NaN, exiting"
+                         << endl;
+                    cout << "dos_tot" << endl << dos_total << endl;
+                    cout << "dos_rec" << endl << dos_recv << endl;
+                    exit(1);
+                }
+                math::add_to_nonzero_nonnan(dos_recv, diff);
+                //Now now all doses should be the same height
+                if (debug_merge) {
+                    cout << "Concatenating " << w - 1 << " and " << w << endl;
+                     cout << "dos_tot" << endl << dos_total << endl;
+                    cout << "dos_rec" << endl << dos_recv << endl;
+                    cout.flush();
+                    std::this_thread::sleep_for(std::chrono::microseconds(1000));
+                }
+
+
+                double weight;
+                int j = 0;
+                rows_total = E_shared_high     -  E_shared_low;
+
+                for (int i = 0; i < E_total.size() ; i++){
+                    if (i < E_shared_low){
+                        dos_merge.push_back(dos_total.row(i));
+                    }else  if(i >= E_shared_low && i <= E_shared_high){
+                        weight = (double) j / rows_total;
+                        int E_idx_up = math::binary_search(E_recv, E_total(i));
+                        dos_merge.push_back((1-weight)*dos_total.row(i) + weight*dos_recv.row(E_idx_up) );
+                        E_merge.push_back(E_total(i));
+                        j++;
+                    }
+                }
+                for (int i = 0; i < E_recv.size();i ++){
+                    if (i > E_shared_high_up){
+                        dos_merge.push_back(dos_recv.row(i) );
+                        E_merge.push_back(E_recv(i));
+                    }
+                }
+
+                dos_total.resize(dos_merge.size(), M_sizes[w]);
+                E_total.resize(E_merge.size());
+                for (int i = 0; i < dos_merge.size(); i++){
+                    dos_total.row(i) = dos_merge[i];
+                    E_total          = E_merge[i];
+                }
+                dos_merge.clear();
+                E_merge.clear();
+//                from_total  = 0;
+//                from_up     = E_shared_low_up;
+//                rows_total  = E_shared_high     - E_shared_low;
+//                rows_up     = E_shared_high_up  - E_shared_low_up;
+//                dos_temp.resize(dos_total.middleRows(from_total, rows_total).rows() +
+//                                dos_recv.middleRows(from_up, rows_up).rows(), M_size);
+//
+//                //Compute the starting points and number of rows for concatenation
+//                from_total = 0;
+//                from_up = E_merge_idx_up + 1;
+//
+//                rows_total = E_merge_idx + 1;
+//                rows_up = E_sizes[w] - E_merge_idx_up - 1;
+//
+//                E_temp.resize(E_total.segment(from_total, rows_total).size() + E_recv.segment(from_up, rows_up).size());
+//                dos_temp.resize(dos_total.middleRows(from_total, rows_total).rows() +
+//                                dos_recv.middleRows(from_up, rows_up).rows(), M_size);
+//
+//                dos_temp << dos_total.middleRows(from_total, rows_total),
+//                        dos_recv.middleRows(from_up, rows_up);
+//                E_temp << E_total.segment(from_total, rows_total),
+//                        E_recv.segment(from_up, rows_up);
+//                dos_total = dos_temp;
+//                E_total = E_temp;
+
+
+                if (debug_merge) {
+                    cout << "OK ";
+                    cout.flush();
+                    std::this_thread::sleep_for(std::chrono::microseconds(1000));
+                }
+            } else if (w == worker.world_ID) {
+                MPI_Send(worker.dos.data(), E_size * M_size, MPI_DOUBLE, 0, 60, MPI_COMM_WORLD);
+                MPI_Send(worker.E_bins.data(), E_size, MPI_DOUBLE, 0, 61, MPI_COMM_WORLD);
+                MPI_Send(worker.M_bins.data(), M_size, MPI_DOUBLE, 0, 62, MPI_COMM_WORLD);
+            }
+            MPI_Barrier(MPI_COMM_WORLD);
+        }
+        if (worker.world_ID == 0) {
+            //Let the master worker have the results
+            worker.dos_total    = dos_total;
+            worker.E_bins_total = E_total;
+            worker.M_bins_total = M_total;
+        }
+        if (trim){
+            if (worker.world_ID == 0) {
+                //Trim away nan rows
+                math::subtract_min_nonzero_nan(worker.dos_total);
+                math::remove_nan_rows(worker.dos_total, worker.E_bins_total);
+            }
+        }
+        if (broadcast){
+            broadcast_merger(worker);
+        }
+    }
+
+
+    void merge2(class_worker &worker, bool broadcast, bool trim) {
+        if(debug_merge){debug_print(worker,"\nMerging. ");}
+
+        ArrayXXd dos_total, dos_temp, dos_recv;
+        ArrayXd E_total, M_total, E_temp, M_temp, E_recv, M_recv;
+        int E_sizes[worker.world_size];
+        int M_sizes[worker.world_size];
+        int E_size = (int) worker.E_bins.size();
+        int M_size = (int) worker.M_bins.size();
+
+        double diff;
+
+        MPI_Gather(&E_size, 1, MPI_INT, E_sizes, 1, MPI_INT, 0, MPI_COMM_WORLD);
+        MPI_Gather(&M_size, 1, MPI_INT, M_sizes, 1, MPI_INT, 0, MPI_COMM_WORLD);
+        if(debug_merge){debug_print(worker," Gathering dos ");}
+
+        if (worker.world_ID == 0) {
+            dos_total = worker.dos;
+            E_total = worker.E_bins;
+            M_total = worker.M_bins;
+        }
+        int from_total, from_up, rows_total, rows_up;
+        int E_merge_idx, E_merge_idx_up;
+        int M_merge_idx, M_merge_idx_up;
         for (int w = 1; w < worker.world_size; w++) {
             if (worker.world_ID == 0) {
                 if (debug_merge) {
