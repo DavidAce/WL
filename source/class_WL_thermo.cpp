@@ -208,8 +208,8 @@ double temperature_to_free_energy(objective_function &obj_fun, ArrayXd &input){
     F            = F.log().array() * (-T);
     F              -= F(mid);
     double result = (F.segment(mid - mid_mid, mid).abs()).sum() + 1/fabs(F(0));
-    if (isinf(result)){result = 1e6;}
-    if (isnan(result)){result = 1e6;}
+    if (std::isinf(result)){result = 1e6;}
+    if (std::isnan(result)){result = 1e6;}
     return result;
 
 //    return (F.segment(mid-mid_mid, mid).abs()).sum();
