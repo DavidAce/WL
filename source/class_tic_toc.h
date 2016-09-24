@@ -17,10 +17,9 @@ class class_profiling {
 private:
     high_resolution_clock::time_point delta_tic;
     high_resolution_clock::time_point delta_toc;
-
-    string name;
-    int print_precision;
     const int profiling;           //Whether we are profiling or not.
+    int print_precision;
+    string name;
 public:
     class_profiling(const int & on_off, int prec, const string output_text);                 //Constructor
     high_resolution_clock::duration delta_time;
