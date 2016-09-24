@@ -90,6 +90,7 @@ namespace math{
     int nanmaxCoeff_idx(const ArrayBase<Derived> & array)  {
         int idx;
         const auto& temp =  (array == array).select(array,0).maxCoeff(&idx);
+        (void)temp;
         return idx;
     }
 
@@ -106,6 +107,21 @@ namespace math{
     template <typename Derived>
     typename Derived::Scalar nanmean(const ArrayBase<Derived> & array)  {
         return (array == array).select(array,0).mean();
+    }
+
+    template <typename Derived>
+    typename Derived::Scalar nanzeromean(const ArrayBase<Derived> & array)  {
+        double sum = 0;
+        int    count = 0;
+        for (int j = 0; j < array.cols(); j++){
+            for (int i = 0; i < array.rows(); i++) {
+                if (array(i, j) == 0) { continue; }
+                if (isnan(array(i, j))) { continue; }
+                sum += array(i, j);
+                count++;
+            }
+        }
+        return sum/count;
     }
 
     template <typename Derived>

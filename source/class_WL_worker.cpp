@@ -39,7 +39,6 @@ int timer::divide_range;
 
 //Constructors
 class_worker::class_worker(int & id, int & size):
-                                help(size),
                                 world_ID(id),
                                 world_size(size),
                                 model(),
@@ -52,7 +51,9 @@ class_worker::class_worker(int & id, int & size):
                                 t_divide_range         (profiling_divide_range,         3,"t_divr" ),
                                 t_check_convergence    (profiling_check_convergence,    3,"t_conv") ,
                                 t_make_MC_trial        (profiling_make_MC_trial,        3,"t_mkMC") ,
-                                t_acceptance_criterion (profiling_acceptance_criterion, 3,"t_accr")
+                                t_acceptance_criterion (profiling_acceptance_criterion, 3,"t_accr"),
+                                help(size)
+
 {
 
     rn::rng.seed((unsigned long)world_ID);

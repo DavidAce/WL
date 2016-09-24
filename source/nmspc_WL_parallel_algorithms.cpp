@@ -185,8 +185,8 @@ namespace mpi {
     void merge(class_worker &worker, bool broadcast, bool trim) {
         if(debug_merge){debug_print(worker,"\nMerging. ");}
 
-        ArrayXXd dos_total, dos_temp, dos_recv;
-        ArrayXd E_total, M_total, E_temp, M_temp, E_recv, M_recv;
+        ArrayXXd dos_total,  dos_recv;
+        ArrayXd E_total, M_total, E_recv, M_recv;
         int E_sizes[worker.world_size];
         int M_sizes[worker.world_size];
         int E_size = (int) worker.E_bins.size();
@@ -203,9 +203,9 @@ namespace mpi {
             E_total = worker.E_bins;
             M_total = worker.M_bins;
         }
-        int from_total, from_up, rows_total, rows_up;
-        int E_merge_idx, E_merge_idx_up;
-        int M_merge_idx, M_merge_idx_up;
+//        int from_total, from_up, rows_total, rows_up;
+//        int E_merge_idx, E_merge_idx_up;
+//        int M_merge_idx, M_merge_idx_up;
         int E_shared_low   , E_shared_high;
         int E_shared_low_up, E_shared_high_up;
         vector<ArrayXd> dos_merge;
@@ -217,6 +217,8 @@ namespace mpi {
                     cout.flush();
                     std::this_thread::sleep_for(std::chrono::microseconds(1000));
                 }
+//                cout << dos_total << endl<< endl;
+
                 dos_recv.resize(E_sizes[w], M_sizes[w]);
                 E_recv.resize(E_sizes[w]);
                 M_recv.resize(M_sizes[w]);
@@ -232,15 +234,14 @@ namespace mpi {
                 E_shared_low_up = math::binary_search(E_recv , fmax(E_recv.minCoeff(), E_total.minCoeff()));
                 E_shared_high_up= math::binary_search(E_recv , fmin(E_recv.maxCoeff(), E_total.maxCoeff()));
 
-                cout << " E:low     "<<E_shared_low       << endl;
-                cout << " E:high    "<< E_shared_high      << endl;
-                cout << " E:low up  "<< E_shared_low_up    << endl;
-                cout << " E:high up "<< E_shared_high_up   << endl;
-                cout << " diff      "<< math::nanmean(dos_total.middleRows(E_shared_low   , E_shared_high    - E_shared_low))<< endl;
-                cout << " diff up   "<< math::nanmean(dos_recv .middleRows(E_shared_low_up, E_shared_high_up - E_shared_low_up))<< endl;
-                diff = math::nanmean(dos_total.middleRows(E_shared_low   , E_shared_high    - E_shared_low))
-                      -math::nanmean(dos_recv .middleRows(E_shared_low_up, E_shared_high_up - E_shared_low_up));
-
+//                cout << " E:low     "<<E_shared_low       << endl;
+//                cout << " E:high    "<< E_shared_high      << endl;
+//                cout << " E:low up  "<< E_shared_low_up    << endl;
+//                cout << " E:high up "<< E_shared_high_up   << endl;
+//                cout << " diff      "<< math::nanzeromean(dos_total.middleRows(E_shared_low   , E_shared_high    - E_shared_low))<< endl;
+//                cout << " diff up   "<< math::nanzeromean(dos_recv .middleRows(E_shared_low_up, E_shared_high_up - E_shared_low_up))<< endl;
+                diff = math::nanzeromean(dos_total.middleRows(E_shared_low   , E_shared_high    - E_shared_low))
+                      -math::nanzeromean(dos_recv .middleRows(E_shared_low_up, E_shared_high_up - E_shared_low_up));
 
 
 
@@ -277,32 +278,71 @@ namespace mpi {
 
                 double weight;
                 int j = 0;
-                rows_total = E_shared_high     -  E_shared_low;
+                int rows_total      = E_shared_high     -  E_shared_low;
+                int rows_total_up   = E_shared_high_up  -  E_shared_low_up;
+                if (rows_total  != rows_total_up){
+//                    cout << "Rows mismatch!!" << endl;
+//                    cout << "Rows_total     = " << rows_total << endl;
+//                    cout << "Rows_total_up  = " << rows_total_up << endl;
+//                    cout << dos_total << endl << endl;
+//                    cout << dos_recv << endl << endl << endl;
+//                    for (int i = 0; i < E_total.size(); i++){
+//                        if (i == E_shared_low){cout << "[";}
+//                        cout << E_total(i)  <<" ";
+//                        if (i == E_shared_high){cout << "]";}
+//                    }
+//                    cout << endl ;
+//                    for (int i = 0; i < E_sizes[w]; i++){
+//                        if (i == E_shared_low_up){cout << "[";}
+//                        cout << E_recv(i)  <<" ";
+//                        if (i == E_shared_high_up){cout << "]";}
+//                    }
+//                    cout << endl ;
 
+
+                }
+//                cout << "Starting pushback 1" << endl;
+//                cout << "Rows: " << rows_total << endl;
                 for (int i = 0; i < E_total.size() ; i++){
                     if (i < E_shared_low){
                         dos_merge.push_back(dos_total.row(i));
+                        E_merge.push_back(E_total(i));
                     }else  if(i >= E_shared_low && i <= E_shared_high){
                         weight = (double) j / rows_total;
+//                        cout << setprecision(5)<< "weight = " << weight << " j = " << j << endl;
                         int E_idx_up = math::binary_search(E_recv, E_total(i));
                         dos_merge.push_back((1-weight)*dos_total.row(i) + weight*dos_recv.row(E_idx_up) );
                         E_merge.push_back(E_total(i));
                         j++;
                     }
                 }
+//                cout << "Starting pushback 2" << endl;
+
                 for (int i = 0; i < E_recv.size();i ++){
                     if (i > E_shared_high_up){
                         dos_merge.push_back(dos_recv.row(i) );
                         E_merge.push_back(E_recv(i));
                     }
                 }
+//                cout << "Starting Resize" << endl;
+//                cout << "dos_merge.size() = " << dos_merge.size() << endl;
+//                for (int i = 0; i < dos_merge.size(); i++){
+//                    cout << dos_merge[i].transpose() << endl;
+//
+//                }
+//                for (int i = 0; i < E_merge.size(); i++){
+//                    cout << E_merge[i] << " ";
+//
+//                }
+//                cout << endl ;
 
                 dos_total.resize(dos_merge.size(), M_sizes[w]);
                 E_total.resize(E_merge.size());
-                for (int i = 0; i < dos_merge.size(); i++){
-                    dos_total.row(i) = dos_merge[i];
-                    E_total          = E_merge[i];
+                for (unsigned int i = 0; i < dos_merge.size(); i++){
+                    dos_total.row(i)    = dos_merge[i];
+                    E_total(i)          = E_merge[i];
                 }
+//                cout << "Clearing" << endl;
                 dos_merge.clear();
                 E_merge.clear();
 //                from_total  = 0;
@@ -329,7 +369,6 @@ namespace mpi {
 //                        E_recv.segment(from_up, rows_up);
 //                dos_total = dos_temp;
 //                E_total = E_temp;
-
 
                 if (debug_merge) {
                     cout << "OK ";
@@ -660,12 +699,9 @@ namespace mpi {
 
     void take_help(class_worker &worker) {
         //Offload help
-        bool got_help = false;
-
         for (int w = 0; w < worker.world_size; w++) {
             if (worker.world_ID == worker.help.whos_helping_who(w)) {
                 //You should receive help
-                got_help = true;
                 MPI_Recv(worker.help.histogram_recv.data(), (int) worker.help.histogram_recv.size(), MPI_INT, w, w, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                 if (worker.flag_one_over_t == 0){
                     worker.histogram        += worker.help.histogram_recv;

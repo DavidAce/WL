@@ -32,10 +32,6 @@ std::ostream& operator<< (std::ostream& out, const std::vector<T>& v) {
     return out;
 }
 
-namespace worker_duties{
-
-
-}
 
 
 class class_worker {
@@ -77,13 +73,12 @@ public:
     bool accept;
     bool in_window;
     int  need_to_resize_global;
-    int  need_to_resize_local;
     //WL convergence parameters
     int     flag_one_over_t;             //turns to 1 when 1/t algorithm starts
     int     finish_line;                 //turns to 1 when converged
     vector<int> saturation;
-//    ArrayXi saturation;                //Measures the histogram saturation
     double slope;
+
     //Holders for total, merged data
     ArrayXXd dos_total;
     ArrayXd E_bins_total, M_bins_total;
