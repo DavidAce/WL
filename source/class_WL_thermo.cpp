@@ -116,7 +116,7 @@ void resize_bins(ArrayXXd &dos, ArrayXXd &E_bins, ArrayXXd & M_bins, const int &
 }
 
 
-long double temperature_to_specific_heat(objective_function &obj_fun, Array<long double, Dynamic,1> &input){
+double temperature_to_specific_heat(objective_function &obj_fun, ArrayXd &input){
     auto &dos1D     = obj_fun.aux[0];
     auto &E_bins    = obj_fun.aux[1];
     auto &T         = input(0);
@@ -134,12 +134,13 @@ long double temperature_to_specific_heat(objective_function &obj_fun, Array<long
 void class_thermodynamics::get_c_peak(class_worker &worker){
     ArrayXd lower_bound(1);
     ArrayXd upper_bound(1);
+    ArrayXd initial_conditions(3);
+    initial_conditions.fill(0);
     lower_bound << constants::T_min;
     upper_bound << constants::T_max;
     double tolerance = 1e-8;
-    objective_function obj_fun(temperature_to_specific_heat,lower_bound, upper_bound, tolerance, this->dos_total1D, worker.E_bins_total, worker.M_bins_total);
+    objective_function obj_fun(temperature_to_specific_heat,lower_bound, upper_bound, tolerance,initial_conditions, this->dos_total1D, worker.E_bins_total, worker.M_bins_total);
     obj_fun.id      = worker.world_ID;
-    obj_fun.threads = 1;
     obj_fun.name    = "c";
     minimize(obj_fun);
 
@@ -150,7 +151,7 @@ void class_thermodynamics::get_c_peak(class_worker &worker){
 
 }
 
-long double temperature_to_susceptibility(objective_function &obj_fun, Array<long double, Dynamic,1> &input){
+double temperature_to_susceptibility(objective_function &obj_fun, ArrayXd &input){
     auto &dos_total = obj_fun.aux[0];
     auto &E_bins    = obj_fun.aux[1];
     auto &M_bins    = obj_fun.aux[2];
@@ -178,9 +179,10 @@ void class_thermodynamics::get_x_peak(class_worker &worker){
     lower_bound << constants::T_min;
     upper_bound << constants::T_max;
     double tolerance = 1e-8;
-    objective_function obj_fun(temperature_to_susceptibility,lower_bound, upper_bound, tolerance, worker.dos_total, worker.E_bins_total, worker.M_bins_total);
+    ArrayXd initial_conditions(3);
+    initial_conditions.fill(0);
+    objective_function obj_fun(temperature_to_susceptibility,lower_bound, upper_bound, tolerance,initial_conditions, worker.dos_total, worker.E_bins_total, worker.M_bins_total);
     obj_fun.id      = worker.world_ID;
-    obj_fun.threads = 1;
     obj_fun.name    = "x";
 
     minimize(obj_fun);
@@ -192,7 +194,7 @@ void class_thermodynamics::get_x_peak(class_worker &worker){
 }
 
 
-long double temperature_to_free_energy(objective_function &obj_fun, Array<long double, Dynamic,1> &input){
+double temperature_to_free_energy(objective_function &obj_fun, ArrayXd &input){
     auto &dos_total =  obj_fun.aux[0];
     auto &E_bins    =  obj_fun.aux[1];
     auto &M_bins    =  obj_fun.aux[2];
@@ -205,7 +207,7 @@ long double temperature_to_free_energy(objective_function &obj_fun, Array<long d
     int mid_mid  = (int)(mid/2);
     F            = F.log().array() * (-T);
     F              -= F(mid);
-    long double result = (F.segment(mid - mid_mid, mid).abs()).sum() + 1/fabs(F(0));
+    double result = (F.segment(mid - mid_mid, mid).abs()).sum() + 1/fabs(F(0));
     if (isinf(result)){result = 1e6;}
     if (isnan(result)){result = 1e6;}
     return result;
@@ -218,15 +220,16 @@ long double temperature_to_free_energy(objective_function &obj_fun, Array<long d
 void class_thermodynamics::get_Tc_free_energy(class_worker &worker) {
     ArrayXd lower_bound(1);
     ArrayXd upper_bound(1);
+    ArrayXd initial_conditions(3);
+    initial_conditions.fill(0);
     lower_bound << constants::T_min;
     upper_bound << constants::T_max;
     double tolerance = 1e-6;
     ArrayXXd dos_no_nan = math::NaN_to_Zero(worker.dos_total);
-    objective_function obj_fun(temperature_to_free_energy, lower_bound, upper_bound, tolerance, dos_no_nan,
+    objective_function obj_fun(temperature_to_free_energy, lower_bound, upper_bound, tolerance,initial_conditions, dos_no_nan,
                                worker.E_bins_total, worker.M_bins_total);
     obj_fun.id      = worker.world_ID;
     obj_fun.name    = "F";
-    obj_fun.threads = 1;
     minimize(obj_fun);
 
     Tc_F.resize(1);
