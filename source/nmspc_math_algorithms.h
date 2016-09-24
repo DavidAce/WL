@@ -116,7 +116,7 @@ namespace math{
         for (int j = 0; j < array.cols(); j++){
             for (int i = 0; i < array.rows(); i++) {
                 if (array(i, j) == 0) { continue; }
-                if (isnan(array(i, j))) { continue; }
+                if (std::isnan(array(i, j))) { continue; }
                 sum += array(i, j);
                 count++;
             }
