@@ -45,7 +45,7 @@ namespace constants{
     static const double overlap_factor_dos_area= 1.0;
 
     //Parameters for sub-window splitting
-    static const int     min_walks             = 2;
+    static const int     min_walks             = 3;
     static const int     max_merges            = 1;
 }
 
