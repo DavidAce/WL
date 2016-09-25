@@ -124,7 +124,9 @@ void divide_range(class_worker &worker, class_backup &backup){
                 worker.dos.fill(0);
                 worker.need_to_resize_global = 0;
                 worker.find_current_state();
-                worker.P_increment = 1.0 / sqrt(math::count_num_elements(worker.dos));
+                worker.P_increment = 1.0 / sqrt(worker.E_bins.size());
+
+//                worker.P_increment = 1.0 / sqrt(math::count_num_elements(worker.dos));
 
             }else if(min_walks < constants::min_walks && counter::merges < constants::max_merges && all_in_window == 1){
                 //divide dos area

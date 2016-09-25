@@ -179,6 +179,7 @@ public:
             M_set           = worker.M_set;
             in_window       = worker.in_window;
             slope           = worker.slope;
+            MCS             = counter::MCS;
             backed_up       = true;
             cout << "ID: " << worker.world_ID << " Is backed up" << endl;
         }
@@ -205,6 +206,7 @@ public:
             worker.M_set        = M_set;
             worker.in_window    = in_window;
             worker.slope        = slope;
+            counter::MCS        = MCS;
             backed_up = false;
             cout << "ID: " << worker.world_ID << " Is now restored" << endl;
         }
@@ -232,7 +234,7 @@ public:
 
     bool in_window;
     double slope;
-
+    int MCS;
 
 };
 

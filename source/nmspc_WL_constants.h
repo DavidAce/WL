@@ -27,8 +27,8 @@ namespace constants{
     static const int bins       = 10;      //No lower than 10! (per worker)
     //Rates for checking and printing (MCS units)
     static const int    rate_add_hist_volume   = 500;       //How often to append reduced volume to an array called "saturation", which indicates if the current walk has converged when it flattens out.
-    static const int    rate_check_finish_line = 1000;      //Check if everybodies modification factor is below minimum_lnf
-    static const int    rate_take_help         = 10;
+    static const int    rate_check_finish_line = 5000;      //Check if everybodies modification factor is below minimum_lnf
+    static const int    rate_take_help         = 500;
     static const int    rate_setup_help        = 5000;
     static const int    rate_check_saturation  = 5000;      //How often to check if saturation has flattened out
     static const int    rate_divide_range      = 10000;     //How often to check if we can merge all dos and split energy subwindows in a smarter way.
