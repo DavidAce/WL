@@ -10,7 +10,7 @@ namespace constants{
 
     //WL boostrap properties
     static const int simulation_reps = 8;      //Number of independent do_simulations
-    static const int bootstrap_reps  = 0;
+    static const int bootstrap_reps  = 8;
 
     //WL thermodynamics properties
     static const int    T_num = 500;             //Number of temperatures for thermodynamic quantities
