@@ -40,8 +40,7 @@ public:
     void write_data_master(class_worker &);
     void write_data_thermo(class_thermodynamics &, const int &iter);
     void write_final_data(class_stats &stats, const int &id);
-//    void write_data_worker_binary(class_worker &);
-//    void write_data_master_binary(class_worker &);
+
     template<typename Derived>
     void write_to_file(const MatrixBase<Derived> &data, string &filename){
         ofstream file(filename,ios::out | ios::trunc);

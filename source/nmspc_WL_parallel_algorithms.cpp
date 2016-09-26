@@ -185,6 +185,12 @@ namespace mpi {
     void merge(class_worker &worker, bool broadcast, bool trim) {
         if(debug_merge){debug_print(worker,"\nMerging. ");}
 
+        //Start by trimming:
+        math::subtract_min_nonzero_nan(worker.dos);
+        worker.dos +=1;
+        math::remove_nan_rows(worker.dos, worker.E_bins);
+        worker.dos = math::NaN_to_Zero(worker.dos);
+
         ArrayXXd dos_total,  dos_recv;
         ArrayXd E_total, M_total, E_recv, M_recv;
         int E_sizes[worker.world_size];
@@ -240,9 +246,10 @@ namespace mpi {
 //                cout << " E:high up "<< E_shared_high_up   << endl;
 //                cout << " diff      "<< math::nanzeromean(dos_total.middleRows(E_shared_low   , E_shared_high    - E_shared_low))<< endl;
 //                cout << " diff up   "<< math::nanzeromean(dos_recv .middleRows(E_shared_low_up, E_shared_high_up - E_shared_low_up))<< endl;
-                diff = math::nanzeromean(dos_total.middleRows(E_shared_low   , E_shared_high    - E_shared_low))
-                      -math::nanzeromean(dos_recv .middleRows(E_shared_low_up, E_shared_high_up - E_shared_low_up));
-
+//                diff = math::nanzeromean(dos_total.middleRows(E_shared_low   , E_shared_high    - E_shared_low))
+//                      -math::nanzeromean(dos_recv .middleRows(E_shared_low_up, E_shared_high_up - E_shared_low_up));
+                diff = math::dos_distance(dos_total.middleRows(E_shared_low   , E_shared_high    - E_shared_low),
+                                          dos_recv .middleRows(E_shared_low_up, E_shared_high_up - E_shared_low_up) );
 
 
 

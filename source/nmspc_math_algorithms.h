@@ -111,8 +111,8 @@ namespace math{
 
     template <typename Derived>
     typename Derived::Scalar nanzeromean(const ArrayBase<Derived> & array)  {
-        double sum = 0;
-        int    count = 0;
+        double sum      = 0;
+        int    count    = 0;
         for (int j = 0; j < array.cols(); j++){
             for (int i = 0; i < array.rows(); i++) {
                 if (array(i, j) == 0) { continue; }
@@ -123,6 +123,61 @@ namespace math{
         }
         return sum/count;
     }
+
+    template <typename Derived1 ,typename Derived2>
+    typename Derived1::Scalar nanzerostd(const ArrayBase<Derived1> & distance, const ArrayBase<Derived2> & array1,const ArrayBase<Derived2> & array2)  {
+        double sum = 0;
+        double m = nanzeromean(distance); //mean
+//        std::cout << "MEAN : " << m <<std::endl;
+
+        int    count = 0;
+        for (int j = 0; j < distance.cols(); j++){
+            for (int i = 0; i < distance.rows(); i++) {
+                if (array1(i, j) == 0 || array2(i,j) == 0) { continue; }
+                if (std::isnan(distance(i, j))) { continue; }
+                sum += (distance(i,j) - m)*(distance(i,j) - m);
+                count++;
+            }
+        }
+        return sqrt(sum/count);
+    }
+
+    template <typename Derived>
+    typename Derived::Scalar dos_distance(const ArrayBase<Derived> & array1,const ArrayBase<Derived> & array2)  {
+        if (array2.size() != array1.size()){std::cout << "Error: Array size mismatch in dos_distance" << std::endl;}
+        ArrayXXd distance = array1 - array2;
+        std::cout << std::setprecision(5) << std::fixed << std::showpoint;
+        auto stDev   = nanzerostd(distance, array1, array2);
+        double m = nanzeromean(distance); //mean
+
+//        std::cout << "STD : " << stDev <<std::endl;
+
+        double sum = 0;
+        int count = 0;
+        for (int j = 0; j < array1.cols(); j++) {
+            for (int i = 0; i < array1.rows(); i++) {
+                if (array1(i, j) == 0 || array2(i,j) == 0) { continue; }
+                if (std::isnan(distance(i, j))) { continue; }
+                if (fabs(distance(i, j) - m) < 0.5*fabs(stDev)) {
+                    sum += distance(i,j);
+                    count ++;
+                }
+            }
+        }
+//        std::cout << "Diff = " << sum/std::max(1,count) << std::endl;
+//        std::cout << "Old Distance = "<<std::endl;
+//        std::cout << distance << std::endl << std::endl;
+//        std::cout << "New Distance = "<<std::endl;
+//        distance = array2;
+//        math::add_to_nonzero_nonnan(distance, sum/std::max(1,count) );
+//        std::cout << array1 - distance<< std::endl << std::endl;
+        if (count == 0 ){
+            return nanzeromean(array1) - nanzeromean(array2);
+        }else{
+            return sum/std::max(1,count);
+        }
+    }
+
 
     template <typename Derived>
     typename Derived::PlainObject Zero_to_NaN(const ArrayBase<Derived> &array){
@@ -152,12 +207,17 @@ namespace math{
         array = (array > 0 && array == array).select(array-min_nonnan, array);
     }
 
+    template <typename Derived, typename T>
+    void add_to_nonzero_nonnan(ArrayBase<Derived> &array, const T &x){
+        array = (array > 0 && array == array).select(array+x, array);
+        array = (array < 0).select(0,array);
+    }
+
     template <typename Derived>
     void subtract_min_nonzero(ArrayBase<Derived> &array){
         auto min_positive = find_min_positive(array);
         array = (array > 0 && array == array).select(array-min_positive, array);
     }
-
 
     template <typename Derived>
     void subtract_min_nonzero_nan(ArrayBase<Derived> &array){
@@ -170,14 +230,6 @@ namespace math{
     void subtract_min_nonzero_one(ArrayBase<Derived> &array){
         auto min_positive = find_min_positive(array);
         array = (array > 0 && array == array).select(array-min_positive+1, array);
-    }
-
-
-
-    template <typename Derived, typename T>
-    void add_to_nonzero_nonnan(ArrayBase<Derived> &array, const T &x){
-        array = (array > 0 && array == array).select(array+x, array);
-        array = (array < 0).select(0,array);
     }
 
 

@@ -45,6 +45,7 @@ void do_thermodynamics(class_worker &worker){
         thermo.get_c_peak(worker);
         thermo.get_x_peak(worker);
         thermo.get_Tc_free_energy(worker);
+        thermo.get_Tc_canonical_distribution(worker);
         if(debug_thermo){cout << "ID: " << worker.world_ID << "  Thermo: Writing Results..." << endl;}
         out.write_data_thermo(thermo, worker.iteration);
         worker.iteration += worker.world_size ;

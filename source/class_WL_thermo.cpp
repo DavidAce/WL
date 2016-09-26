@@ -147,7 +147,7 @@ void class_thermodynamics::get_c_peak(class_worker &worker){
     double temp  = (double) obj_fun.fitness(obj_fun.optimum);
     c_peak.resize(2);
     c_peak << obj_fun.optimum(0), -temp;
-
+    cout << "ID: " << worker.world_ID << " Tc_c = " << c_peak(0) << endl;
 
 }
 
@@ -189,6 +189,7 @@ void class_thermodynamics::get_x_peak(class_worker &worker){
     double temp  = (double) obj_fun.fitness(obj_fun.optimum);
     x_peak.resize(2);
     x_peak << obj_fun.optimum(0), -temp;
+    cout << "ID: " << worker.world_ID << " Tc_x = " << x_peak(0) << endl;
 
 
 }
@@ -231,7 +232,40 @@ void class_thermodynamics::get_Tc_free_energy(class_worker &worker) {
     obj_fun.id      = worker.world_ID;
     obj_fun.name    = "F";
     minimize(obj_fun);
-
     Tc_F.resize(1);
     Tc_F(0) = (double) obj_fun.optimum(0);
+    cout << "ID: " << worker.world_ID << " Tc_F = " << Tc_F(0) << endl;
+}
+
+
+double temperature_to_canonical_distribution(objective_function &obj_fun, ArrayXd &input){
+    auto &dos1D     = obj_fun.aux[0];
+    auto &E_bins    = obj_fun.aux[1];
+    auto &T         = input(0);
+    auto beta = (double) (1 / T);
+    auto lambda = math::nanmaxCoeff(dos1D - E_bins*beta);
+    auto weight = (dos1D - beta*E_bins - lambda).exp();
+    auto Z   = math::nansum(weight);
+    return (weight/Z).maxCoeff();
+
+
+}
+
+
+void class_thermodynamics::get_Tc_canonical_distribution(class_worker &worker) {
+    ArrayXd lower_bound(1);
+    ArrayXd upper_bound(1);
+    ArrayXd initial_conditions(3);
+    initial_conditions.fill(0);
+    lower_bound << constants::T_min;
+    upper_bound << constants::T_max;
+    double tolerance = 1e-6;
+    ArrayXXd dos_no_nan = math::NaN_to_Zero(worker.dos_total);
+    objective_function obj_fun(temperature_to_canonical_distribution, lower_bound,  upper_bound, tolerance,initial_conditions, this->dos_total1D, worker.E_bins_total, worker.M_bins_total);
+    obj_fun.id      = worker.world_ID;
+    obj_fun.name    = "D";
+    minimize(obj_fun);
+    Tc_D.resize(1);
+    Tc_D(0) = (double) obj_fun.optimum(0);
+    cout << "ID: " << worker.world_ID << " Tc_D = " << Tc_D(0) << endl;
 }

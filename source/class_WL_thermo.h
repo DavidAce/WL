@@ -30,6 +30,7 @@ public:
     ArrayXd c_peak;
     ArrayXd x_peak;
     ArrayXd Tc_F; //Free energy critical temperature (Tc)
+    ArrayXd Tc_D; //Canonical distribution critical temperature (Tc)
     ArrayXXd D; //Canonical Distribution
     ArrayXXd P; //Probability distribution
     ArrayXXd F; //Free energy as a function of order parameter
@@ -37,6 +38,7 @@ public:
     void get_c_peak(class_worker &worker);
     void get_x_peak(class_worker &worker);
     void get_Tc_free_energy(class_worker &worker);
+    void get_Tc_canonical_distribution(class_worker &worker);
 };
 
 

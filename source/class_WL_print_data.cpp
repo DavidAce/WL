@@ -48,6 +48,7 @@ void outdata::write_data_thermo(class_thermodynamics &thermo, const int &iter){
     string name_c_peak  = folder + string("c_peak.dat");
     string name_x_peak  = folder + string("x_peak.dat");
     string name_Tc_F    = folder + string("Tc_F.dat");
+    string name_Tc_D    = folder + string("Tc_D.dat");
     string name_D       = folder + string("D.dat");
     string name_F       = folder + string("F.dat");
     string name_P       = folder + string("P.dat");
@@ -62,6 +63,7 @@ void outdata::write_data_thermo(class_thermodynamics &thermo, const int &iter){
     write_to_file(thermo.c_peak, name_c_peak);
     write_to_file(thermo.x_peak, name_x_peak);
     write_to_file(thermo.Tc_F, name_Tc_F);
+    write_to_file(thermo.Tc_D, name_Tc_D);
     write_to_file(thermo.D, name_D);
     write_to_file(thermo.F, name_F);
     write_to_file(thermo.P, name_P);
@@ -84,6 +86,7 @@ void outdata::write_final_data(class_stats &stats, const int &id){
         string name_c_peak  = folder + string("c_peak.dat");
         string name_x_peak  = folder + string("x_peak.dat");
         string name_Tc_F    = folder + string("Tc_F.dat");
+        string name_Tc_D    = folder + string("Tc_D.dat");
         string name_dos     = folder + string("dos.dat");
         string name_D       = folder + string("D.dat");
         string name_F       = folder + string("F.dat");
@@ -102,6 +105,7 @@ void outdata::write_final_data(class_stats &stats, const int &id){
         write_to_file(stats.c_peak_avg, name_c_peak);
         write_to_file(stats.x_peak_avg, name_x_peak);
         write_to_file(stats.Tc_F_avg, name_Tc_F);
+        write_to_file(stats.Tc_D_avg, name_Tc_D);
         write_to_file(stats.dos_avg, name_dos);
         write_to_file(stats.D_avg, name_D);
         write_to_file(stats.F_avg, name_F);
@@ -117,6 +121,7 @@ void outdata::write_final_data(class_stats &stats, const int &id){
         name_c_peak     = folder + string("c_peak_err.dat");
         name_x_peak     = folder + string("x_peak_err.dat");
         name_Tc_F       = folder + string("Tc_F_err.dat");
+        name_Tc_D       = folder + string("Tc_D_err.dat");
         name_dos        = folder + string("dos_err.dat");
         name_D          = folder + string("D_err.dat");
         name_F          = folder + string("F_err.dat");
@@ -132,6 +137,7 @@ void outdata::write_final_data(class_stats &stats, const int &id){
         write_to_file(stats.c_peak_err, name_c_peak);
         write_to_file(stats.x_peak_err, name_x_peak);
         write_to_file(stats.Tc_F_err, name_Tc_F);
+        write_to_file(stats.Tc_D_err, name_Tc_D);
         write_to_file(stats.dos_err, name_dos);
         write_to_file(stats.D_err, name_D);
         write_to_file(stats.F_err, name_F);

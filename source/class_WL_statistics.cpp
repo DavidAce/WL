@@ -27,6 +27,7 @@ void class_stats::compute(class_worker &worker){
     c_peak_avg  = c_peak.rowwise().mean();
     x_peak_avg  = x_peak.rowwise().mean();
     Tc_F_avg    = Tc_F.rowwise().mean();
+    Tc_D_avg    = Tc_D.rowwise().mean();
     dos_avg     = math::mean_depthwise(dos);
     D_avg       = math::mean_depthwise(D);
     F_avg       = math::mean_depthwise(F);
@@ -42,6 +43,7 @@ void class_stats::compute(class_worker &worker){
     c_peak_err  = ((c_peak.colwise()- c_peak_avg).cwiseAbs2().rowwise().sum()/(B-1)).cwiseSqrt();
     x_peak_err  = ((x_peak.colwise()- x_peak_avg).cwiseAbs2().rowwise().sum()/(B-1)).cwiseSqrt();
     Tc_F_err    = ((Tc_F.colwise()  - Tc_F_avg  ).cwiseAbs2().rowwise().sum()/(B-1)).cwiseSqrt();
+    Tc_D_err    = ((Tc_D.colwise()  - Tc_D_avg  ).cwiseAbs2().rowwise().sum()/(B-1)).cwiseSqrt();
 
     dos_err     = math::err_depthwise(dos, dos_avg);
     D_err       = math::err_depthwise(D, D_avg);

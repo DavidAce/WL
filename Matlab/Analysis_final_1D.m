@@ -15,6 +15,7 @@ x     = load(['../outdata/final/x.dat']);
 c_peak= load(['../outdata/final/c_peak.dat']);
 x_peak= load(['../outdata/final/x_peak.dat']);
 Tc_F  = load(['../outdata/final/Tc_F.dat']);
+Tc_D  = load(['../outdata/final/Tc_D.dat']);
 dos   = load(['../outdata/final/dos.dat']);
 D     = load(['../outdata/final/D.dat']);
 F     = load(['../outdata/final/F.dat']);
@@ -31,6 +32,7 @@ dos1D_err = load(['../outdata/final/dos1D_err.dat']);
 c_peak_err= load(['../outdata/final/c_peak_err.dat']);
 x_peak_err= load(['../outdata/final/x_peak_err.dat']);
 Tc_F_err  = load(['../outdata/final/Tc_F_err.dat']);
+Tc_D_err  = load(['../outdata/final/Tc_D_err.dat']);
 dos_err   = load(['../outdata/final/dos_err.dat']);
 D_err     = load(['../outdata/final/D_err.dat']);
 F_err     = load(['../outdata/final/F_err.dat']);
@@ -60,12 +62,6 @@ title('Specific heat')
 legend('c WL', 'c Ising')
 xlabel('T');
 ylabel('c(T)')
-% subplot(1,2,2)
-% plot(T,cError ,'DisplayName', ['Ising Rel. Error ']),hold all;
-% plot(T,c_err ,'DisplayName', ['Standard Error'])
-% title('Error')
-% xlabel('T');
-% ylabel('Error')
 
 
 figure(2)
@@ -157,6 +153,12 @@ ylabel('\Delta f(\beta,m)');
 
 
 figure(8)
-Tc_idx = nearestpoint(c_peak(1), T);  %% Is the best canonical distribution really at this temperature?
-shadedErrorBar(E, D(Tc_idx, :), D_err(Tc_idx,:), '-o', 1)
+Tc_idx = nearestpoint( Tc_D, T);
+Tc_near= Tc_idx-10:5:Tc_idx+10;
+Z = trapz(E, D(Tc_idx,:));
+shadedErrorBar(E, D(Tc_idx, :)/Z, D_err(Tc_idx,:)/Z, '-o', 1),hold on
+for i = 1:length(Tc_near)
+Z = trapz(E, D(Tc_near(i),:));
+plot(E, D(Tc_near(i), :)/Z),hold on
+end
 

@@ -75,6 +75,7 @@ void indata::load_full(class_stats &stats, class_worker &worker) {
     stats.c_peak.resize(2, reps);
     stats.x_peak.resize(2, reps);
     stats.Tc_F.resize(1, reps);
+    stats.Tc_D.resize(1, reps);
     if (debug_load_full_thermo) {
         cout << "Finished Resizing" << endl;
         cout.flush();
@@ -98,6 +99,7 @@ void indata::load_full(class_stats &stats, class_worker &worker) {
         string name_c_peak  = folder + to_string(i) + string("/c_peak.dat");
         string name_x_peak  = folder + to_string(i) + string("/x_peak.dat");
         string name_Tc_F    = folder + to_string(i) + string("/Tc_F.dat");
+        string name_Tc_D    = folder + to_string(i) + string("/Tc_D.dat");
         string name_dos     = folder + to_string(i) + string("/dos.dat");
         string name_D       = folder + to_string(i) + string("/D.dat");
         string name_F       = folder + to_string(i) + string("/F.dat");
@@ -114,6 +116,7 @@ void indata::load_full(class_stats &stats, class_worker &worker) {
         stats.c_peak.col(i) = read_file(name_c_peak);
         stats.x_peak.col(i) = read_file(name_x_peak);
         stats.Tc_F.col(i)   = read_file(name_Tc_F);
+        stats.Tc_D.col(i)   = read_file(name_Tc_D);
         stats.dos.push_back(read_file(name_dos));
         stats.D.push_back(read_file(name_D));
         stats.F.push_back(read_file(name_F));
