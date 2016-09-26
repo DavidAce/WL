@@ -127,9 +127,9 @@ namespace mpi {
             } else {
                 E_X_idx = math::binary_search(worker.E_bins, E_X);
                 M_X_idx = math::binary_search(worker.M_bins, M_X);
-                MPI_Send(&worker.dos(E_X_idx, M_X_idx), 1, MPI_DOUBLE, dn, 108, MPI_COMM_WORLD);
+                MPI_Send(&worker.dos(E_X_idx, M_X_idx)          , 1, MPI_DOUBLE, dn, 108, MPI_COMM_WORLD);
                 MPI_Send(&worker.dos(worker.E_idx, worker.M_idx), 1, MPI_DOUBLE, dn, 109, MPI_COMM_WORLD);
-                MPI_Recv(&swap, 1, MPI_INT, dn, 110, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                MPI_Recv(&swap                                  , 1, MPI_INT   , dn, 110, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             }
             if (debug_swap) {
                 for (int w = 0; w < worker.world_size; w++) {
@@ -732,14 +732,14 @@ namespace mpi {
         for (int w = 0; w < worker.world_size; w++) {
             if (worker.world_ID == worker.help.whos_helping_who(w)) {
                 //You should send
-                MPI_Send(worker.dos.data(), (int) worker.dos.size(), MPI_DOUBLE, w, w, MPI_COMM_WORLD);
-                MPI_Send(&worker.lnf, 1, MPI_DOUBLE, w, w+worker.world_size, MPI_COMM_WORLD);
-                MPI_Send(&counter::MCS, 1, MPI_INT, w, w+worker.world_size, MPI_COMM_WORLD);
+                MPI_Send(worker.dos.data(), (int) worker.dos.size(), MPI_DOUBLE, w, w + 5000, MPI_COMM_WORLD);
+                MPI_Send(&worker.lnf, 1, MPI_DOUBLE, w, w + 5001, MPI_COMM_WORLD);
+                MPI_Send(&counter::MCS, 1, MPI_INT , w, w + 5002, MPI_COMM_WORLD);
             } else if (worker.world_ID == w && worker.help.whos_helping_who(w) >= 0) {
                 //You should receive
-                MPI_Recv(worker.dos.data(), (int) worker.dos.size(), MPI_DOUBLE, worker.help.whos_helping_who(w), w,  MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                MPI_Recv(&worker.lnf, 1, MPI_DOUBLE, worker.help.whos_helping_who(w), w+worker.world_size, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                MPI_Recv(&counter::MCS, 1, MPI_INT, worker.help.whos_helping_who(w), w+worker.world_size, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                MPI_Recv(worker.dos.data(), (int) worker.dos.size(), MPI_DOUBLE, worker.help.whos_helping_who(w), w + 5000,  MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                MPI_Recv(&worker.lnf, 1, MPI_DOUBLE, worker.help.whos_helping_who(w), w + 5001, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                MPI_Recv(&counter::MCS, 1, MPI_INT,  worker.help.whos_helping_who(w), w + 5002, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                 worker.flag_one_over_t = worker.lnf < 1.0 / max(1, counter::MCS) ? 1 : 0;
 
             }
@@ -808,14 +808,14 @@ namespace mpi {
         for (int w = 0; w < worker.world_size; w++) {
             if (worker.world_ID == worker.help.whos_helping_who(w)) {
                 //You should send
-                mpi::send_dynamic(worker.dos, MPI_DOUBLE, w);
+                mpi::send_dynamic(worker.dos   , MPI_DOUBLE, w);
                 mpi::send_dynamic(worker.E_bins, MPI_DOUBLE, w);
                 mpi::send_dynamic(worker.M_bins, MPI_DOUBLE, w);
-                MPI_Send(&worker.lnf, 1, MPI_DOUBLE, w, 4, MPI_COMM_WORLD);
-                MPI_Send(&worker.E, 1, MPI_DOUBLE, w, 5, MPI_COMM_WORLD);
-                MPI_Send(&worker.M, 1, MPI_DOUBLE, w, 6, MPI_COMM_WORLD);
+                MPI_Send(&worker.lnf, 1        , MPI_DOUBLE, w, 4, MPI_COMM_WORLD);
+                MPI_Send(&worker.E, 1          , MPI_DOUBLE, w, 5, MPI_COMM_WORLD);
+                MPI_Send(&worker.M, 1          , MPI_DOUBLE, w, 6, MPI_COMM_WORLD);
                 MPI_Send(worker.model.lattice.data(), (int) worker.model.lattice.size(), MPI_INT, w,7, MPI_COMM_WORLD);
-                MPI_Send(&counter::MCS, 1, MPI_INT, w, 8, MPI_COMM_WORLD);
+                MPI_Send(&counter::MCS, 1      , MPI_INT, w, 8000, MPI_COMM_WORLD);
 
                 worker.help.histogram_recv.resizeLike(worker.histogram);
                 worker.help.histogram_recv.fill(0);
@@ -824,14 +824,14 @@ namespace mpi {
                 //You should receive
                 //Backup first
                 backup.backup_state(worker);
-                mpi::recv_dynamic(worker.dos, MPI_DOUBLE, worker.help.whos_helping_who(w));
+                mpi::recv_dynamic(worker.dos   , MPI_DOUBLE, worker.help.whos_helping_who(w));
                 mpi::recv_dynamic(worker.E_bins, MPI_DOUBLE, worker.help.whos_helping_who(w));
                 mpi::recv_dynamic(worker.M_bins, MPI_DOUBLE, worker.help.whos_helping_who(w));
-                MPI_Recv(&worker.lnf, 1, MPI_DOUBLE, worker.help.whos_helping_who(w), 4, MPI_COMM_WORLD,  MPI_STATUS_IGNORE);
-                MPI_Recv(&worker.E, 1, MPI_DOUBLE, worker.help.whos_helping_who(w), 5, MPI_COMM_WORLD,  MPI_STATUS_IGNORE);
-                MPI_Recv(&worker.M, 1, MPI_DOUBLE, worker.help.whos_helping_who(w), 6, MPI_COMM_WORLD,  MPI_STATUS_IGNORE);
-                MPI_Recv(worker.model.lattice.data(), (int) worker.model.lattice.size(), MPI_INT, worker.help.whos_helping_who(w),7, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-                MPI_Recv(&counter::MCS, 1, MPI_INT, worker.help.whos_helping_who(w), 8, MPI_COMM_WORLD,  MPI_STATUS_IGNORE);
+                MPI_Recv(&worker.lnf, 1        , MPI_DOUBLE, worker.help.whos_helping_who(w), 4, MPI_COMM_WORLD,  MPI_STATUS_IGNORE);
+                MPI_Recv(&worker.E, 1          , MPI_DOUBLE, worker.help.whos_helping_who(w), 5, MPI_COMM_WORLD,  MPI_STATUS_IGNORE);
+                MPI_Recv(&worker.M, 1          , MPI_DOUBLE, worker.help.whos_helping_who(w), 6, MPI_COMM_WORLD,  MPI_STATUS_IGNORE);
+                MPI_Recv(worker.model.lattice.data() , (int) worker.model.lattice.size(), MPI_INT, worker.help.whos_helping_who(w),7, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+                MPI_Recv(&counter::MCS, 1         , MPI_INT, worker.help.whos_helping_who(w), 8000, MPI_COMM_WORLD,  MPI_STATUS_IGNORE);
                 worker.flag_one_over_t = worker.lnf < 1.0 / max(1, counter::MCS) ? 1 : 0;
                 //Set all values needed to sweep
                 worker.E_min_local = worker.E_bins.minCoeff();
