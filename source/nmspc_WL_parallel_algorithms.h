@@ -21,7 +21,9 @@ namespace mpi {
     extern void divide_global_range_dos_area   (class_worker &) ;
     extern void divide_global_range_dos_volume (class_worker &) ;
     extern void take_help                      (class_worker &) ;
+//    extern void take_help2                     (class_worker &) ;
     extern void setup_help                     (class_worker &,class_backup &) ;
+//    extern void setup_help2                    (class_worker &,class_backup &) ;
     extern void help                           (class_worker &,class_backup &) ;
 
 
@@ -34,6 +36,18 @@ namespace mpi {
         arr.derived().resize(rows, cols);
         MPI_Bcast(arr.derived().data(), cols*rows, MPI_TYPE, master_id, MPI_COMM_WORLD);
     }
+    template <typename Derived, typename mpitype, typename mpicommtype>
+    void bcast_dynamic (ArrayBase<Derived> &arr, mpitype MPI_TYPE , int master_id, mpicommtype MPI_COMM){
+        int rows = (int) arr.rows();
+        int cols = (int) arr.cols();
+        MPI_Bcast(&rows, 1, MPI_INT, master_id, MPI_COMM);
+        MPI_Bcast(&cols, 1, MPI_INT, master_id, MPI_COMM);
+        arr.derived().resize(rows, cols);
+        MPI_Bcast(arr.derived().data(), cols*rows, MPI_TYPE, master_id, MPI_COMM);
+    }
+
+
+
     template <typename Derived, typename mpitype>
     void send_dynamic (ArrayBase<Derived> &arr, mpitype MPI_TYPE, int dest_id){
         int rows = (int) arr.rows();

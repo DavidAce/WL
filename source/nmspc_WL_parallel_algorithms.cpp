@@ -407,7 +407,6 @@ namespace mpi {
         }
     }
 
-
     void merge2(class_worker &worker, bool broadcast, bool trim) {
         if(debug_merge){debug_print(worker,"\nMerging. ");}
 
@@ -706,10 +705,9 @@ namespace mpi {
 
     void take_help(class_worker &worker) {
         //Offload help
-        for (int w = 0; w < worker.world_size; w++) {
-            if (worker.world_ID == worker.help.whos_helping_who(w)) {
-                //You should receive help
-                MPI_Recv(worker.help.histogram_recv.data(), (int) worker.help.histogram_recv.size(), MPI_INT, w, w, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        if (worker.help.getting_help){
+            for (int i = 1; i < worker.help.help_size; i++) {
+                MPI_Recv(worker.help.histogram_recv.data(), (int) worker.help.histogram_recv.size(), MPI_INT, MPI_ANY_SOURCE, worker.world_ID, worker.help.MPI_COMM_HELP, MPI_STATUS_IGNORE);
                 if (worker.flag_one_over_t == 0){
                     worker.histogram        += worker.help.histogram_recv;
                 }
@@ -719,34 +717,62 @@ namespace mpi {
                 timer::check_saturation     += constants::rate_take_help - 1;
                 worker.add_hist_volume();
                 worker.check_saturation();
-
-            } else if (worker.world_ID == w && worker.help.whos_helping_who(w) >= 0) {
-                //You should send help
-                MPI_Send(worker.histogram.data(), (int) worker.histogram.size(), MPI_INT, worker.help.whos_helping_who(w), w, MPI_COMM_WORLD);
-                worker.histogram.fill(0);
             }
+        }else{
+            MPI_Send(worker.histogram.data(), (int) worker.histogram.size(), MPI_INT, 0, worker.help.helping_id, worker.help.MPI_COMM_HELP);
+            worker.histogram.fill(0);
         }
 
-        //Now get an updated dos:
-        //If there has been no change since last time, simply share the dos and lnf and return;
-        for (int w = 0; w < worker.world_size; w++) {
-            if (worker.world_ID == worker.help.whos_helping_who(w)) {
-                //You should send
-                MPI_Send(worker.dos.data(), (int) worker.dos.size(), MPI_DOUBLE, w, w + 5000, MPI_COMM_WORLD);
-                MPI_Send(&worker.lnf, 1, MPI_DOUBLE, w, w + 5001, MPI_COMM_WORLD);
-                MPI_Send(&counter::MCS, 1, MPI_INT , w, w + 5002, MPI_COMM_WORLD);
-            } else if (worker.world_ID == w && worker.help.whos_helping_who(w) >= 0) {
-                //You should receive
-                MPI_Recv(worker.dos.data(), (int) worker.dos.size(), MPI_DOUBLE, worker.help.whos_helping_who(w), w + 5000,  MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                MPI_Recv(&worker.lnf, 1, MPI_DOUBLE, worker.help.whos_helping_who(w), w + 5001, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                MPI_Recv(&counter::MCS, 1, MPI_INT,  worker.help.whos_helping_who(w), w + 5002, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                worker.flag_one_over_t = worker.lnf < 1.0 / max(1, counter::MCS) ? 1 : 0;
-
-            }
-        }
-
-
+        //Now broadcast an updated dos:
+        MPI_Bcast(worker.dos.data(), (int) worker.dos.size(), MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
+        MPI_Bcast(&worker.lnf  , 1, MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
+        MPI_Bcast(&counter::MCS, 1, MPI_INT   , 0, worker.help.MPI_COMM_HELP);
+        worker.flag_one_over_t = worker.lnf < 1.0 / max(1, counter::MCS) ? 1 : 0;
     }
+
+//    void take_help2(class_worker &worker) {
+//        //Offload help
+//        for (int w = 0; w < worker.world_size; w++) {
+//            if (worker.world_ID == worker.help.whos_helping_who(w)) {
+//                //You should receive help
+//                MPI_Recv(worker.help.histogram_recv.data(), (int) worker.help.histogram_recv.size(), MPI_INT, w, w, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+//                if (worker.flag_one_over_t == 0){
+//                    worker.histogram        += worker.help.histogram_recv;
+//                }
+//                worker.dos += worker.help.histogram_recv.cast<double>() * worker.lnf;
+//                counter::MCS                += constants::rate_take_help;
+//                timer::add_hist_volume      += constants::rate_take_help - 1;
+//                timer::check_saturation     += constants::rate_take_help - 1;
+//                worker.add_hist_volume();
+//                worker.check_saturation();
+//
+//            } else if (worker.world_ID == w && worker.help.whos_helping_who(w) >= 0) {
+//                //You should send help
+//                MPI_Send(worker.histogram.data(), (int) worker.histogram.size(), MPI_INT, worker.help.whos_helping_who(w), w, MPI_COMM_WORLD);
+//                worker.histogram.fill(0);
+//            }
+//        }
+//
+//        //Now get an updated dos:
+//        //If there has been no change since last time, simply share the dos and lnf and return;
+//        for (int w = 0; w < worker.world_size; w++) {
+//            if (worker.world_ID == worker.help.whos_helping_who(w)) {
+//                //You should send
+//                MPI_Send(worker.dos.data(), (int) worker.dos.size(), MPI_DOUBLE, w, w + 5000, MPI_COMM_WORLD);
+//                MPI_Send(&worker.lnf, 1, MPI_DOUBLE, w, w + 5001, MPI_COMM_WORLD);
+//                MPI_Send(&counter::MCS, 1, MPI_INT , w, w + 5002, MPI_COMM_WORLD);
+//            } else if (worker.world_ID == w && worker.help.whos_helping_who(w) >= 0) {
+//                //You should receive
+//                MPI_Recv(worker.dos.data(), (int) worker.dos.size(), MPI_DOUBLE, worker.help.whos_helping_who(w), w + 5000,  MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+//                MPI_Recv(&worker.lnf, 1, MPI_DOUBLE, worker.help.whos_helping_who(w), w + 5001, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+//                MPI_Recv(&counter::MCS, 1, MPI_INT,  worker.help.whos_helping_who(w), w + 5002, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+//                worker.flag_one_over_t = worker.lnf < 1.0 / max(1, counter::MCS) ? 1 : 0;
+//
+//            }
+//        }
+//
+//
+//    }
 
     void setup_help(class_worker &worker, class_backup &backup) {
         //Find out who's finished
@@ -761,6 +787,9 @@ namespace mpi {
         //or they've (2) never helped.
         //If (1), just take_help() and return.
         //If (2), setup from scratch.
+        ArrayXi whos_helping_who_old = ArrayXi::Constant(worker.world_size, -1);  //For comparison!
+        ArrayXi whos_helping_who_new = ArrayXi::Constant(worker.world_size, -1); //For comparison!
+        MPI_Allgather(&worker.help.helping_id, 1, MPI_INT, whos_helping_who_old.data(), 1, MPI_INT,MPI_COMM_WORLD);
 
         worker.help.available = worker.finish_line;
         worker.help.giving_help = false;
@@ -772,9 +801,8 @@ namespace mpi {
         //Now find out who to help next. compute max amount of helpers per worker.
         int max_helpers = (int) ceil((double) all_available.sum() / (worker.world_size - all_available.sum()));
         ArrayXi given_help(worker.world_size);
-        ArrayXi whos_helping_who_old = worker.help.whos_helping_who; //For comparison!
         given_help.fill(0);
-        worker.help.whos_helping_who.fill(-1);
+//        worker.help.whos_helping_who.fill(-1);
         for (int w = 0; w < worker.world_size; w++) {
             if (w == worker.world_ID) {
                 if (worker.finish_line) {
@@ -792,75 +820,181 @@ namespace mpi {
             MPI_Barrier(MPI_COMM_WORLD);
             MPI_Bcast(given_help.data(), worker.world_size, MPI_INT, w, MPI_COMM_WORLD);
         }
+        //If you got help, you are now rank (key) 0 in your own communicator (whose color is your ID).
+        //Otherwise, if you are giving help you join color = helping_id, and pass key = color+1?
+
         worker.help.getting_help = given_help(worker.world_ID) > 0;
-        MPI_Allgather(&worker.help.helping_id, 1, MPI_INT, worker.help.whos_helping_who.data(), 1, MPI_INT,
-                      MPI_COMM_WORLD);
-        //Now every available guy knows who to help, and the helpees know who to send their info to.
+        if (worker.help.getting_help){
+            worker.help.color = worker.world_ID;
+            worker.help.key   = 0;
+        }else if(worker.help.giving_help){
+            worker.help.color = worker.help.helping_id;
+            worker.help.key   = worker.help.color+1;
+        }else{
+            worker.help.color = MPI_UNDEFINED;
+            worker.help.key   = 0;
+        }
+        MPI_Comm_split(MPI_COMM_WORLD, worker.help.color, worker.help.key, &worker.help.MPI_COMM_HELP);
+        MPI_Allgather(&worker.help.helping_id, 1, MPI_INT, whos_helping_who_new.data(), 1, MPI_INT,MPI_COMM_WORLD);
+
 
         //If there has been no change since last time, simply return;
-        if (worker.help.whos_helping_who.cwiseEqual(whos_helping_who_old).all()) {
+        if (whos_helping_who_new.cwiseEqual(whos_helping_who_old).all()) {
             if(debug_setup_help){debug_print(worker,"Same help settings\n");}
 //            if(debug_setup_help){debug_print(worker,worker.help.whos_helping_who.transpose().eval());}
             return;
         }
-
-        //Otherwise send out the details for help to begin.
-        for (int w = 0; w < worker.world_size; w++) {
-            if (worker.world_ID == worker.help.whos_helping_who(w)) {
-                //You should send
-                mpi::send_dynamic(worker.dos   , MPI_DOUBLE, w);
-                mpi::send_dynamic(worker.E_bins, MPI_DOUBLE, w);
-                mpi::send_dynamic(worker.M_bins, MPI_DOUBLE, w);
-                MPI_Send(&worker.lnf, 1        , MPI_DOUBLE, w, 4, MPI_COMM_WORLD);
-                MPI_Send(&worker.E, 1          , MPI_DOUBLE, w, 5, MPI_COMM_WORLD);
-                MPI_Send(&worker.M, 1          , MPI_DOUBLE, w, 6, MPI_COMM_WORLD);
-                MPI_Send(worker.model.lattice.data(), (int) worker.model.lattice.size(), MPI_INT, w,7, MPI_COMM_WORLD);
-                MPI_Send(&counter::MCS, 1      , MPI_INT, w, 8000, MPI_COMM_WORLD);
-
-                worker.help.histogram_recv.resizeLike(worker.histogram);
-                worker.help.histogram_recv.fill(0);
-
-            } else if (worker.world_ID == w && worker.help.whos_helping_who(w) >= 0) {
-                //You should receive
-                //Backup first
-                backup.backup_state(worker);
-                mpi::recv_dynamic(worker.dos   , MPI_DOUBLE, worker.help.whos_helping_who(w));
-                mpi::recv_dynamic(worker.E_bins, MPI_DOUBLE, worker.help.whos_helping_who(w));
-                mpi::recv_dynamic(worker.M_bins, MPI_DOUBLE, worker.help.whos_helping_who(w));
-                MPI_Recv(&worker.lnf, 1        , MPI_DOUBLE, worker.help.whos_helping_who(w), 4, MPI_COMM_WORLD,  MPI_STATUS_IGNORE);
-                MPI_Recv(&worker.E, 1          , MPI_DOUBLE, worker.help.whos_helping_who(w), 5, MPI_COMM_WORLD,  MPI_STATUS_IGNORE);
-                MPI_Recv(&worker.M, 1          , MPI_DOUBLE, worker.help.whos_helping_who(w), 6, MPI_COMM_WORLD,  MPI_STATUS_IGNORE);
-                MPI_Recv(worker.model.lattice.data() , (int) worker.model.lattice.size(), MPI_INT, worker.help.whos_helping_who(w),7, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-                MPI_Recv(&counter::MCS, 1         , MPI_INT, worker.help.whos_helping_who(w), 8000, MPI_COMM_WORLD,  MPI_STATUS_IGNORE);
-                worker.flag_one_over_t = worker.lnf < 1.0 / max(1, counter::MCS) ? 1 : 0;
-                //Set all values needed to sweep
-                worker.E_min_local = worker.E_bins.minCoeff();
-                worker.E_max_local = worker.E_bins.maxCoeff();
-                worker.M_min_local = worker.M_bins.minCoeff();
-                worker.M_max_local = worker.M_bins.maxCoeff();
-                worker.in_window = worker.check_in_window(worker.E);
-                worker.find_current_state();
-//                worker.P_increment = 1.0 / sqrt(math::count_num_elements(worker.dos));
-                worker.P_increment = 1.0 / sqrt(worker.E_bins.size());
-
-                worker.histogram.resizeLike(worker.dos);
-                worker.histogram.fill(0);
-            }
-            MPI_Barrier(MPI_COMM_WORLD);
-            //Now if you didn't get to help anybody out you might as well restore your own dos.
-        }
-        if (!worker.help.giving_help) {
+        //If you are not getting and not giving help, just leave
+        if (worker.help.MPI_COMM_HELP == MPI_COMM_NULL){
             backup.restore_state(worker);
+            return;
         }
-        if(debug_setup_help){debug_print(worker,"New help settings\n");}
-        if(debug_setup_help){debug_print(worker,worker.help.whos_helping_who.transpose().eval());}
-//        cout << endl <<"ID: " << worker.world_ID << " In_window = " << worker.in_window << " [" << worker.E_min_local << " " << worker.E << " " << worker.E_max_local <<"]" <<endl;
-    }
+        MPI_Comm_rank(worker.help.MPI_COMM_HELP, &worker.help.help_rank);
+        MPI_Comm_size(worker.help.MPI_COMM_HELP, &worker.help.help_size);
+
+        //Now every available guy knows who to help (rank 0 in MPI_COMM_HELP) and the helpees know who to send their info to (Bcast).
+        //Start by backing up and such
+        if (worker.help.giving_help){backup.backup_state(worker);}
+
+        //Send out the details for help to begin.
+        mpi::bcast_dynamic(worker.dos    , MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
+        mpi::bcast_dynamic(worker.E_bins , MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
+        mpi::bcast_dynamic(worker.M_bins , MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
+        MPI_Bcast(&worker.lnf ,  1       , MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
+        MPI_Bcast(&worker.E   ,  1       , MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
+        MPI_Bcast(&worker.M   ,  1       , MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
+        MPI_Bcast(&counter::MCS, 1       , MPI_INT,    0, worker.help.MPI_COMM_HELP);
+        MPI_Bcast(worker.model.lattice.data(), (int) worker.model.lattice.size(), MPI_INT, 0, worker.help.MPI_COMM_HELP);
+        if (worker.help.giving_help){
+            worker.E_min_local = worker.E_bins.minCoeff();
+            worker.E_max_local = worker.E_bins.maxCoeff();
+            worker.M_min_local = worker.M_bins.minCoeff();
+            worker.M_max_local = worker.M_bins.maxCoeff();
+            worker.in_window   = worker.check_in_window(worker.E);
+            worker.P_increment = 1.0 / sqrt(worker.E_bins.size());
+            worker.histogram.resizeLike(worker.dos);
+            worker.histogram.fill(0);
+            worker.find_current_state();
+        }else if (worker.help.getting_help){
+            worker.help.histogram_recv.resizeLike(worker.histogram);
+            worker.help.histogram_recv.fill(0);
+        }
+
+}
+
+//    void setup_help2(class_worker &worker, class_backup &backup) {
+//        //Find out who's finished
+//        int any_finished = worker.finish_line;
+//        MPI_Allreduce(MPI_IN_PLACE, &any_finished, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+//        //if nobody is finished, return.
+//        if (any_finished == 0) { return; }
+//        //If some are finished, start by offloading any help that may be had already
+//        if(debug_setup_help){debug_print(worker,"Setting up help. ");}
+//
+//        //Now all the help.available workers need to be set up again. Two scenarios, either they've (1) helped before,
+//        //or they've (2) never helped.
+//        //If (1), just take_help() and return.
+//        //If (2), setup from scratch.
+//
+//        worker.help.available = worker.finish_line;
+//        worker.help.giving_help = false;
+//        worker.help.getting_help = false;
+//        worker.help.helping_id = -1;
+//        ArrayXi all_available(worker.world_size);
+//        MPI_Allgather(&worker.help.available, 1, MPI_INT, all_available.data(), 1, MPI_INT, MPI_COMM_WORLD);
+//
+//        //Now find out who to help next. compute max amount of helpers per worker.
+//        int max_helpers = (int) ceil((double) all_available.sum() / (worker.world_size - all_available.sum()));
+//        ArrayXi given_help(worker.world_size);
+//        ArrayXi whos_helping_who_old = worker.help.whos_helping_who; //For comparison!
+//        given_help.fill(0);
+//        worker.help.whos_helping_who.fill(-1);
+//        for (int w = 0; w < worker.world_size; w++) {
+//            if (w == worker.world_ID) {
+//                if (worker.finish_line) {
+//                    for (int i = 0; i < worker.world_size; i++) {
+//                        if (all_available(i) == 0 && given_help(i) < max_helpers) {
+//                            given_help(i)++;
+//                            worker.help.available = 0;
+//                            worker.help.giving_help = true;
+//                            worker.help.helping_id = i;
+//                            break;
+//                        }
+//                    }
+//                }
+//            }
+//            MPI_Barrier(MPI_COMM_WORLD);
+//            MPI_Bcast(given_help.data(), worker.world_size, MPI_INT, w, MPI_COMM_WORLD);
+//        }
+//        worker.help.getting_help = given_help(worker.world_ID) > 0;
+//        MPI_Allgather(&worker.help.helping_id, 1, MPI_INT, worker.help.whos_helping_who.data(), 1, MPI_INT,
+//                      MPI_COMM_WORLD);
+//        //Now every available guy knows who to help, and the helpees know who to send their info to.
+//
+//        //If there has been no change since last time, simply return;
+//        if (worker.help.whos_helping_who.cwiseEqual(whos_helping_who_old).all()) {
+//            if(debug_setup_help){debug_print(worker,"Same help settings\n");}
+////            if(debug_setup_help){debug_print(worker,worker.help.whos_helping_who.transpose().eval());}
+//            return;
+//        }
+//
+//        //Otherwise send out the details for help to begin.
+//        for (int w = 0; w < worker.world_size; w++) {
+//            if (worker.world_ID == worker.help.whos_helping_who(w)) {
+//                //You should send
+//                mpi::send_dynamic(worker.dos   , MPI_DOUBLE, w);
+//                mpi::send_dynamic(worker.E_bins, MPI_DOUBLE, w);
+//                mpi::send_dynamic(worker.M_bins, MPI_DOUBLE, w);
+//                MPI_Send(&worker.lnf, 1        , MPI_DOUBLE, w, 4, MPI_COMM_WORLD);
+//                MPI_Send(&worker.E, 1          , MPI_DOUBLE, w, 5, MPI_COMM_WORLD);
+//                MPI_Send(&worker.M, 1          , MPI_DOUBLE, w, 6, MPI_COMM_WORLD);
+//                MPI_Send(worker.model.lattice.data(), (int) worker.model.lattice.size(), MPI_INT, w,7, MPI_COMM_WORLD);
+//                MPI_Send(&counter::MCS, 1      , MPI_INT, w, 8000, MPI_COMM_WORLD);
+//
+//                worker.help.histogram_recv.resizeLike(worker.histogram);
+//                worker.help.histogram_recv.fill(0);
+//
+//            } else if (worker.world_ID == w && worker.help.whos_helping_who(w) >= 0) {
+//                //You should receive
+//                //Backup first
+//                backup.backup_state(worker);
+//                mpi::recv_dynamic(worker.dos   , MPI_DOUBLE, worker.help.whos_helping_who(w));
+//                mpi::recv_dynamic(worker.E_bins, MPI_DOUBLE, worker.help.whos_helping_who(w));
+//                mpi::recv_dynamic(worker.M_bins, MPI_DOUBLE, worker.help.whos_helping_who(w));
+//                MPI_Recv(&worker.lnf, 1        , MPI_DOUBLE, worker.help.whos_helping_who(w), 4, MPI_COMM_WORLD,  MPI_STATUS_IGNORE);
+//                MPI_Recv(&worker.E, 1          , MPI_DOUBLE, worker.help.whos_helping_who(w), 5, MPI_COMM_WORLD,  MPI_STATUS_IGNORE);
+//                MPI_Recv(&worker.M, 1          , MPI_DOUBLE, worker.help.whos_helping_who(w), 6, MPI_COMM_WORLD,  MPI_STATUS_IGNORE);
+//                MPI_Recv(worker.model.lattice.data() , (int) worker.model.lattice.size(), MPI_INT, worker.help.whos_helping_who(w),7, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+//                MPI_Recv(&counter::MCS, 1         , MPI_INT, worker.help.whos_helping_who(w), 8000, MPI_COMM_WORLD,  MPI_STATUS_IGNORE);
+//                worker.flag_one_over_t = worker.lnf < 1.0 / max(1, counter::MCS) ? 1 : 0;
+//                //Set all values needed to sweep
+//                worker.E_min_local = worker.E_bins.minCoeff();
+//                worker.E_max_local = worker.E_bins.maxCoeff();
+//                worker.M_min_local = worker.M_bins.minCoeff();
+//                worker.M_max_local = worker.M_bins.maxCoeff();
+//                worker.in_window = worker.check_in_window(worker.E);
+//                worker.find_current_state();
+////                worker.P_increment = 1.0 / sqrt(math::count_num_elements(worker.dos));
+//                worker.P_increment = 1.0 / sqrt(worker.E_bins.size());
+//
+//                worker.histogram.resizeLike(worker.dos);
+//                worker.histogram.fill(0);
+//            }
+//            MPI_Barrier(MPI_COMM_WORLD);
+//            //Now if you didn't get to help anybody out you might as well restore your own dos.
+//        }
+//        if (!worker.help.giving_help) {
+//            backup.restore_state(worker);
+//        }
+//        if(debug_setup_help){debug_print(worker,"New help settings\n");}
+//        if(debug_setup_help){debug_print(worker,worker.help.whos_helping_who.transpose().eval());}
+////        cout << endl <<"ID: " << worker.world_ID << " In_window = " << worker.in_window << " [" << worker.E_min_local << " " << worker.E << " " << worker.E_max_local <<"]" <<endl;
+//    }
 
     void help(class_worker &worker, class_backup &backup) {
         if (timer::take_help > constants::rate_take_help) {
             timer::take_help = 0;
-            if (worker.help.giving_help || worker.help.getting_help) {
+            if (worker.help.MPI_COMM_HELP != MPI_COMM_NULL) {
                 worker.t_help.tic();
                 take_help(worker);
                 worker.t_help.toc();
@@ -871,9 +1005,7 @@ namespace mpi {
         }
         if (timer::setup_help > constants::rate_setup_help) {
             timer::setup_help = 0;
-//            if (counter::merges >= constants::max_merges) {
                 setup_help(worker, backup);
-//            }
         } else {
             timer::setup_help++;
         }

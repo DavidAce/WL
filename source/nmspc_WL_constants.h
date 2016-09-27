@@ -37,7 +37,7 @@ namespace constants{
     static const int    rate_print_status      = 25000;     //How often to print in terminal
 
     //Wang-Landau convergence criteria
-    static const double minimum_lnf            = 1e-6;
+    static const double minimum_lnf            = 1e-4;
     static const double check_saturation_from  = 0.75;
     static const double reduce_factor_lnf      = 0.5;           // 131 s (check from 0.9
     static const double overlap_factor_energy  = 0.5;

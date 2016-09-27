@@ -107,16 +107,22 @@ public:
             giving_help = false;
             getting_help = false;
             helping_id  = -1;
-            whos_helping_who.resize(world_size);
-            whos_helping_who.fill(-1);
+//            whos_helping_who.resize(world_size);
+//            whos_helping_who.fill(-1);
             available = 0;
+            MPI_COMM_HELP = MPI_COMM_NULL;
         }
         ArrayXXi histogram_recv; //Receive histogram from helpers
         bool    giving_help;
         bool    getting_help;
         int     helping_id;
-        ArrayXi whos_helping_who;
+//        ArrayXi whos_helping_who;
         int     available;
+        int color;
+        int key;
+        int help_rank;
+        int help_size;
+        MPI_Comm MPI_COMM_HELP;
 
     };
     helper help;
