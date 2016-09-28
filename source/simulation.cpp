@@ -118,9 +118,6 @@ void divide_range(class_worker &worker, class_backup &backup){
             MPI_Allreduce(&worker.need_to_resize_global,&need_to_resize, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
             MPI_Allreduce(&counter::walks, &min_walks, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
             MPI_Allreduce(&in_window, &all_in_window, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
-//            cout << "NR: " << worker.need_to_resize_global
-//                 << " MW: " << min_walks << "(" << counter::walks << ")"
-//                 << " AIW:" << all_in_window <<  "(" << in_window << ")" << endl;
             if (need_to_resize){
                 if(debug_divide_range){debug_print(worker,"Dividing global energy\n");}
                 //divide global energy
@@ -131,9 +128,6 @@ void divide_range(class_worker &worker, class_backup &backup){
                 worker.dos.fill(0);
                 worker.need_to_resize_global = 0;
                 worker.find_current_state();
-                worker.P_increment = 1.0 / sqrt(worker.E_bins.size());
-
-//                worker.P_increment = 1.0 / sqrt(math::count_num_elements(worker.dos));
 
             }else if(min_walks < constants::min_walks && counter::merges < constants::max_merges && all_in_window == 1){
                 //divide dos area
@@ -141,10 +135,6 @@ void divide_range(class_worker &worker, class_backup &backup){
                 print_status(worker,true);
                 mpi::merge(worker,true,false);
                 mpi::divide_global_range_dos_area(worker);
-                worker.P_increment = 1.0 / sqrt(worker.E_bins.size());
-
-//                worker.P_increment = 1.0 / sqrt(math::count_num_elements(worker.dos));
-
             }else if (counter::merges < constants::max_merges && all_in_window == 1){
                 //divide dos vol
                 if(worker.world_ID == 0){cout << "Dividing dos vol" << endl;}
@@ -153,13 +143,10 @@ void divide_range(class_worker &worker, class_backup &backup){
                 worker.help.reset();
                 mpi::merge(worker,true,false);
                 mpi::divide_global_range_dos_volume(worker);
-                counter::merges++;
-                worker.P_increment = 1.0 / sqrt(worker.E_bins.size());
-//                worker.P_increment = 1.0 / sqrt(math::count_num_elements(worker.dos));
                 worker.rewind_to_zero();
 
             }
-
+            worker.P_increment = 1.0 / sqrt(worker.E_bins.size());
         }
         worker.t_divide_range.toc();
     }
