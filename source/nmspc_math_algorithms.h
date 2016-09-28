@@ -143,7 +143,7 @@ namespace math{
     template <typename Derived>
     typename Derived::Scalar dos_distance(const ArrayBase<Derived> & array1,const ArrayBase<Derived> & array2)  {
         if (array2.size() != array1.size()){
-            std::cout << "Warning: Array size mismatch in dos_distance" << std::endl;
+//            std::cout << "Warning: Array size mismatch in dos_distance" << std::endl;
             return nanzeromean(array1) - nanzeromean(array2);
         }
         ArrayXXd distance = array1 - array2;

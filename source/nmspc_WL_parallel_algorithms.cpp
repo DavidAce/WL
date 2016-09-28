@@ -186,10 +186,10 @@ namespace mpi {
         if(debug_merge){debug_print(worker,"\nMerging. ");}
 
         //Start by trimming
-        math::subtract_min_nonzero_nan(worker.dos);
-        worker.dos +=1;
-        math::remove_nan_rows(worker.dos, worker.E_bins);
-        worker.dos = math::NaN_to_Zero(worker.dos);
+//        math::subtract_min_nonzero_nan(worker.dos);
+//        worker.dos +=1;
+//        math::remove_nan_rows(worker.dos, worker.E_bins);
+//        worker.dos = math::NaN_to_Zero(worker.dos);
 
         ArrayXXd dos_total,  dos_recv;
         ArrayXd E_total, M_total, E_recv, M_recv;
@@ -273,23 +273,23 @@ namespace mpi {
                 int rows_total      = E_shared_high     -  E_shared_low;
                 int rows_total_up   = E_shared_high_up  -  E_shared_low_up;
                 if (rows_total  != rows_total_up){
-//                    cout << "Rows mismatch!!" << endl;
-//                    cout << "Rows_total     = " << rows_total << endl;
-//                    cout << "Rows_total_up  = " << rows_total_up << endl;
+                    cout << "Rows mismatch!!" << endl;
+                    cout << "Rows_total     = " << rows_total << endl;
+                    cout << "Rows_total_up  = " << rows_total_up << endl;
 //                    cout << dos_total << endl << endl;
 //                    cout << dos_recv << endl << endl << endl;
-//                    for (int i = 0; i < E_total.size(); i++){
-//                        if (i == E_shared_low){cout << "[";}
-//                        cout << E_total(i)  <<" ";
-//                        if (i == E_shared_high){cout << "]";}
-//                    }
-//                    cout << endl ;
-//                    for (int i = 0; i < E_sizes[w]; i++){
-//                        if (i == E_shared_low_up){cout << "[";}
-//                        cout << E_recv(i)  <<" ";
-//                        if (i == E_shared_high_up){cout << "]";}
-//                    }
-//                    cout << endl ;
+                    for (int i = 0; i < E_total.size(); i++){
+                        if (i == E_shared_low){cout << "[";}
+                        cout << E_total(i)  <<" ";
+                        if (i == E_shared_high){cout << "]";}
+                    }
+                    cout << endl ;
+                    for (int i = 0; i < E_sizes[w]; i++){
+                        if (i == E_shared_low_up){cout << "[";}
+                        cout << E_recv(i)  <<" ";
+                        if (i == E_shared_high_up){cout << "]";}
+                    }
+                    cout << endl ;
 
 
                 }
@@ -299,6 +299,7 @@ namespace mpi {
                     if (i < E_shared_low){
                         dos_merge.push_back(dos_total.row(i));
                         E_merge.push_back(E_total(i));
+
                     }else  if(i >= E_shared_low && i <= E_shared_high){
                         weight = (double) j / rows_total;
 //                        cout << setprecision(5)<< "weight = " << weight << " j = " << j << endl;
@@ -312,8 +313,9 @@ namespace mpi {
 
                 for (int i = 0; i < E_recv.size();i ++){
                     if (i > E_shared_high_up){
-                        dos_merge.push_back(dos_recv.row(i) );
+                        dos_merge.push_back(dos_recv.row(i));
                         E_merge.push_back(E_recv(i));
+
                     }
                 }
 //                cout << "Starting Resize" << endl;

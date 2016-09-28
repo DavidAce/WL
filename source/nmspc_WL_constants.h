@@ -31,7 +31,7 @@ namespace constants{
     static const int    rate_take_help         = 500;
     static const int    rate_setup_help        = 5000;
     static const int    rate_check_saturation  = 5000;      //How often to check if saturation has flattened out
-    static const int    rate_divide_range      = 10000;     //How often to check if we can merge all dos and split energy subwindows in a smarter way.
+    static const int    rate_divide_range      = 5000;     //How often to check if we can merge all dos and split energy subwindows in a smarter way.
     static const int    rate_swap              = 500;       //How often to swap walkers in adjacent windows
     static const int    rate_backup_data       = 500000;    //How often to backup progress
     static const int    rate_print_status      = 25000;     //How often to print in terminal
