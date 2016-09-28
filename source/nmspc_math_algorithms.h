@@ -128,8 +128,6 @@ namespace math{
     typename Derived1::Scalar nanzerostd(const ArrayBase<Derived1> & distance, const ArrayBase<Derived2> & array1,const ArrayBase<Derived2> & array2)  {
         double sum = 0;
         double m = nanzeromean(distance); //mean
-//        std::cout << "MEAN : " << m <<std::endl;
-
         int    count = 0;
         for (int j = 0; j < distance.cols(); j++){
             for (int i = 0; i < distance.rows(); i++) {

@@ -4,7 +4,7 @@
 
 #include "nmspc_WL_parallel_algorithms.h"
 #define debug_swap      0
-#define debug_merge     1
+#define debug_merge     0
 #define debug_bcast     0
 #define debug_divide    0
 #define debug_take_help 0
@@ -185,11 +185,7 @@ namespace mpi {
     void merge(class_worker &worker, bool broadcast, bool trim) {
         if(debug_merge){debug_print(worker,"\nMerging. ");}
 
-        //Start by trimming:
-//        math::subtract_min_nonzero_nan(worker.dos);
-//        worker.dos +=1;
-//        math::remove_nan_rows(worker.dos, worker.E_bins);
-//        worker.dos = math::NaN_to_Zero(worker.dos);
+        //Start by trimming
 
         ArrayXXd dos_total,  dos_recv;
         ArrayXd E_total, M_total, E_recv, M_recv;
@@ -265,7 +261,7 @@ namespace mpi {
                 //Now now all doses should be the same height
                 if (debug_merge) {
                     cout << "Concatenating " << w - 1 << " and " << w << endl;
-                     cout << "dos_tot" << endl << dos_total << endl;
+                    cout << "dos_tot" << endl << dos_total << endl;
                     cout << "dos_rec" << endl << dos_recv << endl;
                     cout.flush();
                     std::this_thread::sleep_for(std::chrono::microseconds(1000));
