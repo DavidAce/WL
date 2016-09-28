@@ -186,6 +186,10 @@ namespace mpi {
         if(debug_merge){debug_print(worker,"\nMerging. ");}
 
         //Start by trimming
+        math::subtract_min_nonzero_nan(worker.dos);
+        worker.dos +=1;
+        math::remove_nan_rows(worker.dos, worker.E_bins);
+        worker.dos = math::NaN_to_Zero(worker.dos);
 
         ArrayXXd dos_total,  dos_recv;
         ArrayXd E_total, M_total, E_recv, M_recv;
@@ -201,10 +205,6 @@ namespace mpi {
         if(debug_merge){debug_print(worker," Gathering dos ");}
 
         if (worker.world_ID == 0) {
-            math::subtract_min_nonzero_nan(worker.dos);
-            worker.dos +=1;
-            math::remove_nan_rows(worker.dos, worker.E_bins);
-            worker.dos = math::NaN_to_Zero(worker.dos);
             dos_total = worker.dos;
             E_total = worker.E_bins;
             M_total = worker.M_bins;
