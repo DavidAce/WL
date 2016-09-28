@@ -133,6 +133,8 @@ public:
     void find_next_state(bool);
     void find_initial_limits();
     void start_counters();
+    void rewind_timers();
+
     void set_initial_local_bins();
     void update_global_range();
     void resize_global_range() __attribute__((hot));

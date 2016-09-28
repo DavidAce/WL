@@ -177,6 +177,17 @@ void class_worker::start_counters() {
     timer::divide_range         = 0;
     flag_one_over_t             = 0;
 }
+void  class_worker::rewind_timers(){
+    timer::add_hist_volume      = math::mod(counter::MCS, constants::rate_add_hist_volume  );
+    timer::check_saturation     = math::mod(counter::MCS, constants::rate_check_saturation );
+    timer::check_finish_line    = math::mod(counter::MCS, constants::rate_check_finish_line);
+    timer::backup               = math::mod(counter::MCS, constants::rate_backup_data      );
+    timer::print                = math::mod(counter::MCS, constants::rate_print_status     );
+    timer::swap 				= math::mod(counter::MCS, constants::rate_swap             );
+    timer::take_help        	= math::mod(counter::MCS, constants::rate_take_help        );
+    timer::setup_help			= math::mod(counter::MCS, constants::rate_setup_help       );
+    timer::divide_range         = math::mod(counter::MCS, constants::rate_divide_range     );
+}
 
 void class_worker::set_initial_local_bins(){
     switch(constants::rw_dims){
@@ -577,7 +588,7 @@ void class_worker::reject_MC_trial() {
 }
 
 void class_worker::next_WL_iteration() {
-    lnf = fmax(1e-14, lnf*constants::reduce_factor_lnf);
+    lnf = fmax(1e-12, lnf*constants::reduce_factor_lnf);
     histogram.fill(0);
     saturation.clear();
     counter::walks++;
@@ -590,11 +601,9 @@ void class_worker::rewind_to_lowest_walk(){
     MPI_Allreduce(&counter::walks, &min_walks, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
     counter::walks = min_walks;
     lnf = pow(constants::reduce_factor_lnf, min_walks);
-    timer::add_hist_volume  = 0;
-    timer::check_finish_line= 0;
-    timer::check_saturation = 0;
     saturation.clear();
     counter::MCS            = (int) (1.0/lnf);
+    rewind_timers();
     flag_one_over_t = 0;
     finish_line = lnf > constants::minimum_lnf ? 0 : 1;
 }
@@ -618,12 +627,8 @@ void class_worker::prev_WL_iteration() {
         lnf /= constants::reduce_factor_lnf;
         counter::walks--;
     }
-
-    timer::add_hist_volume  = 0;
-    timer::backup           = 0;
-    timer::check_finish_line= 0;
-    timer::check_saturation = 0;
     counter::MCS            = (int) (1.0 / lnf);
+    rewind_timers();
     flag_one_over_t         = 0;
     histogram.fill(0);
     saturation.clear();
@@ -632,7 +637,7 @@ void class_worker::prev_WL_iteration() {
 }
 
 void class_worker::add_hist_volume(){
-    if (timer::add_hist_volume > constants::rate_add_hist_volume) {
+    if (timer::add_hist_volume >= constants::rate_add_hist_volume) {
         timer::add_hist_volume = 0;
         if (flag_one_over_t == 0) {
             t_check_convergence.tic();
@@ -644,8 +649,6 @@ void class_worker::add_hist_volume(){
             saturation.push_back(histogram.sum());
             t_check_convergence.toc();
         }
-    }else{
-        timer::add_hist_volume++;
     }
 }
 
@@ -683,8 +686,6 @@ void class_worker::check_saturation(){
             }
             t_check_convergence.toc();
         }
-    } else {
-        timer::check_saturation++;
     }
 }
 

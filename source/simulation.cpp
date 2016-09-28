@@ -30,12 +30,12 @@ void wanglandau(class_worker &worker){
     worker.t_print.tic();
     while(finish_line == 0){
         sweep(worker);
-        mpi::help           (worker,backup)       ;
-        mpi::swap           (worker)              ;
-        check_convergence   (worker, out,finish_line) ;
-        divide_range        (worker, backup)              ;
+        mpi::help           (worker,backup);
+        mpi::swap           (worker) ;
+        check_convergence   (worker, out,finish_line);
+        divide_range        (worker, backup);
 //        backup_to_file         (worker,out)          ;
-        print_status        (worker)              ;
+        print_status        (worker,false);
     }
     backup.restore_state   (worker) ;
     out.write_data_worker  (worker) ;
@@ -57,6 +57,16 @@ void sweep(class_worker &worker){
     }
 
     counter::MCS++;
+    timer::add_hist_volume++;
+    timer::check_finish_line++;
+    timer::check_saturation++;
+    timer::backup++;
+    timer::print++;
+    timer::swap++;
+    timer::take_help++;
+    timer::setup_help++;
+    timer::divide_range++;
+
     if (worker.flag_one_over_t) {
             worker.lnf = 1.0 / counter::MCS;
     } else {
@@ -77,7 +87,7 @@ void check_convergence(class_worker &worker, outdata &out, int &finish_line){
         if (debug_convergence) { cout << "ID: " << worker.world_ID << " Check Saturation "<< endl; }
         worker.check_saturation();
     }
-    if (timer::check_finish_line > constants::rate_check_finish_line) {
+    if (timer::check_finish_line >= constants::rate_check_finish_line) {
         timer::check_finish_line = 0;
         if (debug_convergence) { debug_print(worker, "Check Finish line "); }
         if (!worker.help.giving_help){
@@ -87,10 +97,7 @@ void check_convergence(class_worker &worker, outdata &out, int &finish_line){
             }
         }
         MPI_Allreduce(&worker.finish_line, &finish_line, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
-    }else{
-        timer::check_finish_line++;
     }
-
 }
 
 
@@ -131,6 +138,7 @@ void divide_range(class_worker &worker, class_backup &backup){
             }else if(min_walks < constants::min_walks && counter::merges < constants::max_merges && all_in_window == 1){
                 //divide dos area
                 if(worker.world_ID == 0){cout << "Dividing dos area" << endl;}
+                print_status(worker,true);
                 mpi::merge(worker,true,false);
                 mpi::divide_global_range_dos_area(worker);
                 worker.P_increment = 1.0 / sqrt(worker.E_bins.size());
@@ -154,48 +162,14 @@ void divide_range(class_worker &worker, class_backup &backup){
 
         }
         worker.t_divide_range.toc();
-    }else{
-        timer::divide_range++;
     }
 
 }
 
 
-//void add_hist_volume(class_worker &worker) {
-//    //Subtract the smallest positive number plus one
-//    math::subtract_min_nonzero_one(worker.histogram);
-//    worker.saturation.push_back(worker.histogram.sum());
-//}
-
-//void check_saturation(class_worker &worker) {
-//    int i, j;
-//    //counter::saturation tells how many elements are in worker.saturation
-//    int idx_to   = (int) worker.saturation.size()-1;
-//    int idx_from = (int) (constants::check_saturation_from * idx_to);
-//    double Sx = 0, Sxy = 0;
-//    double mX, mY;
-//    //Compute means of the last 10%:
-//    mY = std::accumulate(worker.saturation.begin()+idx_from, worker.saturation.end(), 0);
-//    mX = (idx_to + idx_from)*(idx_to - idx_from + 1)/2;
-//    mX /= fmax(idx_to-idx_from,1);
-//    mY /= fmax(idx_to-idx_from,1);
-//
-//    for (i = idx_from; i <= idx_to; i++) {
-//        Sx  += (i-mX)*(i-mX) ;//pow(i - mX, 2);
-//        Sxy += (worker.saturation[i] - mY) * (i - mX);
-//    }
-//    worker.slope = Sxy / fmax(Sx,1);
-//    if (worker.slope < 0) {
-//        worker.next_WL_iteration();
-//        if (worker.lnf < constants::minimum_lnf) {
-//            worker.finish_line = 1;
-//        }
-//    }
-//}
-
 void backup_to_file(class_worker &worker, outdata &out){
     if (!worker.help.giving_help) {
-        if (timer::backup > constants::rate_backup_data) {
+        if (timer::backup >= constants::rate_backup_data) {
             timer::backup = 0;
             int all_in_window;
             int need_to_resize;
@@ -205,14 +179,12 @@ void backup_to_file(class_worker &worker, outdata &out){
                 mpi::merge(worker,false,false);
                 out.write_data_master(worker);
             }
-        } else {
-            timer::backup++;
         }
     }
 }
 
-void print_status(class_worker &worker) {
-    if (timer::print >= constants::rate_print_status){
+void print_status(class_worker &worker, bool force) {
+    if (timer::print >= constants::rate_print_status || force){
         timer::print = 0;
         worker.t_total.toc();
         worker.t_print.toc();
@@ -278,7 +250,5 @@ void print_status(class_worker &worker) {
 //        timer::print_tic = std::chrono::high_resolution_clock::now();
         worker.t_total.tic();
         worker.t_print.tic();
-    }else{
-        timer::print++;
     }
 }

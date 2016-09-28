@@ -730,50 +730,6 @@ namespace mpi {
         worker.flag_one_over_t = worker.lnf < 1.0 / max(1, counter::MCS) ? 1 : 0;
     }
 
-//    void take_help2(class_worker &worker) {
-//        //Offload help
-//        for (int w = 0; w < worker.world_size; w++) {
-//            if (worker.world_ID == worker.help.whos_helping_who(w)) {
-//                //You should receive help
-//                MPI_Recv(worker.help.histogram_recv.data(), (int) worker.help.histogram_recv.size(), MPI_INT, w, w, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-//                if (worker.flag_one_over_t == 0){
-//                    worker.histogram        += worker.help.histogram_recv;
-//                }
-//                worker.dos += worker.help.histogram_recv.cast<double>() * worker.lnf;
-//                counter::MCS                += constants::rate_take_help;
-//                timer::add_hist_volume      += constants::rate_take_help - 1;
-//                timer::check_saturation     += constants::rate_take_help - 1;
-//                worker.add_hist_volume();
-//                worker.check_saturation();
-//
-//            } else if (worker.world_ID == w && worker.help.whos_helping_who(w) >= 0) {
-//                //You should send help
-//                MPI_Send(worker.histogram.data(), (int) worker.histogram.size(), MPI_INT, worker.help.whos_helping_who(w), w, MPI_COMM_WORLD);
-//                worker.histogram.fill(0);
-//            }
-//        }
-//
-//        //Now get an updated dos:
-//        //If there has been no change since last time, simply share the dos and lnf and return;
-//        for (int w = 0; w < worker.world_size; w++) {
-//            if (worker.world_ID == worker.help.whos_helping_who(w)) {
-//                //You should send
-//                MPI_Send(worker.dos.data(), (int) worker.dos.size(), MPI_DOUBLE, w, w + 5000, MPI_COMM_WORLD);
-//                MPI_Send(&worker.lnf, 1, MPI_DOUBLE, w, w + 5001, MPI_COMM_WORLD);
-//                MPI_Send(&counter::MCS, 1, MPI_INT , w, w + 5002, MPI_COMM_WORLD);
-//            } else if (worker.world_ID == w && worker.help.whos_helping_who(w) >= 0) {
-//                //You should receive
-//                MPI_Recv(worker.dos.data(), (int) worker.dos.size(), MPI_DOUBLE, worker.help.whos_helping_who(w), w + 5000,  MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-//                MPI_Recv(&worker.lnf, 1, MPI_DOUBLE, worker.help.whos_helping_who(w), w + 5001, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-//                MPI_Recv(&counter::MCS, 1, MPI_INT,  worker.help.whos_helping_who(w), w + 5002, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-//                worker.flag_one_over_t = worker.lnf < 1.0 / max(1, counter::MCS) ? 1 : 0;
-//
-//            }
-//        }
-//
-//
-//    }
-
     void setup_help(class_worker &worker, class_backup &backup) {
         //Find out who's finished
         int any_finished = worker.finish_line;
@@ -881,6 +837,22 @@ namespace mpi {
         }
 
 }
+
+    void help(class_worker &worker, class_backup &backup) {
+        if (timer::take_help >= constants::rate_take_help) {
+            timer::take_help = 0;
+            if (worker.help.MPI_COMM_HELP != MPI_COMM_NULL) {
+                worker.t_help.tic();
+                take_help(worker);
+                worker.t_help.toc();
+            }
+
+        }
+        if (timer::setup_help >= constants::rate_setup_help) {
+            timer::setup_help = 0;
+            setup_help(worker, backup);
+        }
+    }
 
 //    void setup_help2(class_worker &worker, class_backup &backup) {
 //        //Find out who's finished
@@ -991,25 +963,6 @@ namespace mpi {
 ////        cout << endl <<"ID: " << worker.world_ID << " In_window = " << worker.in_window << " [" << worker.E_min_local << " " << worker.E << " " << worker.E_max_local <<"]" <<endl;
 //    }
 
-    void help(class_worker &worker, class_backup &backup) {
-        if (timer::take_help > constants::rate_take_help) {
-            timer::take_help = 0;
-            if (worker.help.MPI_COMM_HELP != MPI_COMM_NULL) {
-                worker.t_help.tic();
-                take_help(worker);
-                worker.t_help.toc();
-            }
-
-        } else {
-            timer::take_help++;
-        }
-        if (timer::setup_help > constants::rate_setup_help) {
-            timer::setup_help = 0;
-                setup_help(worker, backup);
-        } else {
-            timer::setup_help++;
-        }
-    }
 
 }
 
