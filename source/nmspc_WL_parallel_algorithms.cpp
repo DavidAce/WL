@@ -4,7 +4,7 @@
 
 #include "nmspc_WL_parallel_algorithms.h"
 #define debug_swap      0
-#define debug_merge     0
+#define debug_merge     1
 #define debug_bcast     0
 #define debug_divide    0
 #define debug_take_help 0
@@ -186,10 +186,10 @@ namespace mpi {
         if(debug_merge){debug_print(worker,"\nMerging. ");}
 
         //Start by trimming:
-        math::subtract_min_nonzero_nan(worker.dos);
-        worker.dos +=1;
-        math::remove_nan_rows(worker.dos, worker.E_bins);
-        worker.dos = math::NaN_to_Zero(worker.dos);
+//        math::subtract_min_nonzero_nan(worker.dos);
+//        worker.dos +=1;
+//        math::remove_nan_rows(worker.dos, worker.E_bins);
+//        worker.dos = math::NaN_to_Zero(worker.dos);
 
         ArrayXXd dos_total,  dos_recv;
         ArrayXd E_total, M_total, E_recv, M_recv;
@@ -205,13 +205,15 @@ namespace mpi {
         if(debug_merge){debug_print(worker," Gathering dos ");}
 
         if (worker.world_ID == 0) {
+            math::subtract_min_nonzero_nan(worker.dos);
+            worker.dos +=1;
+            math::remove_nan_rows(worker.dos, worker.E_bins);
+            worker.dos = math::NaN_to_Zero(worker.dos);
             dos_total = worker.dos;
             E_total = worker.E_bins;
             M_total = worker.M_bins;
         }
-//        int from_total, from_up, rows_total, rows_up;
-//        int E_merge_idx, E_merge_idx_up;
-//        int M_merge_idx, M_merge_idx_up;
+
         int E_shared_low   , E_shared_high;
         int E_shared_low_up, E_shared_high_up;
         vector<ArrayXd> dos_merge;
@@ -223,7 +225,6 @@ namespace mpi {
                     cout.flush();
                     std::this_thread::sleep_for(std::chrono::microseconds(1000));
                 }
-//                cout << dos_total << endl<< endl;
 
                 dos_recv.resize(E_sizes[w], M_sizes[w]);
                 E_recv.resize(E_sizes[w]);
@@ -251,27 +252,15 @@ namespace mpi {
                 diff = math::dos_distance(dos_total.middleRows(E_shared_low   , E_shared_high    - E_shared_low),
                                           dos_recv .middleRows(E_shared_low_up, E_shared_high_up - E_shared_low_up) );
 
-
-
-//                //Find coordinates on dos_total
-//                E_merge_idx = math::find_matching_slope(dos_total, dos_recv, E_total, E_recv, M_total, M_recv);
-//                M_merge_idx = math::nanmaxCoeff_idx(dos_total.row(E_merge_idx));
-//
-//                dos_total.row(E_merge_idx).maxCoeff(&M_merge_idx);
-//                //Find coordinates on received dos;
-//                E_merge_idx_up = math::binary_search(E_recv, E_total(E_merge_idx));
-//                M_merge_idx_up = math::nanmaxCoeff_idx(dos_recv.row(E_merge_idx_up));
-//                dos_recv.row(E_merge_idx_up).maxCoeff(&M_merge_idx_up);
-//                //Find difference between heights at these points
-//                diff = dos_total(E_merge_idx, M_merge_idx) - dos_recv(E_merge_idx_up, M_merge_idx_up);
                 //Add that difference to the next
                 if (std::isnan(diff)) {
-                    cout << "Tried to concatenate " << w - 1 << " and " << w << ". Diff between two DOS is NaN, exiting"
-                         << endl;
+                    cout << setprecision(2) << std::fixed << std::showpoint;
+                    cout << "Tried to concatenate " << w - 1 << " and " << w << ". Diff between two DOS is NaN, exiting" << endl;
                     cout << "dos_tot" << endl << dos_total << endl;
                     cout << "dos_rec" << endl << dos_recv << endl;
                     exit(1);
                 }
+
                 math::add_to_nonzero_nonnan(dos_recv, diff);
                 //Now now all doses should be the same height
                 if (debug_merge) {

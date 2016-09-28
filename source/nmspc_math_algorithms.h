@@ -121,7 +121,7 @@ namespace math{
                 count++;
             }
         }
-        return sum/count;
+        return sum/std::max(1,count);
     }
 
     template <typename Derived1 ,typename Derived2>
@@ -139,31 +139,32 @@ namespace math{
                 count++;
             }
         }
-        return sqrt(sum/count);
+        return sqrt(sum/std::max(1,count) );
     }
 
     template <typename Derived>
     typename Derived::Scalar dos_distance(const ArrayBase<Derived> & array1,const ArrayBase<Derived> & array2)  {
-        if (array2.size() != array1.size()){std::cout << "Error: Array size mismatch in dos_distance" << std::endl;}
+        if (array2.size() != array1.size()){
+            std::cout << "Warning: Array size mismatch in dos_distance" << std::endl;
+            return nanzeromean(array1) - nanzeromean(array2);
+        }
         ArrayXXd distance = array1 - array2;
-        std::cout << std::setprecision(5) << std::fixed << std::showpoint;
         auto stDev   = nanzerostd(distance, array1, array2);
-        double m = nanzeromean(distance); //mean
-
-//        std::cout << "STD : " << stDev <<std::endl;
-
+        double m     = nanzeromean(distance); //mean
         double sum = 0;
         int count = 0;
         for (int j = 0; j < array1.cols(); j++) {
             for (int i = 0; i < array1.rows(); i++) {
                 if (array1(i, j) == 0 || array2(i,j) == 0) { continue; }
                 if (std::isnan(distance(i, j))) { continue; }
-                if (fabs(distance(i, j) - m) < 0.5*fabs(stDev)) {
+                if (std::fabs(distance(i, j) - m) < 0.5*std::fabs(stDev)) {
                     sum += distance(i,j);
                     count ++;
                 }
             }
         }
+//        std::cout << std::setprecision(5) << std::fixed << std::showpoint;
+//        std::cout << "STD : " << stDev <<std::endl;
 //        std::cout << "Diff = " << sum/std::max(1,count) << std::endl;
 //        std::cout << "Old Distance = "<<std::endl;
 //        std::cout << distance << std::endl << std::endl;

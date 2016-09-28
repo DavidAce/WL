@@ -19,8 +19,8 @@ namespace constants{
 
     //Lattice Properties
     static const int d = 2;               //Dimension
-    static const int L = 32;               //Linear size
-    static const int N = (int) pow(L,d);  //Number of spins/particles
+    static const int L = 8;               //Linear size
+    static const int N = (int) std::pow(L,d);  //Number of spins/particles
 
     //DOS and Histogram properties
     static const int rw_dims    = 2;       //Dimension of random walks (1D or 2D WL)
