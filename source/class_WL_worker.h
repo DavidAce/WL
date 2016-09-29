@@ -89,6 +89,7 @@ public:
                     t_print                 ,
                     t_sweep 				,
 					t_swap 					,
+                    t_help_setup            ,
                     t_help                  ,
 					t_divide_range          ,
 					t_check_convergence 	,
@@ -149,6 +150,7 @@ public:
     void acceptance_criterion() __attribute__((hot));
     void accept_MC_trial() __attribute__((hot));
     void reject_MC_trial() __attribute__((hot));
+    void set_P_increment();
     void next_WL_iteration();
     void prev_WL_iteration();
     void rewind_to_lowest_walk();
@@ -189,7 +191,7 @@ public:
             slope           = worker.slope;
             MCS             = counter::MCS;
             backed_up       = true;
-            cout << "ID: " << worker.world_ID << " Is backed up" << endl;
+//            cout << "ID: " << worker.world_ID << " Is backed up" << endl;
         }
     }
 
@@ -216,7 +218,7 @@ public:
             worker.slope        = slope;
             counter::MCS        = MCS;
             backed_up = false;
-            cout << "ID: " << worker.world_ID << " Is now restored" << endl;
+//            cout << "ID: " << worker.world_ID << " Is now restored" << endl;
         }
     }
 

@@ -37,6 +37,7 @@ void wanglandau(class_worker &worker){
 //        backup_to_file         (worker,out)          ;
         print_status        (worker,false);
     }
+    print_status        (worker,true);
     backup.restore_state   (worker) ;
     out.write_data_worker  (worker) ;
     mpi::merge             (worker,false,true) ;
@@ -110,45 +111,49 @@ void divide_range(class_worker &worker, class_backup &backup){
     if (timer::divide_range >= constants::rate_divide_range) {
         timer::divide_range = 0;
         worker.t_divide_range.tic();
-        int any_helping = worker.help.getting_help;
-        int all_in_window, min_walks, need_to_resize;
-        int in_window = worker.in_window;
-        MPI_Allreduce(MPI_IN_PLACE, &any_helping, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-        if (any_helping == 0){
-            MPI_Allreduce(&worker.need_to_resize_global,&need_to_resize, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-            MPI_Allreduce(&counter::walks, &min_walks, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
-            MPI_Allreduce(&in_window, &all_in_window, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
-            if (need_to_resize){
-                if(debug_divide_range){debug_print(worker,"Dividing global energy\n");}
-                //divide global energy
-                worker.resize_global_range();
-                worker.divide_global_range_energy();
-                worker.resize_local_bins();
-                worker.prev_WL_iteration();
-                worker.dos.fill(0);
-                worker.need_to_resize_global = 0;
-                worker.find_current_state();
+        if (counter::vol_merges < constants::max_vol_merges) {
+            int any_helping = worker.help.getting_help;
+            int all_in_window, min_walks, need_to_resize;
+            int in_window = worker.in_window;
+            MPI_Allreduce(MPI_IN_PLACE, &any_helping, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+            if (any_helping == 0) {
+                MPI_Allreduce(&worker.need_to_resize_global, &need_to_resize, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+                MPI_Allreduce(&counter::walks, &min_walks, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+                MPI_Allreduce(&in_window, &all_in_window, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+                if (need_to_resize) {
+                    if (debug_divide_range) { debug_print(worker, "Dividing global energy\n"); }
+                    //divide global energy
+                    worker.resize_global_range();
+                    worker.divide_global_range_energy();
+                    worker.resize_local_bins();
+                    worker.prev_WL_iteration();
+                    worker.dos.fill(0);
+                    worker.need_to_resize_global = 0;
+                    worker.find_current_state();
+                } else if (min_walks < constants::min_walks && counter::area_merges < constants::max_area_merges &&
+                           all_in_window == 1) {
+                    //divide dos area
+                    if (worker.world_ID == 0) { cout << "Dividing dos area. Merges: " << counter::area_merges << endl; }
+                    backup.restore_state(worker);
+                    worker.help.reset();
+                    mpi::merge(worker, true, false);
+                    mpi::divide_global_range_dos_area(worker);
+                    worker.set_P_increment();
+                    counter::area_merges++;
+                } else if (min_walks == constants::min_walks && counter::vol_merges < constants::max_vol_merges &&
+                           all_in_window == 1) {
+                    //divide dos vol
+                    if (worker.world_ID == 0) { cout << "Dividing dos Vol, Merges: " << counter::vol_merges << endl; }
+                    //If anybody had started to help they need to be restored
+                    backup.restore_state(worker);
+                    mpi::merge(worker, true, false);
+                    mpi::divide_global_range_dos_volume(worker);
+                    worker.set_P_increment();
+                    worker.rewind_to_zero();
+                    counter::vol_merges++;
 
-            }else if(min_walks < constants::min_walks && counter::merges < constants::max_merges && all_in_window == 1){
-                //divide dos area
-                if(worker.world_ID == 0){cout << "Dividing dos area. Merges: " << counter::merges << endl;}
-                backup.restore_state(worker);
-                worker.help.reset();
-
-                print_status(worker,true);
-                mpi::merge(worker,true,false);
-                mpi::divide_global_range_dos_area(worker);
-            }else if (counter::merges < constants::max_merges && all_in_window == 1){
-                //divide dos vol
-                if(worker.world_ID == 0){cout << "Dividing dos Vol, Merges: "<< counter::merges << endl;}
-                //If anybody had started to help they need to be restored
-                backup.restore_state(worker);
-                mpi::merge(worker,true,false);
-                mpi::divide_global_range_dos_volume(worker);
-                worker.rewind_to_zero();
-                counter::merges++;
+                }
             }
-            worker.P_increment = 1.0 / sqrt(worker.E_bins.size());
         }
         worker.t_divide_range.toc();
     }
@@ -164,7 +169,7 @@ void backup_to_file(class_worker &worker, outdata &out){
             int need_to_resize;
             MPI_Allreduce(&worker.in_window, &all_in_window, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
             MPI_Allreduce(&worker.need_to_resize_global, &need_to_resize, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-            if (need_to_resize == 0 && all_in_window == 1 && counter::merges > 0) {
+            if (need_to_resize == 0 && all_in_window == 1 && counter::vol_merges > 0) {
                 mpi::merge(worker,false,false);
                 out.write_data_master(worker);
             }
@@ -209,9 +214,10 @@ void print_status(class_worker &worker, bool force) {
                     worker.t_make_MC_trial       .print_total_reset();
                     worker.t_acceptance_criterion.print_total_reset();
                     worker.t_swap                .print_total_reset();
+                    worker.t_help_setup          .print_total_reset();
                     worker.t_help                .print_total_reset();
-                    worker.t_divide_range        .print_total_reset<double,std::milli>();
-                    worker.t_check_convergence   .print_total_reset<double,std::milli>();
+                    worker.t_divide_range        .print_total_reset<double,std::milli>();std::cout << "ms";
+                    worker.t_check_convergence   .print_total_reset<double,std::milli>();std::cout << "ms";
                     cout << endl;
             }
             cout.flush();

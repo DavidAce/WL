@@ -6,10 +6,11 @@
 #define profiling_total                	1
 #define profiling_print                	1
 #define profiling_sweep                	1
-#define profiling_swap                 	0
+#define profiling_swap                 	1
+#define profiling_help_setup           	1
 #define profiling_help                 	1
-#define profiling_divide_range        	0
-#define profiling_check_convergence	    0
+#define profiling_divide_range        	1
+#define profiling_check_convergence	    1
 #define profiling_make_MC_trial 		0
 #define profiling_acceptance_criterion 	0
 
@@ -26,7 +27,8 @@ int counter::MCS;
 int counter::walks;
 int counter::swaps;
 int counter::swap_accepts;
-int counter::merges;
+int counter::area_merges;
+int counter::vol_merges;
 int timer::add_hist_volume;
 int timer::check_saturation;
 int timer::check_finish_line;
@@ -47,6 +49,7 @@ class_worker::class_worker(int & id, int & size):
                                 t_print                (profiling_print,                3,"Time"),
                                 t_sweep                (profiling_sweep,                3,"t_sweep"),
                                 t_swap                 (profiling_swap,                 3,"t_swap" ),
+                                t_help_setup           (profiling_help_setup,           3,"t_help_s" ),
                                 t_help                 (profiling_help,                 3,"t_help" ),
                                 t_divide_range         (profiling_divide_range,         3,"t_divr" ),
                                 t_check_convergence    (profiling_check_convergence,    3,"t_conv") ,
@@ -165,7 +168,8 @@ void class_worker::start_counters() {
     counter::walks              = 0;
     counter::swaps              = 0;
     counter::swap_accepts       = 0;
-    counter::merges             = 0;
+    counter::area_merges        = 0;
+    counter::vol_merges         = 0;
     timer::add_hist_volume      = 0;
     timer::check_saturation     = 0;
     timer::check_finish_line    = 0;
@@ -178,15 +182,15 @@ void class_worker::start_counters() {
     flag_one_over_t             = 0;
 }
 void  class_worker::rewind_timers(){
-    timer::add_hist_volume      = math::mod(counter::MCS, constants::rate_add_hist_volume  );
-    timer::check_saturation     = math::mod(counter::MCS, constants::rate_check_saturation );
-    timer::check_finish_line    = math::mod(counter::MCS, constants::rate_check_finish_line);
-    timer::backup               = math::mod(counter::MCS, constants::rate_backup_data      );
-    timer::print                = math::mod(counter::MCS, constants::rate_print_status     );
-    timer::swap 				= math::mod(counter::MCS, constants::rate_swap             );
-    timer::take_help        	= math::mod(counter::MCS, constants::rate_take_help        );
-    timer::setup_help			= math::mod(counter::MCS, constants::rate_setup_help       );
-    timer::divide_range         = math::mod(counter::MCS, constants::rate_divide_range     );
+    timer::add_hist_volume      = 0;// math::mod(counter::MCS, constants::rate_add_hist_volume  );
+    timer::check_saturation     = 0;// math::mod(counter::MCS, constants::rate_check_saturation );
+    timer::check_finish_line    = 0;// math::mod(counter::MCS, constants::rate_check_finish_line);
+    timer::backup               = 0;// math::mod(counter::MCS, constants::rate_backup_data      );
+    timer::print                = 0;// math::mod(counter::MCS, constants::rate_print_status     );
+    timer::swap 				= 0;// math::mod(counter::MCS, constants::rate_swap             );
+    timer::take_help        	= 0;// math::mod(counter::MCS, constants::rate_take_help        );
+    timer::setup_help			= 0;// math::mod(counter::MCS, constants::rate_setup_help       );
+    timer::divide_range         = 0;// math::mod(counter::MCS, constants::rate_divide_range     );
 }
 
 void class_worker::set_initial_local_bins(){
@@ -451,7 +455,7 @@ void class_worker::make_MC_trial()  {
 }
 
 void class_worker::insert_state(){
-    if (model.discrete_model && counter::merges == 0) {
+    if (model.discrete_model && counter::vol_merges < constants::max_vol_merges) {
         if (debug_insert_state && in_window) {
             int E_idx_temp = E_idx;
             find_current_state();
@@ -587,6 +591,24 @@ void class_worker::reject_MC_trial() {
     }
 }
 
+void class_worker::set_P_increment(){
+    double dos_width = 0;
+    double dos_height = 0;
+
+    for (int i = 0; i <dos.rows(); i++){
+        if((dos.row(i) != 0).any()){
+            dos_height += 1;
+        }
+    }
+    for (int i = 0; i <dos.cols(); i++){
+        if((dos.col(i) != 0).any()){
+            dos_width += 1;
+        }
+    }
+    P_increment = 1 / fmax(1, std::sqrt( fmax(dos_width, dos_height)  ));
+}
+
+
 void class_worker::next_WL_iteration() {
     lnf = fmax(1e-12, lnf*constants::reduce_factor_lnf);
     histogram.fill(0);
@@ -612,9 +634,11 @@ void class_worker::rewind_to_lowest_walk(){
 void class_worker::rewind_to_zero(){
     counter::walks = 0;
     lnf = 1;
-    int save_merges = counter::merges;
+    int save_area_merges = counter::area_merges;
+    int save_vol_merges = counter::vol_merges;
     start_counters();
-    counter::merges = save_merges;
+    counter::area_merges = save_area_merges;
+    counter::vol_merges = save_vol_merges;
     finish_line = 0;
     dos.fill(0);
     histogram = ArrayXXi::Zero(dos.rows(), dos.cols());
@@ -641,7 +665,7 @@ void class_worker::add_hist_volume(){
         timer::add_hist_volume = 0;
         if (flag_one_over_t == 0) {
             t_check_convergence.tic();
-            if (counter::merges < constants::max_merges){
+            if (counter::vol_merges < constants::max_vol_merges){
                 math::subtract_min_nonzero(histogram);
             }else{
                 math::subtract_min_nonzero_one(histogram);
@@ -657,23 +681,16 @@ void class_worker::check_saturation(){
         timer::check_saturation = 0;
         if (flag_one_over_t == 0) {
             t_check_convergence.tic();
-            int i;
-            //counter::saturation tells how many elements are in worker.saturation
-            int idx_to = (int) saturation.size() - 1;
+            int idx_to   = (int) saturation.size() - 1;
             int idx_from = (int) (constants::check_saturation_from * idx_to);
-            double Sx = 0, Sxy = 0;
-            double mX, mY;
-            //Compute means of the last 10%:
-            mY = std::accumulate(saturation.begin() + idx_from, saturation.end(), 0);
-            mX = (idx_to + idx_from) * (idx_to - idx_from + 1) / 2;
-            mX /= fmax(idx_to - idx_from, 1);
-            mY /= fmax(idx_to - idx_from, 1);
-
-            for (i = idx_from; i <= idx_to; i++) {
-                Sx += (i - mX) * (i - mX);//pow(i - mX, 2);
-                Sxy += (saturation[i] - mY) * (i - mX);
+            if (idx_to == idx_from){
+                slope = 0;
+                return;
             }
-            slope = Sxy / fmax(Sx, 1);
+            vector<double> sat_double (saturation.begin()+idx_from, saturation.end()); //Cast to double
+            ArrayXd Y = Map<ArrayXd>(sat_double.data(),sat_double.size());             //Cast to eigen array
+            ArrayXd X = ArrayXd::LinSpaced(Y.size(),idx_from+1,idx_to);
+            slope = ((X-X.mean()).cwiseProduct(Y-Y.mean())).sum() /fmax(1,(X-X.mean()).cwiseAbs2().sum());
             if (slope < 0) {
                 next_WL_iteration();
                 if (lnf < constants::minimum_lnf) {

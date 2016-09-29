@@ -14,21 +14,20 @@ using namespace std;
 namespace mpi {
     void swap(class_worker &worker) {
         //Use MPI Tag in the 100-200 range
-        if (timer::swap > constants::rate_swap) {
+        if (timer::swap >= constants::rate_swap) {
             timer::swap = 0;
-            int abort;
+//            int abort;
             worker.t_swap.tic();
-            MPI_Allreduce(&worker.need_to_resize_global, &abort, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-            if (abort) { worker.t_swap.toc();return; }
-            counter::swaps++;
+//
+//            MPI_Allreduce(&worker.need_to_resize_global, &abort, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+//            if (abort) { worker.t_swap.toc();return; }
             int swap, copy;
             double dos_X, dos_Y;
             double E_X, E_Y, M_X, M_Y;
-            int E_X_idx, E_Y_idx, M_X_idx, M_Y_idx;
-            int in_window_up;
+            int    E_X_idx, E_Y_idx, M_X_idx, M_Y_idx;
             double E_min_up, E_max_up;
             double P_swap;      //Swap probability
-            bool myTurn = math::mod(worker.world_ID, 2) == math::mod(counter::swaps, 2);
+            bool   myTurn = math::mod(worker.world_ID, 2) == math::mod(counter::swaps, 2);
 
             int up = math::mod(worker.world_ID + 1, worker.world_size);
             int dn = math::mod(worker.world_ID - 1, worker.world_size);
@@ -45,101 +44,73 @@ namespace mpi {
                 cout << "Worker is not really in window! Swap failed!" << endl;
                 exit(1);
             }
-            //Send current E and M to neighbors up and down. Receive X from below, Y from above.
-            MPI_Sendrecv(&worker.E, 1, MPI_DOUBLE, up, 100, &E_X, 1, MPI_DOUBLE, dn, 100, MPI_COMM_WORLD,
-                         MPI_STATUS_IGNORE);
-            MPI_Sendrecv(&worker.M, 1, MPI_DOUBLE, up, 101, &M_X, 1, MPI_DOUBLE, dn, 101, MPI_COMM_WORLD,
-                         MPI_STATUS_IGNORE);
-            MPI_Sendrecv(&worker.E, 1, MPI_DOUBLE, dn, 102, &E_Y, 1, MPI_DOUBLE, up, 102, MPI_COMM_WORLD,
-                         MPI_STATUS_IGNORE);
-            MPI_Sendrecv(&worker.M, 1, MPI_DOUBLE, dn, 103, &M_Y, 1, MPI_DOUBLE, up, 103, MPI_COMM_WORLD,
-                         MPI_STATUS_IGNORE);
-            //Check if the neighbors position is within my overlap region. If so, find the indices.
-            MPI_Sendrecv(&worker.E_min_local, 1, MPI_DOUBLE, dn, 104, &E_min_up, 1, MPI_DOUBLE, up, 104, MPI_COMM_WORLD,
-                         MPI_STATUS_IGNORE);
-            MPI_Sendrecv(&worker.E_max_local, 1, MPI_DOUBLE, dn, 105, &E_max_up, 1, MPI_DOUBLE, up, 105, MPI_COMM_WORLD,
-                         MPI_STATUS_IGNORE);
-//            MPI_Sendrecv(&worker.E_max_local, 1, MPI_DOUBLE, up, 105, &E_max_dn, 1, MPI_DOUBLE, dn, 105, MPI_COMM_WORLD,
-//                         MPI_STATUS_IGNORE);
-//            MPI_Sendrecv(&worker.in_window, 1, MPI_INT, up, 1055, &in_window_dn, 1, MPI_INT, dn, 1055, MPI_COMM_WORLD,
-//                         MPI_STATUS_IGNORE);
-            MPI_Sendrecv(&worker.in_window, 1, MPI_INT, dn, 1044, &in_window_up, 1, MPI_INT, up, 1044, MPI_COMM_WORLD,
-                         MPI_STATUS_IGNORE);
-            //Now both swappees need to know if it is ok to go ahead with a swap.
-            if (debug_swap) {
-                for (int w = 0; w < worker.world_size; w++) {
-                    if (w == worker.world_ID) {
-                        cout << "ID: " << w << " SendRecv Successful"
-                             << " E_X = " << E_X
-                             << " E_Y = " << E_Y
-                             << " E_idx = " << worker.E_idx
-                             << " E_idx_trial = " << worker.E_idx_trial
-                             << endl;
-                    }
-                    MPI_Barrier(MPI_COMM_WORLD);
-                }
-            }
-            int go_ahead;
+
             if (myTurn) {
-                //Go ahead if inside the upper window and vice versa
-                go_ahead = worker.E >= E_min_up && E_Y <= worker.E_max_local;
-                go_ahead = worker.E <= E_max_up && E_Y >= worker.E_min_local && go_ahead;
-                copy = !go_ahead && !worker.in_window && ((worker.E < E_Y && worker.E < worker.E_min_local) ||
+                //Receive relevant info
+                MPI_Recv(&E_Y     , 1, MPI_DOUBLE, up, 101, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+                MPI_Recv(&M_Y     , 1, MPI_DOUBLE, up, 102, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+                MPI_Recv(&E_min_up, 1, MPI_DOUBLE, up, 103, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+                MPI_Recv(&E_max_up, 1, MPI_DOUBLE, up, 104, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+                MPI_Recv(&dos_Y   , 1, MPI_DOUBLE, up, 105, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+                MPI_Send(&worker.E, 1, MPI_DOUBLE, up, 106, MPI_COMM_WORLD);
+                MPI_Send(&worker.M, 1, MPI_DOUBLE, up, 107, MPI_COMM_WORLD);
+                MPI_Recv(&dos_X   , 1, MPI_DOUBLE, up, 108, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+                E_Y_idx = math::binary_search(worker.E_bins, E_Y);
+                M_Y_idx = math::binary_search(worker.M_bins, M_Y);
+
+                //Swap if inside the upper window and vice versa
+                swap = 1;
+                swap = swap &&  worker.E >= E_min_up && E_Y <= worker.E_max_local;
+                swap = swap &&  worker.E <= E_max_up && E_Y >= worker.E_min_local;
+                swap = swap &&  worker.check_in_window(worker.E);
+                swap = swap &&  E_Y <= E_max_up && E_Y >= E_min_up;
+                //Swap with probability P_swap
+                if (swap) {
+                    P_swap = exp(worker.dos(worker.E_idx, worker.M_idx)
+                                 - worker.dos(E_Y_idx, M_Y_idx)
+                                 + dos_Y
+                                 - dos_X);
+                }else{P_swap = 0;}
+                swap = swap && rn::uniform_double_1() < fmin(1, P_swap);
+                //Make sure the last worker doesn't swap!
+                swap = swap &&  worker.world_ID != worker.world_size - 1;
+
+                //Even if you don't swap you might still want to copy! Unless you're helping out.
+                copy = !swap && !worker.in_window && ((worker.E < E_Y && worker.E < worker.E_min_local) ||
                                                           (worker.E > E_Y && worker.E > worker.E_max_local));
                 copy = copy && !worker.help.giving_help;
-                //Make sure the last worker doesn't swap!
-                go_ahead = go_ahead && worker.world_ID != worker.world_size - 1;
-                MPI_Send(&go_ahead, 1, MPI_INT, up, 106, MPI_COMM_WORLD);
-                MPI_Send(&copy, 1, MPI_INT, up, 107, MPI_COMM_WORLD);
+                MPI_Send(&swap, 1, MPI_INT, up, 109, MPI_COMM_WORLD);
+                MPI_Send(&copy, 1, MPI_INT, up, 110, MPI_COMM_WORLD);
+
             } else {
-                MPI_Recv(&go_ahead, 1, MPI_INT, dn, 106, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                MPI_Recv(&copy, 1, MPI_INT, dn, 107, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                MPI_Send(&worker.E                              , 1, MPI_DOUBLE, dn, 101, MPI_COMM_WORLD);
+                MPI_Send(&worker.M                              , 1, MPI_DOUBLE, dn, 102, MPI_COMM_WORLD);
+                MPI_Send(&worker.E_min_local                    , 1, MPI_DOUBLE, dn, 103, MPI_COMM_WORLD);
+                MPI_Send(&worker.E_max_local                    , 1, MPI_DOUBLE, dn, 104, MPI_COMM_WORLD);
+                MPI_Send(&worker.dos(worker.E_idx,worker.M_idx) , 1, MPI_DOUBLE, dn, 105, MPI_COMM_WORLD);
+                MPI_Recv(&E_X                                   , 1, MPI_DOUBLE, dn, 106, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+                MPI_Recv(&M_X                                   , 1, MPI_DOUBLE, dn, 107, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+                E_X_idx = math::binary_search(worker.E_bins, E_X);
+                M_X_idx = math::binary_search(worker.M_bins, M_X);
+                MPI_Send(&worker.dos(E_X_idx, M_X_idx)          , 1, MPI_DOUBLE, dn, 108, MPI_COMM_WORLD);
+                MPI_Recv(&swap                                  , 1, MPI_INT   , dn, 109, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                MPI_Recv(&copy                                  , 1, MPI_INT   , dn, 110, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             }
 
             if (debug_swap) {
                 for (int w = 0; w < worker.world_size; w++) {
                     if (w == worker.world_ID) {
-                        cout << "ID: " << w << " Received goahead = " << go_ahead << " Copy = " << copy << endl;
+                        cout << "ID: " << w << " Swap = " << swap << " Copy = " << copy << endl;
 //                        cout << worker << endl;
                     }
                     MPI_Barrier(MPI_COMM_WORLD);
                 }
             }
-            if (myTurn) {
-                if (go_ahead) {
-                    MPI_Recv(&dos_X, 1, MPI_DOUBLE, up, 108, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                    MPI_Recv(&dos_Y, 1, MPI_DOUBLE, up, 109, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                    E_Y_idx = math::binary_search(worker.E_bins, E_Y);
-                    M_Y_idx = math::binary_search(worker.M_bins, M_Y);
-                    P_swap = exp(worker.dos(worker.E_idx, worker.M_idx)
-                                 - worker.dos(E_Y_idx, M_Y_idx)
-                                 + dos_Y
-                                 - dos_X);
-                    if (rn::uniform_double_1() < fmin(1, P_swap)) {
-                        swap = 1;
-                    } else {
-                        swap = 0;
-                    }
-                } else {
-                    swap = 0;
-                }
-                MPI_Send(&swap, 1, MPI_INT, up, 110, MPI_COMM_WORLD);
-            } else {
-                E_X_idx = math::binary_search(worker.E_bins, E_X);
-                M_X_idx = math::binary_search(worker.M_bins, M_X);
-                MPI_Send(&worker.dos(E_X_idx, M_X_idx)          , 1, MPI_DOUBLE, dn, 108, MPI_COMM_WORLD);
-                MPI_Send(&worker.dos(worker.E_idx, worker.M_idx), 1, MPI_DOUBLE, dn, 109, MPI_COMM_WORLD);
-                MPI_Recv(&swap                                  , 1, MPI_INT   , dn, 110, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            }
-            if (debug_swap) {
-                for (int w = 0; w < worker.world_size; w++) {
-                    if (w == worker.world_ID) {
-                        cout << "ID: " << w << " Swap = " << swap  << endl;
-                    }
-                    MPI_Barrier(MPI_COMM_WORLD);
-                }
-            }
+
+
+
             if(debug_swap){debug_print(worker,"Starting swap\n");}
+
             //Now do the swapping if you got lucky
             if (myTurn) {
                 if (swap == 1) {
@@ -167,18 +138,13 @@ namespace mpi {
                              MPI_COMM_WORLD);
                 }
             }
+
+
+            if(debug_swap){debug_print(worker,"Swap OK\n");}
+
             counter::swap_accepts += swap;
-            if (debug_swap) {
-                for (int w = 0; w < worker.world_size; w++) {
-                    if (w == worker.world_ID) {
-                        cout << "ID: " << w << " Swap OK " << endl;
-                    }
-                    MPI_Barrier(MPI_COMM_WORLD);
-                }
-            }
+            counter::swaps++;
             worker.t_swap.toc();
-        } else {
-            timer::swap++;
         }
     }
 
@@ -814,7 +780,7 @@ namespace mpi {
             worker.M_min_local = worker.M_bins.minCoeff();
             worker.M_max_local = worker.M_bins.maxCoeff();
             worker.in_window   = worker.check_in_window(worker.E);
-            worker.P_increment = 1.0 / sqrt(worker.E_bins.size());
+            worker.set_P_increment();
             worker.histogram.resizeLike(worker.dos);
             worker.histogram.fill(0);
             worker.find_current_state();
@@ -833,11 +799,12 @@ namespace mpi {
                 take_help(worker);
                 worker.t_help.toc();
             }
-
         }
         if (timer::setup_help >= constants::rate_setup_help) {
             timer::setup_help = 0;
+            worker.t_help_setup.tic();
             setup_help(worker, backup);
+            worker.t_help_setup.toc();
         }
     }
 
@@ -1111,8 +1078,6 @@ namespace mpi {
 //                    backup.restore_state(worker);
 //                }
 //            }
-//        }else{
-//            timer::help_out++;
 //        }
 //    }
 
