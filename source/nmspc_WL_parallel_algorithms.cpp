@@ -152,11 +152,6 @@ namespace mpi {
         if(debug_merge){debug_print(worker,"\nMerging. ");}
 
         //Start by trimming
-//        math::subtract_min_nonzero_nan(worker.dos);
-//        worker.dos +=1;
-//        math::remove_nan_rows(worker.dos, worker.E_bins);
-//        worker.dos = math::NaN_to_Zero(worker.dos);
-
         ArrayXXd dos_total,  dos_recv;
         ArrayXd E_total, M_total, E_recv, M_recv;
         int E_sizes[worker.world_size];
@@ -238,6 +233,7 @@ namespace mpi {
                 int j = 0;
                 int rows_total      = E_shared_high     -  E_shared_low;
                 int rows_total_up   = E_shared_high_up  -  E_shared_low_up;
+                int shared_rows = min(rows_total, rows_total_up);
                 if (rows_total  != rows_total_up){
                     cout << "Rows mismatch!!" << endl;
                     cout << "Rows_total     = " << rows_total << endl;
@@ -267,12 +263,19 @@ namespace mpi {
                         E_merge.push_back(E_total(i));
 
                     }else  if(i >= E_shared_low && i <= E_shared_high){
-                        weight = (double) j / rows_total;
-//                        cout << setprecision(5)<< "weight = " << weight << " j = " << j << endl;
                         int E_idx_up = math::binary_search(E_recv, E_total(i));
-                        dos_merge.push_back((1-weight)*dos_total.row(i) + weight*dos_recv.row(E_idx_up) );
-                        E_merge.push_back(E_total(i));
-                        j++;
+                        if (E_total(i) == E_recv(E_idx_up)){
+                            weight = (double) j / shared_rows;
+                            dos_merge.push_back((1-weight)*dos_total.row(i) + weight*dos_recv.row(E_idx_up) );
+                            E_merge.push_back(E_total(i));
+                            j++;
+                        }else if(E_total(i) < E_recv(E_idx_up)){
+                            dos_merge.push_back(dos_total.row(i));
+                            E_merge.push_back(E_total(i));
+                        }else if(E_total(i) > E_recv(E_idx_up)){
+                            dos_merge.push_back(dos_recv.row(E_idx_up));
+                            E_merge.push_back(E_recv(E_idx_up));
+                        }
                     }
                 }
 //                cout << "Starting pushback 2" << endl;
