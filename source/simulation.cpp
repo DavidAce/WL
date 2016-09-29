@@ -132,6 +132,9 @@ void divide_range(class_worker &worker, class_backup &backup){
             }else if(min_walks < constants::min_walks && counter::merges < constants::max_merges && all_in_window == 1){
                 //divide dos area
                 if(worker.world_ID == 0){cout << "Dividing dos area. Merges: " << counter::merges << endl;}
+                backup.restore_state(worker);
+                worker.help.reset();
+
                 print_status(worker,true);
                 mpi::merge(worker,true,false);
                 mpi::divide_global_range_dos_area(worker);
@@ -140,11 +143,10 @@ void divide_range(class_worker &worker, class_backup &backup){
                 if(worker.world_ID == 0){cout << "Dividing dos Vol, Merges: "<< counter::merges << endl;}
                 //If anybody had started to help they need to be restored
                 backup.restore_state(worker);
-                worker.help.reset();
                 mpi::merge(worker,true,false);
                 mpi::divide_global_range_dos_volume(worker);
                 worker.rewind_to_zero();
-
+                counter::merges++;
             }
             worker.P_increment = 1.0 / sqrt(worker.E_bins.size());
         }
