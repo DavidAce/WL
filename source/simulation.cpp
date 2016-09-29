@@ -8,7 +8,7 @@
 #define debug_sweep                     0
 #define debug_convergence               0
 #define debug_divide_range              0
-#define debug_status                    0
+#define debug_status                    1
 
 
 using namespace std;
@@ -136,6 +136,7 @@ void divide_range(class_worker &worker, class_backup &backup){
                     if (worker.world_ID == 0) { cout << "Dividing dos area. Merges: " << counter::area_merges << endl; }
                     backup.restore_state(worker);
                     worker.help.reset();
+                    print_status(worker,true);
                     mpi::merge(worker, true, false);
                     mpi::divide_global_range_dos_area(worker);
                     worker.set_P_increment();
@@ -146,6 +147,7 @@ void divide_range(class_worker &worker, class_backup &backup){
                     if (worker.world_ID == 0) { cout << "Dividing dos Vol, Merges: " << counter::vol_merges << endl; }
                     //If anybody had started to help they need to be restored
                     backup.restore_state(worker);
+                    print_status(worker,true);
                     mpi::merge(worker, true, false);
                     mpi::divide_global_range_dos_volume(worker);
                     worker.set_P_increment();

@@ -474,6 +474,9 @@ void class_worker::insert_state(){
         M_bins(M_idx) = M;
         E_set.insert(E);
         M_set.insert(M);
+        if (E_set.size() > E_bins.size() || M_set.size() > M_bins.size()){
+            need_to_resize_global = 1;
+        }
     }
 }
 

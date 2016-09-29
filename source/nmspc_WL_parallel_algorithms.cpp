@@ -16,11 +16,10 @@ namespace mpi {
         //Use MPI Tag in the 100-200 range
         if (timer::swap >= constants::rate_swap) {
             timer::swap = 0;
-//            int abort;
             worker.t_swap.tic();
-//
-//            MPI_Allreduce(&worker.need_to_resize_global, &abort, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-//            if (abort) { worker.t_swap.toc();return; }
+            int abort;
+            MPI_Allreduce(&worker.need_to_resize_global, &abort, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+            if (abort) { worker.t_swap.toc();return; }
             int swap, copy;
             double dos_X, dos_Y;
             double E_X, E_Y, M_X, M_Y;
@@ -39,7 +38,6 @@ namespace mpi {
                     MPI_Barrier(MPI_COMM_WORLD);
                 }
             }
-
             if (worker.in_window != worker.check_in_window(worker.E)){
                 cout << "Worker is not really in window! Swap failed!" << endl;
                 exit(1);
@@ -101,7 +99,6 @@ namespace mpi {
                 for (int w = 0; w < worker.world_size; w++) {
                     if (w == worker.world_ID) {
                         cout << "ID: " << w << " Swap = " << swap << " Copy = " << copy << endl;
-//                        cout << worker << endl;
                     }
                     MPI_Barrier(MPI_COMM_WORLD);
                 }
@@ -150,31 +147,16 @@ namespace mpi {
 
     void merge(class_worker &worker, bool broadcast, bool trim) {
         if(debug_merge){debug_print(worker,"\nMerging. ");}
-
-        //Start by trimming
-        ArrayXXd dos_total,  dos_recv;
-        ArrayXd E_total, M_total, E_recv, M_recv;
-        int E_sizes[worker.world_size];
-        int M_sizes[worker.world_size];
-        int E_size = (int) worker.E_bins.size();
-        int M_size = (int) worker.M_bins.size();
-
-        double diff;
-
-        MPI_Gather(&E_size, 1, MPI_INT, E_sizes, 1, MPI_INT, 0, MPI_COMM_WORLD);
-        MPI_Gather(&M_size, 1, MPI_INT, M_sizes, 1, MPI_INT, 0, MPI_COMM_WORLD);
-        if(debug_merge){debug_print(worker," Gathering dos ");}
-
+        ArrayXXd dos_total;
+        ArrayXd  E_total;
+        ArrayXd  M_total;
         if (worker.world_ID == 0) {
             dos_total = worker.dos;
             E_total = worker.E_bins;
             M_total = worker.M_bins;
         }
 
-        int E_shared_low   , E_shared_high;
-        int E_shared_low_up, E_shared_high_up;
-        vector<ArrayXd> dos_merge;
-        vector<double> E_merge;
+
         for (int w = 1; w < worker.world_size; w++) {
             if (worker.world_ID == 0) {
                 if (debug_merge) {
@@ -182,32 +164,19 @@ namespace mpi {
                     cout.flush();
                     std::this_thread::sleep_for(std::chrono::microseconds(1000));
                 }
-
-                dos_recv.resize(E_sizes[w], M_sizes[w]);
-                E_recv.resize(E_sizes[w]);
-                M_recv.resize(M_sizes[w]);
-                MPI_Recv(dos_recv.data(), E_sizes[w] * M_sizes[w], MPI_DOUBLE, w, 60, MPI_COMM_WORLD,
-                         MPI_STATUS_IGNORE);
-                MPI_Recv(E_recv.data(), E_sizes[w], MPI_DOUBLE, w, 61, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                MPI_Recv(M_recv.data(), M_sizes[w], MPI_DOUBLE, w, 62, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-
-
+                ArrayXXd dos_recv;
+                ArrayXd E_recv, M_recv;
+                recv_dynamic(dos_recv,MPI_DOUBLE,w);
+                recv_dynamic(E_recv  ,MPI_DOUBLE,w);
+                recv_dynamic(M_recv  ,MPI_DOUBLE,w);
                 //Find average height of shared sections
-                E_shared_low    = math::binary_search(E_total, fmax(E_recv.minCoeff(), E_total.minCoeff()));
-                E_shared_high   = math::binary_search(E_total, fmin(E_recv.maxCoeff(), E_total.maxCoeff()));
-                E_shared_low_up = math::binary_search(E_recv , fmax(E_recv.minCoeff(), E_total.minCoeff()));
-                E_shared_high_up= math::binary_search(E_recv , fmin(E_recv.maxCoeff(), E_total.maxCoeff()));
+                int E_shared_low_idx    = math::binary_search(E_total, fmax(E_recv.minCoeff(), E_total.minCoeff()));
+                int E_shared_high_idx   = math::binary_search(E_total, fmin(E_recv.maxCoeff(), E_total.maxCoeff()));
+                int E_shared_low_up_idx = math::binary_search(E_recv , fmax(E_recv.minCoeff(), E_total.minCoeff()));
+                int E_shared_high_up_idx= math::binary_search(E_recv , fmin(E_recv.maxCoeff(), E_total.maxCoeff()));
 
-//                cout << " E:low     "<<E_shared_low       << endl;
-//                cout << " E:high    "<< E_shared_high      << endl;
-//                cout << " E:low up  "<< E_shared_low_up    << endl;
-//                cout << " E:high up "<< E_shared_high_up   << endl;
-//                cout << " diff      "<< math::nanzeromean(dos_total.middleRows(E_shared_low   , E_shared_high    - E_shared_low))<< endl;
-//                cout << " diff up   "<< math::nanzeromean(dos_recv .middleRows(E_shared_low_up, E_shared_high_up - E_shared_low_up))<< endl;
-//                diff = math::nanzeromean(dos_total.middleRows(E_shared_low   , E_shared_high    - E_shared_low))
-//                      -math::nanzeromean(dos_recv .middleRows(E_shared_low_up, E_shared_high_up - E_shared_low_up));
-                diff = math::dos_distance(dos_total.middleRows(E_shared_low   , E_shared_high    - E_shared_low),
-                                          dos_recv .middleRows(E_shared_low_up, E_shared_high_up - E_shared_low_up) );
+                double diff = math::dos_distance(dos_total.middleRows(E_shared_low_idx   , E_shared_high_idx    - E_shared_low_idx),
+                                          dos_recv .middleRows(E_shared_low_up_idx, E_shared_high_up_idx - E_shared_low_up_idx) );
 
                 //Add that difference to the next
                 if (std::isnan(diff)) {
@@ -220,118 +189,85 @@ namespace mpi {
 
                 math::add_to_nonzero_nonnan(dos_recv, diff);
                 //Now now all doses should be the same height
+
                 if (debug_merge) {
+                    int zero_rows = 0;
+                    int rows_total      = E_shared_high_idx     -  E_shared_low_idx;
+                    int rows_total_up   = E_shared_high_up_idx  -  E_shared_low_up_idx;
+                    for (int i = 0; i <dos_recv.rows(); i++){
+                        if((dos_recv.row(i) == 0).all()){
+                            zero_rows += 1;
+                        }
+                    }
+                    cout << setprecision(2) << fixed;
+                    if (rows_total  != rows_total_up){
+                        cout << "Rows mismatch!!" << endl;
+                    }
                     cout << "Concatenating " << w - 1 << " and " << w << endl;
-                    cout << "dos_tot" << endl << dos_total << endl;
-                    cout << "dos_rec" << endl << dos_recv << endl;
+                    cout << "Zero rows recv = " << zero_rows << endl;
+                    cout << "E_total = " << E_total.size()
+                         << " dos_total =  " << dos_total.rows()
+                         << " Shared Rows_total = " << rows_total
+                         << " E_idx_low = " << E_shared_low_idx
+                         << " E_idx_high = " << E_shared_high_idx
+                         << endl;
+                    cout << "E_recv  = " << E_recv.size()
+                         << " dos_recv  =  " << dos_recv.rows()
+                         << " Shared Rows_up    = " << rows_total_up
+                         << " E_idx_low = " << E_shared_low_up_idx
+                         << " E_idx_high = " << E_shared_high_up_idx
+                         << endl;
+//                    cout << "dos_total:" << endl << dos_total << endl << endl;
+//                    cout << "dos_recv:" << endl << dos_recv<< endl << endl;
                     cout.flush();
                     std::this_thread::sleep_for(std::chrono::microseconds(1000));
                 }
 
 
                 double weight;
-                int j = 0;
-                int rows_total      = E_shared_high     -  E_shared_low;
-                int rows_total_up   = E_shared_high_up  -  E_shared_low_up;
-                int shared_rows = min(rows_total, rows_total_up);
-                if (rows_total  != rows_total_up){
-                    cout << "Rows mismatch!!" << endl;
-                    cout << "Rows_total     = " << rows_total << endl;
-                    cout << "Rows_total_up  = " << rows_total_up << endl;
-//                    cout << dos_total << endl << endl;
-//                    cout << dos_recv << endl << endl << endl;
-                    for (int i = 0; i < E_total.size(); i++){
-                        if (i == E_shared_low){cout << "[";}
-                        cout << E_total(i)  <<" ";
-                        if (i == E_shared_high){cout << "]";}
-                    }
-                    cout << endl ;
-                    for (int i = 0; i < E_sizes[w]; i++){
-                        if (i == E_shared_low_up){cout << "[";}
-                        cout << E_recv(i)  <<" ";
-                        if (i == E_shared_high_up){cout << "]";}
-                    }
-                    cout << endl ;
-
-
-                }
-//                cout << "Starting pushback 1" << endl;
-//                cout << "Rows: " << rows_total << endl;
-                for (int i = 0; i < E_total.size() ; i++){
-                    if (i < E_shared_low){
+                double E_span = fmax(E_total(E_shared_high_idx) - E_total(E_shared_low_idx), E_recv(E_shared_high_up_idx) - E_recv(E_shared_low_up_idx));
+                vector<ArrayXd> dos_merge;
+                vector<double>  E_merge;
+                ArrayXd dos_rowsum;
+                dos_rowsum.resizeLike(dos_recv.row(0));
+                double E_shared_min = fmin(E_total(E_shared_low_idx) , E_recv(E_shared_low_up_idx));
+                double E_shared_max = fmax(E_total(E_shared_high_idx), E_recv(E_shared_high_up_idx));
+                for(int i = 0; i < E_total.size(); i++){
+                    if (E_total(i) < E_shared_min){
                         dos_merge.push_back(dos_total.row(i));
                         E_merge.push_back(E_total(i));
-
-                    }else  if(i >= E_shared_low && i <= E_shared_high){
-                        int E_idx_up = math::binary_search(E_recv, E_total(i));
-                        if (E_total(i) == E_recv(E_idx_up)){
-                            weight = (double) j / shared_rows;
-                            dos_merge.push_back((1-weight)*dos_total.row(i) + weight*dos_recv.row(E_idx_up) );
-                            E_merge.push_back(E_total(i));
-                            j++;
-                        }else if(E_total(i) < E_recv(E_idx_up)){
-                            dos_merge.push_back(dos_total.row(i));
-                            E_merge.push_back(E_total(i));
-                        }else if(E_total(i) > E_recv(E_idx_up)){
-                            dos_merge.push_back(dos_recv.row(E_idx_up));
-                            E_merge.push_back(E_recv(E_idx_up));
+                    }else if(E_total(i) <= E_shared_max) {
+                        double dE = i < E_total.size()-1 ? fabs(E_total(i + 1) - E_total(i)) / 2 : fabs(E_total(i) - E_total(i - 1)) / 2;
+                        dos_rowsum.fill(0);
+                        int k = 0;
+                        for (int j = 0; j < E_recv.size(); j++) {
+                            if (E_recv(j) > E_shared_max){continue;}
+                            if (fabs(E_recv(j) - E_total(i)) > dE) { continue; }
+                            dos_rowsum = dos_rowsum + dos_recv.row(j).transpose();
+                            k++;
                         }
-                    }
-                }
-//                cout << "Starting pushback 2" << endl;
-
-                for (int i = 0; i < E_recv.size();i ++){
-                    if (i > E_shared_high_up){
-                        dos_merge.push_back(dos_recv.row(i));
-                        E_merge.push_back(E_recv(i));
+                        dos_rowsum /= k;
+                        weight = (E_total(i) - E_total(E_shared_low_idx)) / E_span;
+                        dos_merge.push_back((1 - weight) * dos_total.row(i) + weight * dos_rowsum.transpose());
+                        E_merge.push_back(E_total(i));
 
                     }
                 }
-//                cout << "Starting Resize" << endl;
-//                cout << "dos_merge.size() = " << dos_merge.size() << endl;
-//                for (int i = 0; i < dos_merge.size(); i++){
-//                    cout << dos_merge[i].transpose() << endl;
-//
-//                }
-//                for (int i = 0; i < E_merge.size(); i++){
-//                    cout << E_merge[i] << " ";
-//
-//                }
-//                cout << endl ;
+                for (int j = 0; j < E_recv.size(); j++ ){
+                    if (E_recv(j) > E_shared_max){
+                        dos_merge.push_back(dos_recv.row(j));
+                        E_merge.push_back(E_recv(j));
+                    }
+                }
 
-                dos_total.resize(dos_merge.size(), M_sizes[w]);
+                dos_total.resize(dos_merge.size(), M_recv.size());
                 E_total.resize(E_merge.size());
                 for (unsigned int i = 0; i < dos_merge.size(); i++){
                     dos_total.row(i)    = dos_merge[i];
                     E_total(i)          = E_merge[i];
                 }
-//                cout << "Clearing" << endl;
                 dos_merge.clear();
                 E_merge.clear();
-//                from_total  = 0;
-//                from_up     = E_shared_low_up;
-//                rows_total  = E_shared_high     - E_shared_low;
-//                rows_up     = E_shared_high_up  - E_shared_low_up;
-//                dos_temp.resize(dos_total.middleRows(from_total, rows_total).rows() +
-//                                dos_recv.middleRows(from_up, rows_up).rows(), M_size);
-//
-//                //Compute the starting points and number of rows for concatenation
-//                from_total = 0;
-//                from_up = E_merge_idx_up + 1;
-//
-//                rows_total = E_merge_idx + 1;
-//                rows_up = E_sizes[w] - E_merge_idx_up - 1;
-//
-//                E_temp.resize(E_total.segment(from_total, rows_total).size() + E_recv.segment(from_up, rows_up).size());
-//                dos_temp.resize(dos_total.middleRows(from_total, rows_total).rows() +
-//                                dos_recv.middleRows(from_up, rows_up).rows(), M_size);
-//
-//                dos_temp << dos_total.middleRows(from_total, rows_total),
-//                        dos_recv.middleRows(from_up, rows_up);
-//                E_temp << E_total.segment(from_total, rows_total),
-//                        E_recv.segment(from_up, rows_up);
-//                dos_total = dos_temp;
-//                E_total = E_temp;
 
                 if (debug_merge) {
                     cout << "OK ";
@@ -339,9 +275,9 @@ namespace mpi {
                     std::this_thread::sleep_for(std::chrono::microseconds(1000));
                 }
             } else if (w == worker.world_ID) {
-                MPI_Send(worker.dos.data(), E_size * M_size, MPI_DOUBLE, 0, 60, MPI_COMM_WORLD);
-                MPI_Send(worker.E_bins.data(), E_size, MPI_DOUBLE, 0, 61, MPI_COMM_WORLD);
-                MPI_Send(worker.M_bins.data(), M_size, MPI_DOUBLE, 0, 62, MPI_COMM_WORLD);
+                send_dynamic(worker.dos   ,MPI_DOUBLE,0);
+                send_dynamic(worker.E_bins,MPI_DOUBLE,0);
+                send_dynamic(worker.M_bins,MPI_DOUBLE,0);
             }
             MPI_Barrier(MPI_COMM_WORLD);
         }
@@ -521,7 +457,6 @@ namespace mpi {
                                            worker.world_ID * local_range - overlap_range);
         E_max_local_idx = math::area_idx(worker.dos_total, worker.E_bins_total, worker.M_bins_total,
                                            (worker.world_ID + 1) * local_range + overlap_range);
-
         while (E_max_local_idx - E_min_local_idx < constants::bins) {
             E_min_local_idx--;
             E_max_local_idx++;
@@ -587,11 +522,10 @@ namespace mpi {
         double global_range = math::volume(worker.dos_total, worker.E_bins_total, worker.M_bins_total);
         double local_range = global_range / worker.world_size;
         double x = constants::overlap_factor_dos_vol / (1 - constants::overlap_factor_dos_vol / 2);
-        double overlap_range = local_range * x;//2.0*(worker.world_size - 2.0 + x)/worker.world_size;
+        double overlap_range = local_range * x;
         //The overlap_range is the total range in a domain that will have overlap, either up or down.
         //Find the boundaries of the DOS domain that gives every worker the  same DOS volume to work on
         int E_min_local_idx, E_max_local_idx;
-
         if (worker.world_ID == 0) { overlap_range = overlap_range / 2; }
         else if (worker.world_ID == worker.world_size - 1) { overlap_range = overlap_range / 2; }
         else { overlap_range = overlap_range / 4; }
