@@ -7,6 +7,7 @@
 #define profiling_print                	1
 #define profiling_sweep                	1
 #define profiling_swap                 	1
+#define profiling_merge                	1
 #define profiling_help_setup           	1
 #define profiling_help                 	1
 #define profiling_divide_range        	1
@@ -14,12 +15,12 @@
 #define profiling_make_MC_trial 		0
 #define profiling_acceptance_criterion 	0
 
-#define debug_comp_numb_bins            1
+#define debug_comp_numb_bins            0
 #define debug_divide_energy             0
 #define debug_resize_local_bins         0
-#define debug_resize_local_range        1
-#define debug_insert_state              1
-#define debug_accept_trial              1
+#define debug_resize_local_range        0
+#define debug_insert_state              0
+#define debug_accept_trial              0
 
 using namespace std;
 using namespace Eigen;
@@ -49,6 +50,7 @@ class_worker::class_worker(int & id, int & size):
                                 t_print                (profiling_print,                3,"Time"),
                                 t_sweep                (profiling_sweep,                3,"t_sweep"),
                                 t_swap                 (profiling_swap,                 3,"t_swap" ),
+                                t_merge                (profiling_merge,                3,"t_merge" ),
                                 t_help_setup           (profiling_help_setup,           3,"t_help_s" ),
                                 t_help                 (profiling_help,                 3,"t_help" ),
                                 t_divide_range         (profiling_divide_range,         3,"t_divr" ),
@@ -314,6 +316,7 @@ void class_worker::resize_local_bins() {
     // This function does rebinning of dos and histograms.
     // If E_set contains more than the default number of bins, then enlarge E_bins, otherwise shrink it!
     // If M_set contains more ----" " ---
+
     int x, y, i, j;
     double dE, dM, dR, dx, dy;
 
@@ -322,50 +325,54 @@ void class_worker::resize_local_bins() {
     int M_old_size = (int) M_bins.size();
     int E_new_size;
     int M_new_size;
+    t_merge.tic();
 
     compute_number_of_bins(E_new_size, M_new_size);
+
     ArrayXXi histogram_new  = ArrayXXi::Zero(E_new_size, M_new_size);
     ArrayXXd dos_new        = ArrayXXd::Zero(E_new_size, M_new_size);
-    dE              = fabs(E_max_local - E_min_local) / E_new_size;    //New spacing in E_bins
-    dM              = fabs(M_max_local - M_min_local) / M_new_size;    //New spacing in M_bins
-    dR              = sqrt(dE * dE + dM * dM);                         //Diagonal distance ?
-    ArrayXd E_old = E_bins;
-    ArrayXd M_old = M_bins;
+//    dE              = fabs(E_max_local - E_min_local) / E_new_size;    //New spacing in E_bins
+//    dM              = fabs(M_max_local - M_min_local) / M_new_size;    //New spacing in M_bins
+//    dR              = sqrt(dE * dE + dM * dM);                         //Diagonal distance ?
+//    ArrayXd E_old = E_bins;
+//    ArrayXd M_old = M_bins;
     E_bins          = ArrayXd::LinSpaced(E_new_size, E_min_local, E_max_local);
     M_bins          = ArrayXd::LinSpaced(M_new_size, M_min_local, M_max_local);
-    ArrayXXd weight = ArrayXXd::Zero(E_new_size, M_new_size);
-    ArrayXXi count  = ArrayXXi::Zero(E_new_size, M_new_size);
-    //Coarsen the histogram and dos.
-    for (y = 0; y < M_old_size; y++) {
-        for (x = 0; x < E_old_size; x++) {
-            for (j = 0; j < M_new_size; j++) {
-                for (i = 0; i < E_new_size; i++) {
-                    dx = fabs(E_bins(i) - E_old(x));   //Distance between old and new bins
-                    dy = fabs(M_bins(j) - M_old(y));   //Distance between old and new bins
-                    //Distance between old and new bins should not exceed dE/2
-                    //This is so to avoid double counting
-                    if (dx >= dE) { continue; }
-                    if (dy >= dM) { continue; }
-                    double w                  = fabs(1.0 - sqrt(dx * dx + dy * dy) / dR);
-//                    weight(i,j)              += fabs(1.0 - 4*dx*dy/dE/dM);
-                    weight(i,j)              += w;
-                    count (i,j)              += 1;
-                    dos_new(i,j)             += w * dos(x,y);
-                    histogram_new(i,j)       += histogram(x,y);
-                }
-            }
-        }
-    }
-    //We have now inserted all old entries to the new dos and histogram, and we only need to divide by the weight.
-    for (j = 0; j < M_new_size; j++) {
-        for (i = 0; i < E_new_size; i++) {
-            dos_new(i,j)        = weight(i,j) > 0  ? dos_new(i,j)/weight(i,j) : 0;
-            histogram_new(i,j)  = count(i,j) > 0  ? histogram_new(i,j)  / count(i,j)  : 0;
-
-        }
-    }
+//    ArrayXXd weight = ArrayXXd::Zero(E_new_size, M_new_size);
+//    ArrayXXi count  = ArrayXXi::Zero(E_new_size, M_new_size);
+//    //Coarsen the histogram and dos.
+//    for (y = 0; y < M_old_size; y++) {
+//        for (x = 0; x < E_old_size; x++) {
+//            for (j = 0; j < M_new_size; j++) {
+//                for (i = 0; i < E_new_size; i++) {
+//                    dx = fabs(E_bins(i) - E_old(x));   //Distance between old and new bins
+//                    dy = fabs(M_bins(j) - M_old(y));   //Distance between old and new bins
+//                    //Distance between old and new bins should not exceed dE/2
+//                    //This is so to avoid double counting
+//                    if (dx >= dE) { continue; }
+//                    if (dy >= dM) { continue; }
+//                    double w                  = fabs(1.0 - sqrt(dx * dx + dy * dy) / dR);
+////                    weight(i,j)              += fabs(1.0 - 4*dx*dy/dE/dM);
+//                    weight(i,j)              += w;
+//                    count (i,j)              += 1;
+//                    dos_new(i,j)             += w * dos(x,y);
+//                    histogram_new(i,j)       += histogram(x,y);
+//                }
+//            }
+//        }
+//    }
+//    //We have now inserted all old entries to the new dos and histogram, and we only need to divide by the weight.
+//    for (j = 0; j < M_new_size; j++) {
+//        for (i = 0; i < E_new_size; i++) {
+//            dos_new(i,j)        = weight(i,j) > 0  ? dos_new(i,j)/weight(i,j) : 0;
+//            histogram_new(i,j)  = count(i,j) > 0  ? histogram_new(i,j)  / count(i,j)  : 0;
+//
+//        }
+//    }
     dos             = dos_new;
     histogram       = histogram_new;
+    t_merge.toc();
+
     if (debug_resize_local_bins)
     for (int w = 0 ; w < world_size; w++){
         if (w == world_ID){
@@ -474,9 +481,9 @@ void class_worker::insert_state(){
         M_bins(M_idx) = M;
         E_set.insert(E);
         M_set.insert(M);
-        if (E_set.size() > E_bins.size() || M_set.size() > M_bins.size()){
-            need_to_resize_global = 1;
-        }
+//        if (E_set.size() > E_bins.size() || M_set.size() > M_bins.size()){
+//            need_to_resize_global = 1;
+//        }
     }
 }
 
@@ -668,11 +675,7 @@ void class_worker::add_hist_volume(){
         timer::add_hist_volume = 0;
         if (flag_one_over_t == 0) {
             t_check_convergence.tic();
-            if (counter::vol_merges < constants::max_vol_merges){
-                math::subtract_min_nonzero(histogram);
-            }else{
-                math::subtract_min_nonzero_one(histogram);
-            }
+            math::subtract_min_nonzero_one(histogram);
             saturation.push_back(histogram.sum());
             t_check_convergence.toc();
         }

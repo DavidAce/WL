@@ -7,7 +7,7 @@
 
 #define debug_sweep                     0
 #define debug_convergence               0
-#define debug_divide_range              0
+#define debug_divide_range              1
 #define debug_status                    1
 
 
@@ -35,6 +35,7 @@ void wanglandau(class_worker &worker){
         check_convergence   (worker, out,finish_line);
         divide_range        (worker, backup);
 //        backup_to_file         (worker,out)          ;
+
         print_status        (worker,false);
     }
     print_status        (worker,true);
@@ -127,9 +128,9 @@ void divide_range(class_worker &worker, class_backup &backup){
                     worker.divide_global_range_energy();
                     worker.resize_local_bins();
                     worker.prev_WL_iteration();
-                    worker.dos.fill(0);
                     worker.need_to_resize_global = 0;
                     worker.find_current_state();
+
                 } else if (min_walks < constants::min_walks && counter::area_merges < constants::max_area_merges &&
                            all_in_window == 1) {
                     //divide dos area
@@ -216,6 +217,7 @@ void print_status(class_worker &worker, bool force) {
                     worker.t_make_MC_trial       .print_total_reset();
                     worker.t_acceptance_criterion.print_total_reset();
                     worker.t_swap                .print_total_reset();
+                    worker.t_merge               .print_total_reset();
                     worker.t_help_setup          .print_total_reset();
                     worker.t_help                .print_total_reset();
                     worker.t_divide_range        .print_total_reset<double,std::milli>();std::cout << "ms";

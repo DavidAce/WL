@@ -150,6 +150,7 @@ namespace mpi {
         ArrayXXd dos_total;
         ArrayXd  E_total;
         ArrayXd  M_total;
+
         if (worker.world_ID == 0) {
             dos_total = worker.dos;
             E_total = worker.E_bins;
