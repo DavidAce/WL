@@ -340,7 +340,6 @@ void class_worker::resize_local_bins() {
     ArrayXXd weight = ArrayXXd::Zero(E_new_size, M_new_size);
     ArrayXXi count  = ArrayXXi::Zero(E_new_size, M_new_size);
     //Coarsen the histogram and dos.
-    t_merge.tic();
 //    cout << "E_old: " << E_old_size
 //         << " M_old: " << M_old_size
 //         << " E_new: " << E_new_size
@@ -369,7 +368,6 @@ void class_worker::resize_local_bins() {
             }
         }
     }
-    t_merge.toc();
 
     //We have now inserted all old entries to the new dos and histogram, and we only need to divide by the weight.
     for (j = 0; j < M_new_size; j++) {
@@ -381,8 +379,8 @@ void class_worker::resize_local_bins() {
     }
     dos             = dos_new;
     histogram       = histogram_new;
-    dos.fill(0);
-    histogram.fill(0);
+//    dos.fill(0);
+//    histogram.fill(0);
 
     if (debug_resize_local_bins)
     for (int w = 0 ; w < world_size; w++){
@@ -487,14 +485,11 @@ void class_worker::insert_state(){
                 exit(1);
             }
         }
-
         E_bins(E_idx) = E;
         M_bins(M_idx) = M;
         E_set.insert(E);
         M_set.insert(M);
-//        if (E_set.size() > E_bins.size() || M_set.size() > M_bins.size()){
-//            need_to_resize_global = 1;
-//        }
+
     }
 }
 
@@ -629,7 +624,6 @@ void class_worker::set_P_increment(){
     P_increment = 1 / fmax(1, std::sqrt( fmax(dos_width, dos_height)  ));
 }
 
-
 void class_worker::next_WL_iteration() {
     lnf = fmax(1e-12, lnf*constants::reduce_factor_lnf);
     histogram.fill(0);
@@ -650,7 +644,6 @@ void class_worker::rewind_to_lowest_walk(){
     flag_one_over_t = 0;
     finish_line = lnf > constants::minimum_lnf ? 0 : 1;
 }
-
 
 void class_worker::rewind_to_zero(){
     counter::walks = 0;

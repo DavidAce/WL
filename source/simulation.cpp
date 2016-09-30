@@ -131,18 +131,23 @@ void divide_range(class_worker &worker, class_backup &backup){
                     worker.need_to_resize_global = 0;
                     worker.find_current_state();
 
-                } else if (min_walks < constants::min_walks && counter::area_merges < constants::max_area_merges &&
+                } else if (min_walks < constants::min_walks_for_vol_merge && counter::area_merges < constants::max_area_merges &&
                            all_in_window == 1) {
                     //divide dos area
                     if (worker.world_ID == 0) { cout << "Dividing dos area. Merges: " << counter::area_merges << endl; }
                     backup.restore_state(worker);
                     worker.help.reset();
                     print_status(worker,true);
+                    if (counter::walks > 0) {
+                        worker.dos = math::Zero_to_NaN(worker.dos);
+                        math::remove_nan_rows(worker.dos, worker.E_bins);
+                        worker.dos = math::NaN_to_Zero(worker.dos);
+                    }
                     mpi::merge(worker, true, false);
                     mpi::divide_global_range_dos_area(worker);
                     worker.set_P_increment();
                     counter::area_merges++;
-                } else if (min_walks == constants::min_walks && counter::vol_merges < constants::max_vol_merges &&
+                } else if (min_walks == constants::min_walks_for_vol_merge && counter::vol_merges < constants::max_vol_merges &&
                            all_in_window == 1) {
                     //divide dos vol
                     if (worker.world_ID == 0) { cout << "Dividing dos Vol, Merges: " << counter::vol_merges << endl; }

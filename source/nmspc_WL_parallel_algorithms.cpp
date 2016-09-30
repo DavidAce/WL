@@ -150,6 +150,7 @@ namespace mpi {
         ArrayXXd dos_total;
         ArrayXd  E_total;
         ArrayXd  M_total;
+        //Start by trimming
 
         if (worker.world_ID == 0) {
             dos_total = worker.dos;
@@ -229,37 +230,82 @@ namespace mpi {
                 double E_span = fmax(E_total(E_shared_high_idx) - E_total(E_shared_low_idx), E_recv(E_shared_high_up_idx) - E_recv(E_shared_low_up_idx));
                 vector<ArrayXd> dos_merge;
                 vector<double>  E_merge;
-                ArrayXd dos_rowsum;
-                dos_rowsum.resizeLike(dos_recv.row(0));
                 double E_shared_min = fmin(E_total(E_shared_low_idx) , E_recv(E_shared_low_up_idx));
                 double E_shared_max = fmax(E_total(E_shared_high_idx), E_recv(E_shared_high_up_idx));
-                for(int i = 0; i < E_total.size(); i++){
-                    if (E_total(i) < E_shared_min){
+                int i = 0, j = 0;
+                bool E_total_finished = false;
+                while(j < E_recv.size() ){
+                    if (i >= E_total.size()){i--; E_total_finished = true;}
+                    if (E_total(i) < E_shared_min && !E_total_finished){
+                        //Take E_total(i)
                         dos_merge.push_back(dos_total.row(i));
                         E_merge.push_back(E_total(i));
-                    }else if(E_total(i) <= E_shared_max) {
-                        double dE = i < E_total.size()-1 ? fabs(E_total(i + 1) - E_total(i)) / 2 : fabs(E_total(i) - E_total(i - 1)) / 2;
-                        dos_rowsum.fill(0);
-                        int k = 0;
-                        for (int j = 0; j < E_recv.size(); j++) {
-                            if (E_recv(j) > E_shared_max){continue;}
-                            if (fabs(E_recv(j) - E_total(i)) > dE) { continue; }
-                            dos_rowsum = dos_rowsum + dos_recv.row(j).transpose();
-                            k++;
+                        i++;
+                    }else if (E_total(i) <= E_total(E_shared_high_idx) && !E_total_finished){
+                        if(E_total(i) == E_recv(j)){
+                            //Take Average
+                            weight = (E_total(i) - E_total(E_shared_low_idx)) / E_span;
+                            dos_merge.push_back((1 - weight) * dos_total.row(i) + weight * dos_recv.row(j));
+                            E_merge.push_back(E_total(i));
+                            i++;
+                            j++;
                         }
-                        dos_rowsum /= k;
-                        weight = (E_total(i) - E_total(E_shared_low_idx)) / E_span;
-                        dos_merge.push_back((1 - weight) * dos_total.row(i) + weight * dos_rowsum.transpose());
-                        E_merge.push_back(E_total(i));
-
-                    }
-                }
-                for (int j = 0; j < E_recv.size(); j++ ){
-                    if (E_recv(j) > E_shared_max){
+                        else if (E_total(i) < E_recv(j)){
+                            //Take E_total(i)
+                            dos_merge.push_back(dos_total.row(i));
+                            E_merge.push_back(E_total(i));
+                            i++;
+                        }
+                        else if (E_total(i) > E_recv(j)){
+                            //Take E_recv(j)
+                            dos_merge.push_back(dos_recv.row(j));
+                            E_merge.push_back(E_recv(j));
+                            j++;
+                        }
+                    }else{
+                        //Take E_recv(j)
                         dos_merge.push_back(dos_recv.row(j));
                         E_merge.push_back(E_recv(j));
+                        j++;
                     }
                 }
+
+
+//
+//
+//
+//                for(int i = 0; i < E_total.size()-1; i++){
+//                    if (E_total(i) < E_shared_min){
+//                        dos_merge.push_back(dos_total.row(i));
+//                        E_merge.push_back(E_total(i));
+//                    }else if(E_total(i) <= E_shared_max) {
+//                        double dE = fabs(E_total(i + 1) - E_total(i));
+//                        for (int j = 0; j < E_recv.size(); j++) {
+//                            if (E_recv(j) > E_shared_max){continue;}
+//                            if (E_recv(j) < E_total(i)) { continue; }
+//                            if (E_recv(j) - E_total(i)  >= dE) { continue; }
+//                            if (E_total(i) > E_merge.back() && E_total(i) < E_recv(j)){
+//                                dos_merge.push_back(dos_total.row(i));
+//                                E_merge.push_back(E_total(i));
+//                            }else if (E_recv(j) == E_total(i)) {
+//                                weight = (E_total(i) - E_total(E_shared_low_idx)) / E_span;
+//                                dos_merge.push_back((1 - weight) * dos_total.row(i) + weight * dos_recv.row(j));
+//                                E_merge.push_back(E_total(i));
+//                            }else if (E_recv(j) > E_total(i)){
+//                                dos_merge.push_back(dos_recv.row(j));
+//                                E_merge.push_back(E_recv(j));
+//                            }
+//                        }
+//
+//
+//                    }
+//                }
+//                for (int j = 0; j < E_recv.size(); j++ ){
+//                    if (E_recv(j) > E_merge.back()){
+//                        dos_merge.push_back(dos_recv.row(j));
+//                        E_merge.push_back(E_recv(j));
+//                    }
+//                }
 
                 dos_total.resize(dos_merge.size(), M_recv.size());
                 E_total.resize(E_merge.size());
