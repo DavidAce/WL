@@ -665,8 +665,8 @@ void class_worker::prev_WL_iteration() {
         lnf /= constants::reduce_factor_lnf;
         counter::walks--;
     }
-    counter::MCS            = (int) (1.0 / lnf);
-    rewind_timers();
+    counter::MCS            = counter::walks == 0 ? 0 : (int) (1.0 / lnf);
+//    rewind_timers();
     flag_one_over_t         = 0;
     histogram.fill(0);
     saturation.clear();
@@ -693,7 +693,8 @@ void class_worker::check_saturation(){
             t_check_convergence.tic();
             int idx_to   = (int) saturation.size() - 1;
             int idx_from = (int) (constants::check_saturation_from * idx_to);
-            if (idx_to == idx_from){
+            if (idx_to == idx_from || need_to_resize_global){
+                saturation.clear();
                 slope = 0;
                 return;
             }
@@ -712,6 +713,8 @@ void class_worker::check_saturation(){
                 flag_one_over_t = 1;         //Change to 1/t algorithm
             }
             t_check_convergence.toc();
+        }else{
+            counter::walks = (int) (-log(lnf)/log(2));
         }
     }
 }

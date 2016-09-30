@@ -145,12 +145,13 @@ namespace mpi {
         }
     }
 
-    void merge(class_worker &worker, bool broadcast, bool trim) {
+    void merge(class_worker &worker, bool broadcast, bool trim, bool setNaN) {
         if(debug_merge){debug_print(worker,"\nMerging. ");}
         ArrayXXd dos_total;
         ArrayXd  E_total;
         ArrayXd  M_total;
         //Start by trimming
+
 
         if (worker.world_ID == 0) {
             dos_total = worker.dos;
@@ -328,18 +329,26 @@ namespace mpi {
             }
             MPI_Barrier(MPI_COMM_WORLD);
         }
+        if (trim){
+            if (worker.world_ID == 0) {
+                //Trim away nan rows
+                math::subtract_min_nonzero_one(dos_total);
+                dos_total = math::Zero_to_NaN(dos_total);
+                math::remove_nan_rows(dos_total, E_total);
+                dos_total = math::NaN_to_Zero(dos_total);
+            }
+        }
+        if (setNaN){
+            if (worker.world_ID == 0) {
+                math::subtract_min_nonzero_nan(worker.dos);
+                math::remove_nan_rows(worker.dos, worker.E_bins);
+            }
+        }
         if (worker.world_ID == 0) {
             //Let the master worker have the results
             worker.dos_total    = dos_total;
             worker.E_bins_total = E_total;
             worker.M_bins_total = M_total;
-        }
-        if (trim){
-            if (worker.world_ID == 0) {
-                //Trim away nan rows
-                math::subtract_min_nonzero_nan(worker.dos_total);
-                math::remove_nan_rows(worker.dos_total, worker.E_bins_total);
-            }
         }
         if (broadcast){
             broadcast_merger(worker);

@@ -15,8 +15,8 @@
 //class class_worker;
 namespace mpi {
     extern void swap                           (class_worker &) ;
-    extern void merge                          (class_worker &, bool broadcast, bool trim) ;
-    extern void merge2                         (class_worker &, bool broadcast, bool trim) ;
+    extern void merge                          (class_worker &, bool broadcast, bool trim, bool setNaN) ;
+    extern void merge2                         (class_worker &, bool broadcast, bool trim);
     extern void broadcast_merger               (class_worker &) ;
     extern void divide_global_range_dos_area   (class_worker &) ;
     extern void divide_global_range_dos_volume (class_worker &) ;

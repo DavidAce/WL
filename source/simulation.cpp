@@ -41,7 +41,7 @@ void wanglandau(class_worker &worker){
     print_status        (worker,true);
     backup.restore_state   (worker) ;
     out.write_data_worker  (worker) ;
-    mpi::merge             (worker,false,true) ;
+    mpi::merge             (worker,false,true,true) ;
     out.write_data_master  (worker) ;
 }
 
@@ -131,19 +131,17 @@ void divide_range(class_worker &worker, class_backup &backup){
                     worker.need_to_resize_global = 0;
                     worker.find_current_state();
 
-                } else if (min_walks < constants::min_walks_for_vol_merge && counter::area_merges < constants::max_area_merges &&
-                           all_in_window == 1) {
+                } else if (min_walks < constants::min_walks_for_vol_merge && counter::area_merges < constants::max_area_merges && all_in_window == 1) {
                     //divide dos area
                     if (worker.world_ID == 0) { cout << "Dividing dos area. Merges: " << counter::area_merges << endl; }
                     backup.restore_state(worker);
                     worker.help.reset();
                     print_status(worker,true);
-                    if (counter::walks > 0) {
-                        worker.dos = math::Zero_to_NaN(worker.dos);
-                        math::remove_nan_rows(worker.dos, worker.E_bins);
-                        worker.dos = math::NaN_to_Zero(worker.dos);
+                    if(min_walks > 1){
+                        mpi::merge(worker, true, true, false);
+                    }else{
+                        mpi::merge(worker, true, false, false);
                     }
-                    mpi::merge(worker, true, false);
                     mpi::divide_global_range_dos_area(worker);
                     worker.set_P_increment();
                     counter::area_merges++;
@@ -154,7 +152,7 @@ void divide_range(class_worker &worker, class_backup &backup){
                     //If anybody had started to help they need to be restored
                     backup.restore_state(worker);
                     print_status(worker,true);
-                    mpi::merge(worker, true, false);
+                    mpi::merge(worker, true, true,false);
                     mpi::divide_global_range_dos_volume(worker);
                     worker.set_P_increment();
                     worker.rewind_to_zero();
@@ -178,7 +176,7 @@ void backup_to_file(class_worker &worker, outdata &out){
             MPI_Allreduce(&worker.in_window, &all_in_window, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
             MPI_Allreduce(&worker.need_to_resize_global, &need_to_resize, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
             if (need_to_resize == 0 && all_in_window == 1 && counter::vol_merges > 0) {
-                mpi::merge(worker,false,false);
+                mpi::merge(worker,false,false,false);
                 out.write_data_master(worker);
             }
         }
