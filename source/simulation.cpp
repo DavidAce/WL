@@ -113,59 +113,55 @@ void divide_range(class_worker &worker, class_backup &backup){
         timer::divide_range = 0;
         worker.t_divide_range.tic();
         if (counter::vol_merges < constants::max_vol_merges) {
-            int any_helping = worker.help.getting_help;
             int all_in_window, min_walks, need_to_resize;
             int in_window = worker.in_window;
-            MPI_Allreduce(MPI_IN_PLACE, &any_helping, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-            if (any_helping == 0) {
-                MPI_Allreduce(&worker.need_to_resize_global, &need_to_resize, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-                MPI_Allreduce(&counter::walks, &min_walks, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
-                MPI_Allreduce(&in_window, &all_in_window, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
-                if (need_to_resize) {
-                    if (debug_divide_range) { debug_print(worker, "Dividing global energy\n"); }
-                    //divide global energy
-                    worker.resize_global_range();
-                    worker.divide_global_range_energy();
-                    worker.resize_local_bins();
-                    worker.prev_WL_iteration();
-                    worker.need_to_resize_global = 0;
-                    worker.find_current_state();
+            MPI_Allreduce(&worker.need_to_resize_global, &need_to_resize, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+            MPI_Allreduce(&counter::walks, &min_walks, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+            MPI_Allreduce(&in_window, &all_in_window, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+            if (need_to_resize) {
+                if (debug_divide_range) { debug_print(worker, "Dividing global energy\n"); }
+                //divide global energy
+                worker.resize_global_range();
+                worker.divide_global_range_energy();
+                worker.resize_local_bins();
+                worker.prev_WL_iteration();
+                worker.need_to_resize_global = 0;
+                worker.find_current_state();
 
-                } else if (min_walks < constants::min_walks_for_vol_merge && counter::area_merges < constants::max_area_merges && all_in_window == 1) {
-                    //divide dos area
-                    if (worker.world_ID == 0) { cout << "Dividing dos area. Merges: " << counter::area_merges << endl; }
-                    backup.restore_state(worker);
-                    worker.help.reset();
-                    print_status(worker,true);
-                    if(min_walks > 1){
-                        mpi::merge(worker, true, true, false);
-                    }else{
-                        mpi::merge(worker, true, false, false);
-                    }
-                    mpi::divide_global_range_dos_area(worker);
-                    worker.set_P_increment();
-                    counter::area_merges++;
-                } else if (min_walks == constants::min_walks_for_vol_merge && counter::vol_merges < constants::max_vol_merges &&
-                           all_in_window == 1) {
-                    //divide dos vol
-                    if (worker.world_ID == 0) { cout << "Dividing dos Vol, Merges: " << counter::vol_merges << endl; }
-                    //If anybody had started to help they need to be restored
-                    backup.restore_state(worker);
-                    print_status(worker,true);
-                    mpi::merge(worker, true, true,false);
-                    mpi::divide_global_range_dos_volume(worker);
-                    worker.set_P_increment();
-                    worker.rewind_to_zero();
-                    counter::vol_merges++;
+            } else if (min_walks < constants::min_walks_for_vol_merge &&
+                       counter::area_merges < constants::max_area_merges && all_in_window == 1) {
+                //divide dos area
+                //If anybody had started to help they need to be restored
+                backup.restore_state(worker);
+                worker.help.reset();
+                print_status(worker, true);
+                if (worker.world_ID == 0) { cout << "Dividing according to dos AREA" << endl; }
 
+                if (min_walks > 1) {
+                    mpi::merge(worker, true, true, false);
+                } else {
+                    mpi::merge(worker, true, false, false);
                 }
+                mpi::divide_global_range_dos_area(worker);
+                worker.set_P_increment();
+                counter::area_merges++;
+            } else if (min_walks >= constants::min_walks_for_vol_merge && counter::vol_merges < constants::max_vol_merges && all_in_window == 1) {
+                //divide dos vol
+                backup.restore_state(worker);
+                print_status(worker, true);
+                if (worker.world_ID == 0) { cout << "Dividing according to dos VOLUME." << endl; }
+                mpi::merge(worker, true, true, false);
+                mpi::divide_global_range_dos_volume(worker);
+                worker.set_P_increment();
+                worker.rewind_to_zero();
+                counter::vol_merges++;
             }
+
         }
         worker.t_divide_range.toc();
     }
 
 }
-
 
 void backup_to_file(class_worker &worker, outdata &out){
     if (!worker.help.giving_help) {
@@ -236,7 +232,9 @@ void print_status(class_worker &worker, bool force) {
         MPI_Barrier(MPI_COMM_WORLD);
         if (worker.world_ID == 0){
             cout    << "-----"
-                    << " MaxWalks: "   << fixed << setprecision(0) << ceil(log(constants::minimum_lnf)/log(constants::reduce_factor_lnf))
+                    << " MaxWalks: "   << fixed << setprecision(0) << (int) ceil(log(constants::minimum_lnf)/log(constants::reduce_factor_lnf))
+                    << " Area Merges: "   << fixed << setprecision(0) << counter::area_merges
+                    << " Vol Merges: "   << fixed << setprecision(0) << counter::vol_merges
                     << " Iteration: "   << fixed << setprecision(0) << worker.iteration;
                     worker.t_total.print_total<double>(); cout << " s";
                     if(debug_status){
