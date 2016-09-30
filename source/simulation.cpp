@@ -29,14 +29,25 @@ void wanglandau(class_worker &worker){
     worker.t_total.tic();
     worker.t_print.tic();
     while(finish_line == 0){
-        sweep(worker);
+        if (!worker.help.getting_help){
+            sweep(worker);
+        }
         mpi::help           (worker,backup);
         mpi::swap           (worker) ;
         check_convergence   (worker, out,finish_line);
         divide_range        (worker, backup);
-//        backup_to_file         (worker,out)          ;
-
         print_status        (worker,false);
+        counter::MCS++;
+        timer::add_hist_volume++;
+        timer::check_finish_line++;
+        timer::check_saturation++;
+        timer::backup++;
+        timer::print++;
+        timer::swap++;
+        timer::take_help++;
+        timer::sync_help++;
+        timer::setup_help++;
+        timer::divide_range++;
     }
     print_status        (worker,true);
     backup.restore_state   (worker) ;
@@ -55,27 +66,6 @@ void sweep(class_worker &worker){
             worker.accept_MC_trial();
         }else{
             worker.reject_MC_trial();
-        }
-    }
-
-    counter::MCS++;
-    timer::add_hist_volume++;
-    timer::check_finish_line++;
-    timer::check_saturation++;
-    timer::backup++;
-    timer::print++;
-    timer::swap++;
-    timer::take_help++;
-    timer::setup_help++;
-    timer::divide_range++;
-
-    if (worker.flag_one_over_t) {
-            worker.lnf = 1.0 / counter::MCS;
-    } else {
-        if (worker.lnf < 1.0 / max(1, counter::MCS)) {
-            worker.flag_one_over_t = 1;
-        }else{
-            worker.flag_one_over_t = 0;
         }
     }
 
@@ -99,6 +89,15 @@ void check_convergence(class_worker &worker, outdata &out, int &finish_line){
             }
         }
         MPI_Allreduce(&worker.finish_line, &finish_line, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+    }
+    if (worker.flag_one_over_t) {
+        worker.lnf = 1.0 / counter::MCS;
+    } else {
+        if (worker.lnf < 1.0 / max(1, counter::MCS)) {
+            worker.flag_one_over_t = 1;
+        }else{
+            worker.flag_one_over_t = 0;
+        }
     }
 }
 
@@ -137,7 +136,7 @@ void divide_range(class_worker &worker, class_backup &backup){
                 print_status(worker, true);
                 if (worker.world_ID == 0) { cout << "Dividing according to dos AREA" << endl; }
 
-                if (min_walks > 1) {
+                if (min_walks > 0) {
                     mpi::merge(worker, true, true, false);
                 } else {
                     mpi::merge(worker, true, false, false);
@@ -233,8 +232,8 @@ void print_status(class_worker &worker, bool force) {
         if (worker.world_ID == 0){
             cout    << "-----"
                     << " MaxWalks: "   << fixed << setprecision(0) << (int) ceil(log(constants::minimum_lnf)/log(constants::reduce_factor_lnf))
-                    << " Area Merges: "   << fixed << setprecision(0) << counter::area_merges
-                    << " Vol Merges: "   << fixed << setprecision(0) << counter::vol_merges
+                    << " Area Merges: "   << fixed << setprecision(0) << counter::area_merges << "("<< constants::max_area_merges << ")"
+                    << " Vol Merges: "   << fixed << setprecision(0) << counter::vol_merges << "("<< constants::max_vol_merges << ")"
                     << " Iteration: "   << fixed << setprecision(0) << worker.iteration;
                     worker.t_total.print_total<double>(); cout << " s";
                     if(debug_status){

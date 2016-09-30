@@ -37,6 +37,7 @@ int timer::backup;
 int timer::print;
 int timer::swap;
 int timer::take_help;
+int timer::sync_help;
 int timer::setup_help;
 int timer::divide_range;
 
@@ -179,6 +180,7 @@ void class_worker::start_counters() {
     timer::print                = 0;
     timer::swap 				= 0;
     timer::take_help        	= 0;
+    timer::sync_help        	= 0;
     timer::setup_help			= 0;
     timer::divide_range         = 0;
     flag_one_over_t             = 0;
@@ -191,6 +193,7 @@ void  class_worker::rewind_timers(){
     timer::print                = 0;// math::mod(counter::MCS, constants::rate_print_status     );
     timer::swap 				= 0;// math::mod(counter::MCS, constants::rate_swap             );
     timer::take_help        	= 0;// math::mod(counter::MCS, constants::rate_take_help        );
+    timer::sync_help        	= 0;// math::mod(counter::MCS, constants::rate_take_help        );
     timer::setup_help			= 0;// math::mod(counter::MCS, constants::rate_setup_help       );
     timer::divide_range         = 0;// math::mod(counter::MCS, constants::rate_divide_range     );
 }

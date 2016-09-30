@@ -653,7 +653,8 @@ namespace mpi {
         //Offload help
         if (worker.help.getting_help){
             for (int i = 1; i < worker.help.help_size; i++) {
-                MPI_Recv(worker.help.histogram_recv.data(), (int) worker.help.histogram_recv.size(), MPI_INT, MPI_ANY_SOURCE, worker.world_ID, worker.help.MPI_COMM_HELP, MPI_STATUS_IGNORE);
+                MPI_Status status;
+                MPI_Recv(worker.help.histogram_recv.data(), (int) worker.help.histogram_recv.size(), MPI_INT, MPI_ANY_SOURCE, worker.world_ID, worker.help.MPI_COMM_HELP, &status);
                 if (worker.flag_one_over_t == 0){
                     worker.histogram        += worker.help.histogram_recv;
                 }
@@ -663,9 +664,16 @@ namespace mpi {
                 timer::check_saturation     += constants::rate_take_help - 1;
                 worker.add_hist_volume();
                 worker.check_saturation();
+//                MPI_Send(worker.dos.data(), (int) worker.dos.size(), MPI_DOUBLE, status.MPI_SOURCE, 0, worker.help.MPI_COMM_HELP);
+//                MPI_Send(&worker.lnf  ,  1, MPI_DOUBLE, status.MPI_SOURCE, 0, worker.help.MPI_COMM_HELP);
+//                MPI_Send(&counter::MCS,  1, MPI_INT   , status.MPI_SOURCE, 0, worker.help.MPI_COMM_HELP);
+
             }
         }else{
             MPI_Send(worker.histogram.data(), (int) worker.histogram.size(), MPI_INT, 0, worker.help.helping_id, worker.help.MPI_COMM_HELP);
+//            MPI_Recv(worker.dos.data()      , (int) worker.dos.size(), MPI_DOUBLE, 0, 0, worker.help.MPI_COMM_HELP, MPI_STATUS_IGNORE);
+//            MPI_Recv(&worker.lnf  ,  1,                                MPI_DOUBLE, 0, 0, worker.help.MPI_COMM_HELP, MPI_STATUS_IGNORE);
+//            MPI_Recv(&counter::MCS,  1,                                MPI_INT   , 0, 0, worker.help.MPI_COMM_HELP, MPI_STATUS_IGNORE);
             worker.histogram.fill(0);
         }
 
@@ -674,6 +682,15 @@ namespace mpi {
         MPI_Bcast(&worker.lnf  , 1, MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
         MPI_Bcast(&counter::MCS, 1, MPI_INT   , 0, worker.help.MPI_COMM_HELP);
         worker.flag_one_over_t = worker.lnf < 1.0 / max(1, counter::MCS) ? 1 : 0;
+    }
+
+    void sync_help(class_worker &worker) {
+        //This function makes sure that all helpers aren't offering exactly the same help needlessly
+        worker.help.histogram_recv = worker.histogram;
+        math::subtract_min_nonzero_one(worker.help.histogram_recv);
+        MPI_Bcast(worker.help.histogram_recv.data(), (int)worker.help.histogram_recv.size(), MPI_INT, worker.help.sync_turn, worker.help.MPI_COMM_HELP);
+        worker.dos += worker.help.histogram_recv.cast<double>() * worker.lnf;
+        worker.help.sync_turn = math::mod(worker.help.sync_turn + 1, worker.help.help_size);
     }
 
     void setup_help(class_worker &worker, class_backup &backup) {
@@ -793,6 +810,16 @@ namespace mpi {
                 worker.t_help.toc();
             }
         }
+        if (timer::sync_help >= constants::rate_sync_help) {
+            timer::sync_help = 0;
+//            if (worker.help.MPI_COMM_HELP != MPI_COMM_NULL) {
+//                worker.t_help.tic();
+//                sync_help(worker);
+//                worker.t_help.toc();
+//            }
+        }
+
+
         if (timer::setup_help >= constants::rate_setup_help) {
             timer::setup_help = 0;
             worker.t_help_setup.tic();

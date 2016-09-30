@@ -25,6 +25,7 @@ namespace timer {
     extern int print;
     extern int swap;
     extern int take_help;
+    extern int sync_help;
     extern int setup_help;
     extern int divide_range;
 

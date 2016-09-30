@@ -112,6 +112,7 @@ public:
 //            whos_helping_who.resize(world_size);
 //            whos_helping_who.fill(-1);
             available = 0;
+            sync_turn = 0;
             MPI_COMM_HELP = MPI_COMM_NULL;
         }
         ArrayXXi histogram_recv; //Receive histogram from helpers
@@ -124,6 +125,7 @@ public:
         int key;
         int help_rank;
         int help_size;
+        int sync_turn;
         MPI_Comm MPI_COMM_HELP;
 
     };
