@@ -30,6 +30,7 @@ int counter::swaps;
 int counter::swap_accepts;
 int counter::area_merges;
 int counter::vol_merges;
+int counter::no_global_change;
 int timer::add_hist_volume;
 int timer::check_saturation;
 int timer::check_finish_line;
@@ -37,9 +38,9 @@ int timer::backup;
 int timer::print;
 int timer::swap;
 int timer::take_help;
-int timer::sync_help;
 int timer::setup_help;
 int timer::divide_range;
+int timer::divide_range_find;
 
 //Constructors
 class_worker::class_worker(int & id, int & size):
@@ -57,16 +58,13 @@ class_worker::class_worker(int & id, int & size):
                                 t_divide_range         (profiling_divide_range,         3,"t_divr" ),
                                 t_check_convergence    (profiling_check_convergence,    3,"t_conv") ,
                                 t_make_MC_trial        (profiling_make_MC_trial,        3,"t_mkMC") ,
-                                t_acceptance_criterion (profiling_acceptance_criterion, 3,"t_accr"),
-                                help(size)
-
+                                t_acceptance_criterion (profiling_acceptance_criterion, 3,"t_accr")
 {
-
     rn::rng.seed((unsigned long)world_ID);
     lnf = 1.0;
     find_initial_limits();
     resize_global_range();
-    divide_global_range_energy();
+    divide_global_range_uniformly();
     set_initial_local_bins();
     find_current_state();
     need_to_resize_global = 0;
@@ -173,6 +171,7 @@ void class_worker::start_counters() {
     counter::swap_accepts       = 0;
     counter::area_merges        = 0;
     counter::vol_merges         = 0;
+    counter::no_global_change   = 0;
     timer::add_hist_volume      = 0;
     timer::check_saturation     = 0;
     timer::check_finish_line    = 0;
@@ -180,12 +179,13 @@ void class_worker::start_counters() {
     timer::print                = 0;
     timer::swap 				= 0;
     timer::take_help        	= 0;
-    timer::sync_help        	= 0;
     timer::setup_help			= 0;
     timer::divide_range         = 0;
+    timer::divide_range_find    = 0;
     flag_one_over_t             = 0;
 }
-void  class_worker::rewind_timers(){
+
+void class_worker::rewind_timers(){
     timer::add_hist_volume      = 0;// math::mod(counter::MCS, constants::rate_add_hist_volume  );
     timer::check_saturation     = 0;// math::mod(counter::MCS, constants::rate_check_saturation );
     timer::check_finish_line    = 0;// math::mod(counter::MCS, constants::rate_check_finish_line);
@@ -193,7 +193,6 @@ void  class_worker::rewind_timers(){
     timer::print                = 0;// math::mod(counter::MCS, constants::rate_print_status     );
     timer::swap 				= 0;// math::mod(counter::MCS, constants::rate_swap             );
     timer::take_help        	= 0;// math::mod(counter::MCS, constants::rate_take_help        );
-    timer::sync_help        	= 0;// math::mod(counter::MCS, constants::rate_take_help        );
     timer::setup_help			= 0;// math::mod(counter::MCS, constants::rate_setup_help       );
     timer::divide_range         = 0;// math::mod(counter::MCS, constants::rate_divide_range     );
 }
@@ -264,12 +263,11 @@ void class_worker::resize_global_range() {
     }
 }
 
-
-void class_worker::divide_global_range_energy(){
+void class_worker::divide_global_range_uniformly(){
     //Update limits
     double global_range     = fabs(E_max_global - E_min_global);
     double local_range      = global_range / (double)(world_size);
-    double x                =  constants::overlap_factor_energy;
+    double x                = constants::overlap_factor_energy;
     //Add a little bit extra if there are too many workers (Add nothing if world_size == 2, and up to local_volume if world_size == inf)
     double overlap_range = local_range * x ;// * 2.0*(world_size - 2.0 + x)/world_size;
     //Make sure the overlap covers at least a hefty percent of the global range.
@@ -314,8 +312,7 @@ void class_worker::divide_global_range_energy(){
 
 }
 
-
-void class_worker::resize_local_bins() {
+void class_worker::resize_local_bins2() {
     // This function does rebinning of dos and histograms.
     // If E_set contains more than the default number of bins, then enlarge E_bins, otherwise shrink it!
     // If M_set contains more ----" " ---
@@ -328,7 +325,6 @@ void class_worker::resize_local_bins() {
     int M_old_size = (int) M_bins.size();
     int E_new_size;
     int M_new_size;
-
     compute_number_of_bins(E_new_size, M_new_size);
 
     ArrayXXi histogram_new  = ArrayXXi::Zero(E_new_size, M_new_size);
@@ -342,14 +338,7 @@ void class_worker::resize_local_bins() {
     M_bins          = ArrayXd::LinSpaced(M_new_size, M_min_local, M_max_local);
     ArrayXXd weight = ArrayXXd::Zero(E_new_size, M_new_size);
     ArrayXXi count  = ArrayXXi::Zero(E_new_size, M_new_size);
-    //Coarsen the histogram and dos.
-//    cout << "E_old: " << E_old_size
-//         << " M_old: " << M_old_size
-//         << " E_new: " << E_new_size
-//         << " M_new: "<< M_new_size
-//         << " dE: " << dE
-//         << " dM: " << dM
-//         << endl;
+
     for (y = 0; y < M_old_size; y++) {
         for (x = 0; x < E_old_size; x++) {
             if (dos(x,y) == 0){continue;}
@@ -382,15 +371,127 @@ void class_worker::resize_local_bins() {
     }
     dos             = dos_new;
     histogram       = histogram_new;
-//    dos.fill(0);
-//    histogram.fill(0);
-
-    if (debug_resize_local_bins)
-    for (int w = 0 ; w < world_size; w++){
-        if (w == world_ID){
-            cout << *this << endl;
+    if (debug_resize_local_bins) {
+        for (int w = 0; w < world_size; w++) {
+            if (w == world_ID) {
+                cout << *this << endl;
+            }
+            MPI_Barrier(MPI_COMM_WORLD);
         }
-        MPI_Barrier(MPI_COMM_WORLD);
+    }
+}
+
+void class_worker::synchronize_sets(){
+    //This function collects all known energies from all sets
+    vector<double> E_vector(E_set.begin(),E_set.end());
+    vector<double> M_vector(M_set.begin(),M_set.end());
+    vector<int> E_sizes((unsigned long)world_size);
+    vector<int> M_sizes((unsigned long)world_size);
+    int Esize = (int) E_vector.size();
+    int Msize = (int) M_vector.size();
+    MPI_Allgather(&Esize,1,MPI_INT, E_sizes.data(),1,MPI_INT,MPI_COMM_WORLD);
+    MPI_Allgather(&Msize,1,MPI_INT, E_sizes.data(),1,MPI_INT,MPI_COMM_WORLD);
+    vector<double> E_recv;
+    vector<double> M_recv;
+    for (int w = 0; w < world_size; w++){
+        if (w == world_ID){
+            E_recv = E_vector;
+            M_recv = E_vector;
+        }else{
+            E_recv.resize((unsigned long) E_sizes[w]);
+            M_recv.resize((unsigned long) M_sizes[w]);
+        }
+        MPI_Bcast(E_recv.data(),(int)E_sizes[w], MPI_DOUBLE,w,MPI_COMM_WORLD);
+        MPI_Bcast(M_recv.data(),(int)M_sizes[w], MPI_DOUBLE,w,MPI_COMM_WORLD);
+        E_set.insert(E_recv.begin(),E_recv.end());
+        M_set.insert(M_recv.begin(),M_recv.end());
+    }
+
+}
+
+void class_worker::adjust_local_bins() {
+    // This function does rebinning of dos and histograms.
+
+    //Snap the local boundaries to existing energies
+    int i = 0;
+    ArrayXd E_set_2_vector(E_set.size());
+    ArrayXd M_set_2_vector(M_set.size());
+    for (auto it = E_set.begin(); it != E_set.end(); it++) {
+        E_set_2_vector(i) = *it;
+        i++;
+    }
+    i = 0;
+    for (auto it = M_set.begin(); it != M_set.end(); it++) {
+        M_set_2_vector(i) = *it;
+        i++;
+    }
+    int E_idx_min = math::binary_search(E_bins_global, E_min_local);
+    int E_idx_max = math::binary_search(E_bins_global, E_max_local);
+    E_min_local   = E_bins_global(E_idx_min);
+    E_max_local   = E_bins_global(E_idx_max);
+
+
+    int x, y, i, j;
+    double dE, dM, dR, dx, dy;
+
+    //Check if we need more bins
+    int E_old_size = (int) E_bins.size();
+    int M_old_size = (int) M_bins.size();
+    int E_new_size;
+    int M_new_size;
+    compute_number_of_bins(E_new_size, M_new_size);
+
+    ArrayXXi histogram_new  = ArrayXXi::Zero(E_new_size, M_new_size);
+    ArrayXXd dos_new        = ArrayXXd::Zero(E_new_size, M_new_size);
+    dE              = fabs(E_max_local - E_min_local) / E_new_size;    //New spacing in E_bins
+    dM              = fabs(M_max_local - M_min_local) / M_new_size;    //New spacing in M_bins
+    dR              = sqrt(dE * dE + dM * dM);                         //Diagonal distance ?
+    ArrayXd E_old = E_bins;
+    ArrayXd M_old = M_bins;
+    E_bins          = ArrayXd::LinSpaced(E_new_size, E_min_local, E_max_local);
+    M_bins          = ArrayXd::LinSpaced(M_new_size, M_min_local, M_max_local);
+    ArrayXXd weight = ArrayXXd::Zero(E_new_size, M_new_size);
+    ArrayXXi count  = ArrayXXi::Zero(E_new_size, M_new_size);
+
+    for (y = 0; y < M_old_size; y++) {
+        for (x = 0; x < E_old_size; x++) {
+            if (dos(x,y) == 0){continue;}
+            for (j = 0; j < M_new_size; j++) {
+                for (i = 0; i < E_new_size; i++) {
+                    dx = fabs(E_bins(i) - E_old(x));   //Distance between old and new bins
+                    dy = fabs(M_bins(j) - M_old(y));   //Distance between old and new bins
+                    //Distance between old and new bins should not exceed dE/2
+                    //This is so to avoid double counting
+                    if (dx >= dE) { continue; }
+                    if (dy >= dM) { continue; }
+                    double w                  = fabs(1.0 - sqrt(dx * dx + dy * dy) / dR);
+//                    weight(i,j)              += fabs(1.0 - 4*dx*dy/dE/dM);
+                    weight(i,j)              += w;
+                    count (i,j)              += 1;
+                    dos_new(i,j)             += w * dos(x,y);
+                    histogram_new(i,j)       += histogram(x,y);
+                }
+            }
+        }
+    }
+
+    //We have now inserted all old entries to the new dos and histogram, and we only need to divide by the weight.
+    for (j = 0; j < M_new_size; j++) {
+        for (i = 0; i < E_new_size; i++) {
+            dos_new(i,j)        = weight(i,j) > 0  ? dos_new(i,j)/weight(i,j) : 0;
+            histogram_new(i,j)  = count(i,j) > 0  ? histogram_new(i,j)  / count(i,j)  : 0;
+
+        }
+    }
+    dos             = dos_new;
+    histogram       = histogram_new;
+    if (debug_resize_local_bins) {
+        for (int w = 0; w < world_size; w++) {
+            if (w == world_ID) {
+                cout << *this << endl;
+            }
+            MPI_Barrier(MPI_COMM_WORLD);
+        }
     }
 }
 
@@ -419,8 +520,19 @@ void class_worker::compute_number_of_bins(int & E_new_size, int & M_new_size) {
         M_max_local = M_max_global;
         double E_spacing =  math::typical_spacing(E_set_2_vector);
         double M_spacing =  math::typical_spacing(M_set_2_vector);
-//        double E_spacing     =  fmax(E_spacing_set,math::typical_spacing(E_bins));
-//        double M_spacing     =  fmax(M_spacing_set,math::typical_spacing(M_bins));
+
+
+        MPI_Allreduce(MPI_IN_PLACE, &E_spacing, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+        E_spacing = E_spacing/(world_size);
+        int E_global_size = 1 + (int)((E_max_global - E_min_global)/nearbyint(E_spacing));
+        //Now try estimating the global size (i.e. the size of the global spectrum)
+        //Adjust local boundaries
+        ArrayXd E_bins_global = ArrayXd::LinSpaced(E_global_size, E_min_global, E_max_global);
+        int E_idx_min = math::binary_search(E_bins_global, E_min_local);
+        int E_idx_max = math::binary_search(E_bins_global, E_max_local);
+        E_min_local   = E_bins_global(E_idx_min);
+        E_max_local   = E_bins_global(E_idx_max);
+
         int E_maxElem     = (int) ceil((E_max_local - E_min_local + E_spacing) / E_spacing);
         int M_maxElem     = (int) ceil((M_max_global - M_min_global + M_spacing) / M_spacing);
 
@@ -434,9 +546,7 @@ void class_worker::compute_number_of_bins(int & E_new_size, int & M_new_size) {
             }
         }
         E_new_size = max(constants::bins , E_maxElem); //What if there is a jump in E_set?
-//        E_new_size = max(E_new_size      , E_maxElem);
         M_new_size = max(constants::bins , M_maxElem);
-//        M_new_size = max(M_new_size      , M_maxElem);
         M_new_size = constants::rw_dims == 1 ? 1 : M_new_size;
         MPI_Allreduce( MPI_IN_PLACE, &M_new_size, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
         if (debug_comp_numb_bins) {
@@ -454,6 +564,9 @@ void class_worker::compute_number_of_bins(int & E_new_size, int & M_new_size) {
                 MPI_Barrier(MPI_COMM_WORLD);
             }
         }
+
+
+
 
     }else{
         //Modify this for continuous models later
@@ -474,7 +587,7 @@ void class_worker::make_MC_trial()  {
 }
 
 void class_worker::insert_state(){
-    if (model.discrete_model && counter::vol_merges < constants::max_vol_merges) {
+    if (model.discrete_model) {
         if (debug_insert_state && in_window) {
             int E_idx_temp = E_idx;
             find_current_state();
@@ -488,19 +601,19 @@ void class_worker::insert_state(){
                 exit(1);
             }
         }
+        if (iteration == -1) {
+            E_set.insert(E);
+            M_set.insert(M);
+        }
         E_bins(E_idx) = E;
         M_bins(M_idx) = M;
-        E_set.insert(E);
-        M_set.insert(M);
-
     }
+
 }
 
 void class_worker::walk_away_from_window(){
-//    if ((E_trial >= E && E_trial >= E_max_local) || (constants::rw_dims == 2  && M_trial >= M && M_trial >= M_max_local)) {
     if ((E_trial >= E && E_trial >= E_max_local) ) {
         accept = true;
-//    } else if ((E_trial <= E && E_trial <= E_min_local) || (constants::rw_dims == 2  && M_trial <= M && M_trial <= M_min_local)) {
     } else if ((E_trial <= E && E_trial <= E_min_local) ) {
         accept = true;
     }else {
@@ -529,9 +642,6 @@ void class_worker::walk_towards_window(){
         accept = true;
     } else{
         accept = rn::uniform_double_1() < 0.01;
-
-//        accept = false;
-
     }
 }
 
@@ -632,8 +742,6 @@ void class_worker::next_WL_iteration() {
     histogram.fill(0);
     saturation.clear();
     counter::walks++;
-    finish_line = lnf > constants::minimum_lnf ? 0 : 1;
-
 }
 
 void class_worker::rewind_to_lowest_walk(){
@@ -645,17 +753,16 @@ void class_worker::rewind_to_lowest_walk(){
     counter::MCS            = (int) (1.0/lnf);
     rewind_timers();
     flag_one_over_t = 0;
-    finish_line = lnf > constants::minimum_lnf ? 0 : 1;
 }
 
 void class_worker::rewind_to_zero(){
     counter::walks = 0;
     lnf = 1;
     int save_area_merges = counter::area_merges;
-    int save_vol_merges = counter::vol_merges;
+    int save_vol_merges  = counter::vol_merges;
     start_counters();
     counter::area_merges = save_area_merges;
-    counter::vol_merges = save_vol_merges;
+    counter::vol_merges  = save_vol_merges;
     finish_line = 0;
     dos.fill(0);
     histogram = ArrayXXi::Zero(dos.rows(), dos.cols());
@@ -673,8 +780,6 @@ void class_worker::prev_WL_iteration() {
     flag_one_over_t         = 0;
     histogram.fill(0);
     saturation.clear();
-    finish_line = lnf > constants::minimum_lnf ? 0 : 1;
-
 }
 
 void class_worker::add_hist_volume(){
@@ -696,8 +801,8 @@ void class_worker::check_saturation(){
             t_check_convergence.tic();
             int idx_to   = (int) saturation.size() - 1;
             int idx_from = (int) (constants::check_saturation_from * idx_to);
-            if (idx_to == idx_from || need_to_resize_global){
-                saturation.clear();
+//            cout << "ID: " << world_ID << " Size: "<< saturation.size() << " from: " << idx_from << " to: "<< idx_to << endl;
+            if (saturation.empty() || idx_to == idx_from || need_to_resize_global){
                 slope = 0;
                 return;
             }
@@ -707,9 +812,6 @@ void class_worker::check_saturation(){
             slope = ((X-X.mean()).cwiseProduct(Y-Y.mean())).sum() /fmax(1,(X-X.mean()).cwiseAbs2().sum());
             if (slope < 0) {
                 next_WL_iteration();
-                if (lnf < constants::minimum_lnf) {
-                    finish_line = 1;
-                }
             }
             if (lnf < 1.0 / counter::MCS) {
                 lnf = 1.0 / counter::MCS;

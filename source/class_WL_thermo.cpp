@@ -203,14 +203,16 @@ double temperature_to_free_energy(objective_function &obj_fun, ArrayXd &input){
     double lambda   = (-E_bins/ T + dos_total.maxCoeff()).maxCoeff();
     //Important to transpose below, or else P can't be properly initialized!! (Eigen will complain)
     ArrayXd F       = (((dos_total.colwise() - (E_bins.col(0)/ T + lambda) ).exp()).colwise().sum().transpose());
-//    F /= F.sum();
     int mid      = (int)((M_bins.size()-1)/2);
     int mid_mid  = (int)(mid/2);
     F            = F.log().array() * (-T);
-    F              -= F(mid);
-    double result = (F.segment(mid - mid_mid, mid).abs()).sum() + 1/fabs(F(0));
-    if (std::isinf(result)){result = 1e6;}
-    if (std::isnan(result)){result = 1e6;}
+    F           -= F(mid);
+    double result = (F.segment(mid - mid_mid, mid).abs()).sum();
+    if (std::isinf(result)) {return 1e6;}
+    if (std::isnan(result)) {return 1e6;}
+    if (result == 0)        {return 1e6;}
+    if (F(0) < 0)           {return 1e6;}
+    if (F.mean() < 0)       {return 1e6;}
     return result;
 
 //    return (F.segment(mid-mid_mid, mid).abs()).sum();

@@ -93,14 +93,8 @@ legend('x WL')
 xlabel('T');
 ylabel('x(T)')
 
+
 figure(4)
-[TIsing,eIsing,dosIsing] = dos_ising(E,L);
-dosIsing = dosIsing - (max(dosIsing) - max(dos1D));
-shadedErrorBar(E/N,dos1D,dos1D_err, '-o', 1),hold all;
-plot(E/N,dosIsing);
-
-
-figure(5)
 subplot(1,2,1)
 h = mesh(M,E, dos);
 hold on;
@@ -119,7 +113,7 @@ xlabel('M');
 zlabel('standard error');
 
 %%
-figure(6)
+figure(5)
 subplot(1,2,1)
 h = mesh(M/N,T, P);
 hold on;
@@ -139,8 +133,9 @@ ylabel('T');
 zlabel('log(g(E,M))');
 
 %%
-figure(7)
+figure(6)
 Tc_idx = nearestpoint( Tc_F, T);
+% Tc_near= [1: 10 :Tc_idx-5, Tc_idx, Tc_idx + 5 : 10:length(T) ];
 Tc_near= Tc_idx-20:10:Tc_idx+20;
 shadedErrorBar(M/N, (F(Tc_idx,:)),F_err(Tc_idx,:)),hold all;
 for i = 1:length(Tc_near)
@@ -152,7 +147,7 @@ ylabel('\Delta f(\beta,m)');
 %%
 
 
-figure(8)
+figure(7)
 Tc_idx = nearestpoint( Tc_D, T);
 Tc_near= Tc_idx-10:5:Tc_idx+10;
 Z = trapz(E, D(Tc_idx,:));
@@ -162,3 +157,9 @@ Z = trapz(E, D(Tc_near(i),:));
 plot(E, D(Tc_near(i), :)/Z),hold on
 end
 
+
+figure(8)
+[TIsing,eIsing,dosIsing] = dos_ising(E,L);
+dosIsing = dosIsing - (max(dosIsing) - max(dos1D));
+shadedErrorBar(E/N,dos1D,dos1D_err, '-o', 1),hold all;
+plot(E/N,dosIsing);

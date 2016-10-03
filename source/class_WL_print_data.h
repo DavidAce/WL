@@ -20,7 +20,6 @@
 
 using namespace std;
 using namespace Eigen;
-//namespace fs = std::experimental::filesystem;
 
 class outdata {
 private:
@@ -46,7 +45,7 @@ public:
         ofstream file(filename,ios::out | ios::trunc);
         file << fixed << showpoint << setprecision(precision);
         string      _coeffSeparator = "	";
-        IOFormat fmt(StreamPrecision, DontAlignCols, _coeffSeparator);
+        IOFormat fmt(StreamPrecision, 0, _coeffSeparator);
         file << data.format(fmt) << endl;
         file.close();
     }
@@ -55,17 +54,11 @@ public:
         ofstream file(filename,ios::out | ios::trunc);
         file << fixed << showpoint << setprecision(precision);
         string      _coeffSeparator = "	";
-        IOFormat fmt(StreamPrecision, DontAlignCols, _coeffSeparator);;
+        IOFormat fmt(StreamPrecision, 0, _coeffSeparator);
         file << data.format(fmt) << endl;
         file.close();
     }
 
 };
-
-
-
-//void gather_data(class_worker &worker);
-
-
 
 #endif //WL_CLASS_PRINT_DATA_H

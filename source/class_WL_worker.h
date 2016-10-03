@@ -100,34 +100,29 @@ public:
     //Used when finished and helping others out
     class helper{
     private:
-        int world_size;
     public:
-        helper(int &size):world_size(size){
+        helper(){
             reset();
         }
         void reset(){
             giving_help = false;
             getting_help = false;
             helping_id  = -1;
-//            whos_helping_who.resize(world_size);
-//            whos_helping_who.fill(-1);
             available = 0;
-            sync_turn = 0;
+            help_walks =0;
             MPI_COMM_HELP = MPI_COMM_NULL;
         }
         ArrayXXi histogram_recv; //Receive histogram from helpers
-        bool    giving_help;
-        bool    getting_help;
-        int     helping_id;
-//        ArrayXi whos_helping_who;
-        int     available;
+        bool giving_help;
+        bool getting_help;
+        int  helping_id;
+        int available;
         int color;
         int key;
         int help_rank;
         int help_size;
-        int sync_turn;
+        int help_walks;
         MPI_Comm MPI_COMM_HELP;
-
     };
     helper help;
 
@@ -142,8 +137,10 @@ public:
     void set_initial_local_bins();
     void update_global_range();
     void resize_global_range() __attribute__((hot));
-    void divide_global_range_energy();
-    void resize_local_bins();
+    void divide_global_range_uniformly();
+    void adjust_local_bins();
+    void synchronize_sets();
+    void resize_local_bins2();
     void compute_number_of_bins(int &, int &);
     bool check_in_window(const double);
     void make_MC_trial() __attribute__((hot));
@@ -193,6 +190,7 @@ public:
             in_window       = worker.in_window;
             slope           = worker.slope;
             MCS             = counter::MCS;
+            walks           = counter::walks;
             backed_up       = true;
 //            cout << "ID: " << worker.world_ID << " Is backed up" << endl;
         }
@@ -220,6 +218,7 @@ public:
             worker.in_window    = in_window;
             worker.slope        = slope;
             counter::MCS        = MCS;
+            counter::walks      = walks;
             backed_up = false;
 //            cout << "ID: " << worker.world_ID << " Is now restored" << endl;
         }
@@ -248,6 +247,7 @@ public:
     bool in_window;
     double slope;
     int MCS;
+    int walks;
 
 };
 

@@ -14,12 +14,32 @@
 using namespace std;
 
 void do_simulations(class_worker &worker){
+    //Begin by finding the global energy range in which to work.
+    worker.iteration = -1;
+    find_global_range(worker);
     for (int i = 0; i < constants::simulation_reps; i++){
         worker.iteration = i;
-        wanglandau(worker);
         worker.rewind_to_zero();
+        wanglandau(worker);
     }
 }
+
+
+void find_global_range(class_worker &worker){
+    worker.t_total.tic();
+    worker.t_print.tic();
+    while(counter::no_global_change < constants::max_no_global_change){
+        sweep(worker);
+        divide_range_find   (worker);
+        print_status        (worker,false);
+        counter::MCS++;
+        timer::print++;
+        timer::swap++;
+        timer::take_help++;
+        timer::divide_range_find++;
+    }
+}
+
 
 void wanglandau(class_worker &worker){
     int finish_line = 0;
@@ -29,13 +49,11 @@ void wanglandau(class_worker &worker){
     worker.t_total.tic();
     worker.t_print.tic();
     while(finish_line == 0){
-        if (!worker.help.getting_help){
-            sweep(worker);
-        }
+        sweep(worker);
         mpi::help           (worker,backup);
         mpi::swap           (worker) ;
         check_convergence   (worker, out,finish_line);
-        divide_range        (worker, backup);
+        divide_range        (worker, backup,out);
         print_status        (worker,false);
         counter::MCS++;
         timer::add_hist_volume++;
@@ -45,7 +63,6 @@ void wanglandau(class_worker &worker){
         timer::print++;
         timer::swap++;
         timer::take_help++;
-        timer::sync_help++;
         timer::setup_help++;
         timer::divide_range++;
     }
@@ -73,12 +90,10 @@ void sweep(class_worker &worker){
 }
 
 void check_convergence(class_worker &worker, outdata &out, int &finish_line){
-    if(!worker.help.giving_help) {
-        if (debug_convergence) { cout << "ID: " << worker.world_ID << " Add hist volume "<< endl; }
-        worker.add_hist_volume();
-        if (debug_convergence) { cout << "ID: " << worker.world_ID << " Check Saturation "<< endl; }
-        worker.check_saturation();
-    }
+    if (debug_convergence) { cout << "ID: " << worker.world_ID << " Add hist volume "<< endl; }
+    worker.add_hist_volume();
+    if (debug_convergence) { cout << "ID: " << worker.world_ID << " Check Saturation "<< endl; }
+    worker.check_saturation();
     if (timer::check_finish_line >= constants::rate_check_finish_line) {
         timer::check_finish_line = 0;
         if (debug_convergence) { debug_print(worker, "Check Finish line "); }
@@ -102,7 +117,30 @@ void check_convergence(class_worker &worker, outdata &out, int &finish_line){
 }
 
 
-void divide_range(class_worker &worker, class_backup &backup){
+void divide_range_find(class_worker &worker){
+    if (timer::divide_range_find >= constants::rate_divide_range_find) {
+        timer::divide_range_find = 0;
+        worker.t_divide_range.tic();
+        int need_to_resize;
+        MPI_Allreduce(&worker.need_to_resize_global, &need_to_resize, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+        if (need_to_resize) {
+            if (debug_divide_range) { debug_print(worker, "Dividing global energy\n"); }
+            worker.resize_global_range();
+            worker.divide_global_range_uniformly();
+            worker.synchronize_sets();
+            worker.adjust_local_bins();
+            worker.need_to_resize_global = 0;
+            worker.find_current_state();
+        }else{
+            counter::no_global_change++;
+        }
+        worker.t_divide_range.toc();
+    }
+
+}
+
+
+void divide_range(class_worker &worker, class_backup &backup, outdata &out){
     //Three situations, and they can only happen IF nobody is helping out or is finished.
 
     //1) We need to resize global range.
@@ -114,33 +152,17 @@ void divide_range(class_worker &worker, class_backup &backup){
         if (counter::vol_merges < constants::max_vol_merges) {
             int all_in_window, min_walks, need_to_resize;
             int in_window = worker.in_window;
-            MPI_Allreduce(&worker.need_to_resize_global, &need_to_resize, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
             MPI_Allreduce(&counter::walks, &min_walks, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
             MPI_Allreduce(&in_window, &all_in_window, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
-            if (need_to_resize) {
-                if (debug_divide_range) { debug_print(worker, "Dividing global energy\n"); }
-                //divide global energy
-                worker.resize_global_range();
-                worker.divide_global_range_energy();
-                worker.resize_local_bins();
-                worker.prev_WL_iteration();
-                worker.need_to_resize_global = 0;
-                worker.find_current_state();
-
-            } else if (min_walks < constants::min_walks_for_vol_merge &&
-                       counter::area_merges < constants::max_area_merges && all_in_window == 1) {
+            if (min_walks < constants::min_walks_for_vol_merge && counter::area_merges < constants::max_area_merges && all_in_window == 1) {
                 //divide dos area
                 //If anybody had started to help they need to be restored
                 backup.restore_state(worker);
                 worker.help.reset();
                 print_status(worker, true);
                 if (worker.world_ID == 0) { cout << "Dividing according to dos AREA" << endl; }
-
-                if (min_walks > 0) {
-                    mpi::merge(worker, true, true, false);
-                } else {
-                    mpi::merge(worker, true, false, false);
-                }
+                out.write_data_worker  (worker) ;
+                mpi::merge(worker, true, false, false);
                 mpi::divide_global_range_dos_area(worker);
                 worker.set_P_increment();
                 counter::area_merges++;
@@ -148,8 +170,9 @@ void divide_range(class_worker &worker, class_backup &backup){
                 //divide dos vol
                 backup.restore_state(worker);
                 print_status(worker, true);
+                out.write_data_worker  (worker) ;
                 if (worker.world_ID == 0) { cout << "Dividing according to dos VOLUME." << endl; }
-                mpi::merge(worker, true, true, false);
+                mpi::merge(worker, true, false, false);
                 mpi::divide_global_range_dos_volume(worker);
                 worker.set_P_increment();
                 worker.rewind_to_zero();
@@ -232,9 +255,9 @@ void print_status(class_worker &worker, bool force) {
         if (worker.world_ID == 0){
             cout    << "-----"
                     << " MaxWalks: "   << fixed << setprecision(0) << (int) ceil(log(constants::minimum_lnf)/log(constants::reduce_factor_lnf))
-                    << " Area Merges: "   << fixed << setprecision(0) << counter::area_merges << "("<< constants::max_area_merges << ")"
-                    << " Vol Merges: "   << fixed << setprecision(0) << counter::vol_merges << "("<< constants::max_vol_merges << ")"
-                    << " Iteration: "   << fixed << setprecision(0) << worker.iteration;
+                    << " Area Merges: " << fixed << setprecision(0) << counter::area_merges << "("<< constants::max_area_merges << ")"
+                    << " Vol Merges: "  << fixed << setprecision(0) << counter::vol_merges  << "("<< constants::max_vol_merges  << ")"
+                    << " Iteration: "   << fixed << setprecision(0) << worker.iteration     << "("<< constants::simulation_reps << ")";
                     worker.t_total.print_total<double>(); cout << " s";
                     if(debug_status){
                         cout    << " Edge dos: " << fixed << setprecision(3)

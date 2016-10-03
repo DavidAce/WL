@@ -17,15 +17,12 @@
 #include "nmspc_WL_counters_timers.h"
 
 void do_simulations     (class_worker &);
+void find_global_range  (class_worker &);
 void wanglandau         (class_worker &);
 void sweep              (class_worker &);
-void help_out           (class_worker &, class_backup &);
 void check_convergence  (class_worker &, outdata &out, int &);
-void add_hist_volume    (class_worker &);
-void check_saturation   (class_worker &);
-void check_one_over_t   (class_worker &);
-void check_global_limits(class_worker &);
-void divide_range       (class_worker &, class_backup &);
+void divide_range_find       (class_worker &);
+void divide_range       (class_worker &, class_backup &, outdata &);
 void backup_to_file(class_worker &, outdata &);
 void print_status       (class_worker &, bool force);
 

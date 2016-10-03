@@ -347,6 +347,22 @@ namespace math{
             return idx;
         }
     }
+
+//Finds the element exactly x in an Eigen array
+    template <typename Derived, typename T>
+    inline int binary_search_exact(const ArrayBase<Derived> &list , const T x){
+        //Now find the point in list that exactly matches x.
+        //If none is found, return -1;
+        //CPP REFERENCE lower_bound: Iterator pointing to the first element that is not less than value,
+        // or last if no such element is found.
+        auto idx  = std::lower_bound(list.derived().data(), list.derived().data() + list.size(), x) - list.derived().data() ;
+        //This number idx is potentially out of bounds, one past last element!!
+        if (idx >= list.size()){return -1;}
+        if (list(idx) == x)    {return idx;}else{return -1;}
+    }
 }
+
+
+
 
 #endif //WL_NMSPC_MATH_ALGORITHMS_H

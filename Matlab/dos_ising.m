@@ -17,6 +17,10 @@ T = [T; -flip(T(1:end-1))];
 
 
 f = -(2*L^2*sign(T) + T.*logZ_ising(T,L))/L^2;
+size(e)
+size(E)
+size(f)
+size(T)
 S = (e - f)./T;
 S = S*L^2;
 % [T e f S logZ_ising(T,L)]
