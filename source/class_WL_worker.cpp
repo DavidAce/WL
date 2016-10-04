@@ -737,6 +737,7 @@ void class_worker::acceptance_criterion(){
                 else {
                     //A new energy has been discovered in window!
                     insert_state(E_trial, M_trial);
+                    need_to_resize_global = 1;
                     accept          = true;
                   }
             } else {
@@ -752,6 +753,7 @@ void class_worker::acceptance_criterion(){
                 if (!state_is_valid){
                     //New energy has been found, insert
                     insert_state(E_trial, M_trial);
+                    need_to_resize_global = 1;
                 }
             }else{
                 //Still out of window... prefer to move towards window.

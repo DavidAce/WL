@@ -145,7 +145,7 @@ namespace mpi {
         }
     }
 
-    void merge(class_worker &worker, bool broadcast, bool trim, bool setNaN) {
+    void merge(class_worker &worker, bool broadcast, bool setNaN) {
         if(debug_merge){debug_print(worker,"\nMerging. ");}
         ArrayXXd dos_total;
         ArrayXd  E_total;
@@ -226,21 +226,17 @@ namespace mpi {
                     std::this_thread::sleep_for(std::chrono::microseconds(1000));
                 }
 
-
                 double weight;
                 double E_span = fmax(E_total(E_shared_high_idx) - E_total(E_shared_low_idx), E_recv(E_shared_high_up_idx) - E_recv(E_shared_low_up_idx));
                 vector<ArrayXd> dos_merge;
                 vector<double>  E_merge;
-                double E_shared_min = fmin(E_total(E_shared_low_idx) , E_recv(E_shared_low_up_idx));
-                double E_shared_max = fmax(E_total(E_shared_high_idx), E_recv(E_shared_high_up_idx));
-                std::set<int>E_recv_used;
                 if(debug_merge){cout << "Merging " << w-1 << " and " << w<< endl;}
                 for(int i = 0; i < E_total.size(); i++) {
-                    if (E_total(i) < E_shared_min) {
+                    if (i < E_shared_low_idx) {
                         //Take E_total(i)
                         dos_merge.push_back(dos_total.row(i));
                         E_merge.push_back(E_total(i));
-                        if(debug_merge) {
+                        if (debug_merge) {
                             cout << " Inserted " << "i: " << i << endl
                                  << " E_total(i): " << E_total(i) << endl
                                  << " E_total   : " << E_total.transpose() << endl
@@ -249,140 +245,41 @@ namespace mpi {
                                  << endl;
                         }
                         continue;
-                    } else if (E_total(i) <= E_total(E_shared_high_idx)) {
+                    } else if (i <= E_shared_high_idx) {
                         int j = math::binary_search_exact(E_recv, E_total(i));
-
-                        //Scenarios:
-                        //1) E_total(i) == E_recv(j): Continue with merge
-                        //2) E_total(i) != E_recv(j):  j == -1
-                        // In case 2 you have to compare backwards and forwards. There will be several new scenarios
-                        // First find the closest j by doing regular binary search.
-                        //2a) E_total(i+1) == E_recv(j):  //Reason: E_total has an extra, probably needless row close to E_total(i+1). Just continue;
-                        //2b) E_total(i+1) != E_recv(j):  //Let's see
-                        //2ba)E_total(i-1) == E_recv(j):  //Reason: E_total has an extra, probably needless row close to E_total(i-1). Just continue;
-                        //2bb)E_total(i-1) != E_recv(j):  //Reason: Probably a very unvisited area, merge i and j and keep E_total(i)
-
                         if (j == -1) {
-                            j = math::binary_search(E_recv, E_total(i));
-                            if(debug_merge){printf(" Could not find E_total(%d) = %f. Closest match: E_recv(%d) = %f \n", i, E_total(i), j, E_recv(j));}
-
-                            if (i + 1 < E_total.size() && i - 1 >= 0 && j + 1 < E_recv.size() && j - 1 >= 0) {
-                                if (E_total(i + 1) == E_recv(j)) {
-                                    if(debug_merge){cout << " Continuing due to 2a" << endl;}
-                                    continue;
-                                }
-                                if (E_total(i - 1) == E_recv(j)) {
-                                    if(debug_merge){cout << " Continuing due to 2ba" << endl;}
-                                    continue;
-                                }
-                                if (E_total(i - 1) == E_recv(j - 1) && E_total(i + 1) == E_recv(j + 1)) {
-                                    if (E_recv_used.find(j) != E_recv_used.end()) {
-                                        //Merge taking average, keep E_total(i)
-                                        weight = (E_total(i) - E_total(E_shared_low_idx)) / E_span;
-                                        dos_merge.push_back((1 - weight) * dos_total.row(i) + weight * dos_recv.row(j));
-                                        E_merge.push_back(E_total(i));
-                                        E_recv_used.insert(j);
-                                        if(debug_merge) {
-                                            cout << " Merged as 2bb: " << endl
-                                                 << " E_total(i): " << E_total(i) << endl
-                                                 << " E_total   : " << E_total.transpose() << endl
-                                                 << " E_recv    : " << E_recv.transpose() << endl
-                                                 << " E_merge   : " << E_merge << endl
-                                                 << endl;
-                                        }
-                                    } else {
-                                        //Before and after match, but not i and j, and for some reason j has been used already.
-                                        //If E_total(i) <= E_recv(j), throw an error and exit. Otherwise simply copy E_total(i)
-                                        if (E_total(i) <= E_recv(j)) {
-                                            if(debug_merge) {
-                                                cout << " Wrong order!"
-                                                     << " E_total(i): " << E_total(i) << endl
-                                                     << " E_recv(j) : " << E_recv(j) << endl
-                                                     << " E_total   : " << E_total.transpose() << endl
-                                                     << " E_recv    : " << E_recv.transpose() << endl
-                                                     << " E_merge   : " << E_merge << endl;
-                                            }
-                                        } else {
-                                            dos_merge.push_back(dos_total.row(i));
-                                            E_merge.push_back(E_total(i));
-                                            if(debug_merge) {
-                                                cout << " j: " << j << " Was already used. Inserted " << "i: " << i << endl
-                                                     << " E_total(i): " << E_total(i) << endl
-                                                     << " E_total   : " << E_total.transpose() << endl
-                                                     << " E_recv    : " << E_recv.transpose() << endl
-                                                     << " E_merge   : " << E_merge << endl
-                                                     << endl;
-                                            }
-                                        }
-                                    }
-                                }
-                            } else {
-                                //Boundary case
-                                if(debug_merge){cout << "Boundary case. i: " << i << " and j: "<< j<< endl;}
-                                if (i == E_total.size()) {
-                                    if (E_total(i - 1) == E_recv(j)) {
-                                        if(debug_merge){cout << " Continuing due to 2a" << endl;}
-                                        continue;
-                                    }
-                                }
-                                if(i == 0) {
-                                    if (E_total(i + 1) == E_recv(j)) {
-                                        if(debug_merge){cout << " Continuing due to 2ba" << endl;}
-                                        continue;
-                                    }
-                                }
-                                //No good solution, simply copy i
-                                dos_merge.push_back(dos_total.row(i));
-                                E_merge.push_back(E_total(i));
-                                if(debug_merge) {
-                                    cout << " No other option. Inserted " << "i: " << i << endl
-                                         << " E_total(i): " << E_total(i) << endl
-                                         << " E_total   : " << E_total.transpose() << endl
-                                         << " E_merge   : " << E_merge << endl
-                                         << endl;
-                                }
-
+                            printf(" Could not find E_total(%d) = %f. Closest match: E_recv(%d) = %f \n", i, E_total(i), j, E_recv(j));
+                            exit(1);
+                        } else {
+                            //Merge taking Average
+                            weight = (E_total(i) - E_total(E_shared_low_idx)) / E_span;
+                            dos_merge.push_back((1 - weight) * dos_total.row(i) + weight * dos_recv.row(j));
+                            E_merge.push_back(E_total(i));
+                            if (debug_merge) {
+                                cout << " Merged  i : " << i << " and j: " << j << endl
+                                     << " E_total(i): " << E_total(i) << endl
+                                     << " E_total   : " << E_total.transpose() << endl
+                                     << " E_recv    : " << E_recv.transpose() << endl
+                                     << " E_merge   : " << E_merge << endl
+                                     << endl;
                             }
-                        } else{
-                            if (E_recv_used.empty() || E_recv_used.find(j) == E_recv_used.end()) {     //E_recv(j) hasn't been used yet
 
-                                //Merge taking Average
-                                weight = (E_total(i) - E_total(E_shared_low_idx)) / E_span;
-                                dos_merge.push_back((1 - weight) * dos_total.row(i) + weight * dos_recv.row(j));
-                                E_merge.push_back(E_total(i));
-                                E_recv_used.insert(j);
-                                if(debug_merge) {
-                                    cout << " Merged  i : " << i << " and j: " << j << endl
-                                         << " E_total(i): " << E_total(i) << endl
-                                         << " E_total   : " << E_total.transpose() << endl
-                                         << " E_recv    : " << E_recv.transpose() << endl
-                                         << " E_merge   : " << E_merge << endl
-                                         << endl;
-                                }
-                            }else{
-                                //Damn.. it had been used already. If
-                                dos_merge.push_back(dos_total.row(i));
-                                E_merge.push_back(E_total(i));
-                                if(debug_merge) {
-                                    cout << " j: " << j << " Was already used. Inserted " << "i: " << i << endl
-                                         << " E_total(i): " << E_total(i) << endl
-                                         << " E_total   : " << E_total.transpose() << endl
-                                         << " E_merge   : " << E_merge << endl
-                                         << endl;
-                                }
-                            }
                         }
                     }
                 }
 
                 for (int j = 0; j < E_recv.size(); j++){
                     //Check that it hasn't been used already
-                    if (E_recv(j) < E_shared_max || E_recv_used.find(j) != E_recv_used.end()){continue;}
+                    if (j <= E_shared_high_up_idx){continue;}
                     //Take E_recv(j)
                     dos_merge.push_back(dos_recv.row(j));
                     E_merge.push_back(E_recv(j));
-                    E_recv_used.insert(j);
-
+                    if (debug_merge) {
+                        cout << " Inserted " << "j: " << j << endl
+                             << " E_recv    : " << E_recv.transpose() << endl
+                             << " E_merge   : " << E_merge << endl
+                             << endl;
+                    }
                 }
 
                 dos_total.resize(dos_merge.size(), M_recv.size());
@@ -393,7 +290,6 @@ namespace mpi {
                 }
                 dos_merge.clear();
                 E_merge.clear();
-                E_recv_used.clear();
                 if (debug_merge) {
                     cout << "OK ";
                     cout.flush();
@@ -406,14 +302,7 @@ namespace mpi {
             }
             MPI_Barrier(MPI_COMM_WORLD);
         }
-        if (trim){
-            if (worker.world_ID == 0) {
-                //Trim away nan rows
-                dos_total = math::Zero_to_NaN(dos_total);
-                math::remove_nan_rows(dos_total, E_total);
-                dos_total = math::NaN_to_Zero(dos_total);
-            }
-        }
+
         if (setNaN){
             if (worker.world_ID == 0) {
                 math::subtract_min_nonzero_nan(dos_total);
@@ -429,311 +318,596 @@ namespace mpi {
             broadcast_merger(worker);
         }
     }
-
-    void merge2(class_worker &worker, bool broadcast, bool trim, bool setNaN) {
-        if(debug_merge){debug_print(worker,"\nMerging. ");}
-        ArrayXXd dos_total;
-        ArrayXd  E_total;
-        ArrayXd  M_total;
-        //Start by trimming
-
-
-        if (worker.world_ID == 0) {
-            dos_total = worker.dos;
-            E_total = worker.E_bins;
-            M_total = worker.M_bins;
-        }
-
-
-        for (int w = 1; w < worker.world_size; w++) {
-            if (worker.world_ID == 0) {
-                if (debug_merge) {
-                    cout << "Receiving from " << w << endl;
-                    cout.flush();
-                    std::this_thread::sleep_for(std::chrono::microseconds(1000));
-                }
-                ArrayXXd dos_recv;
-                ArrayXd E_recv, M_recv;
-                recv_dynamic(dos_recv,MPI_DOUBLE,w);
-                recv_dynamic(E_recv  ,MPI_DOUBLE,w);
-                recv_dynamic(M_recv  ,MPI_DOUBLE,w);
-                //Find average height of shared sections
-                int E_shared_low_idx    = math::binary_search(E_total, fmax(E_recv.minCoeff(), E_total.minCoeff()));
-                int E_shared_high_idx   = math::binary_search(E_total, fmin(E_recv.maxCoeff(), E_total.maxCoeff()));
-                int E_shared_low_up_idx = math::binary_search(E_recv , fmax(E_recv.minCoeff(), E_total.minCoeff()));
-                int E_shared_high_up_idx= math::binary_search(E_recv , fmin(E_recv.maxCoeff(), E_total.maxCoeff()));
-
-                double diff = math::dos_distance(dos_total.middleRows(E_shared_low_idx   , E_shared_high_idx    - E_shared_low_idx),
-                                          dos_recv .middleRows(E_shared_low_up_idx, E_shared_high_up_idx - E_shared_low_up_idx) );
-
-                //Add that difference to the next
-                if (std::isnan(diff)) {
-                    cout << setprecision(2) << std::fixed << std::showpoint;
-                    cout << "Tried to concatenate " << w - 1 << " and " << w << ". Diff between two DOS is NaN, exiting" << endl;
-                    cout << "dos_tot" << endl << dos_total << endl;
-                    cout << "dos_rec" << endl << dos_recv << endl;
-                    exit(1);
-                }
-
-                math::add_to_nonzero_nonnan(dos_recv, diff);
-                //Now now all doses should be the same height
-
-                if (debug_merge) {
-                    int zero_rows = 0;
-                    int rows_total      = E_shared_high_idx     -  E_shared_low_idx;
-                    int rows_total_up   = E_shared_high_up_idx  -  E_shared_low_up_idx;
-                    for (int i = 0; i <dos_recv.rows(); i++){
-                        if((dos_recv.row(i) == 0).all()){
-                            zero_rows += 1;
-                        }
-                    }
-                    cout << setprecision(2) << fixed;
-                    if (rows_total  != rows_total_up){
-                        cout << "Rows mismatch!!" << endl;
-                    }
-                    cout << "Concatenating " << w - 1 << " and " << w << endl;
-                    cout << "Zero rows recv = " << zero_rows << endl;
-                    cout << "E_total = " << E_total.size()
-                         << " dos_total =  " << dos_total.rows()
-                         << " Shared Rows_total = " << rows_total
-                         << " E_idx_low = " << E_shared_low_idx
-                         << " E_idx_high = " << E_shared_high_idx
-                         << endl;
-                    cout << "E_recv  = " << E_recv.size()
-                         << " dos_recv  =  " << dos_recv.rows()
-                         << " Shared Rows_up    = " << rows_total_up
-                         << " E_idx_low = " << E_shared_low_up_idx
-                         << " E_idx_high = " << E_shared_high_up_idx
-                         << endl;
-//                    cout << "dos_total:" << endl << dos_total << endl << endl;
-//                    cout << "dos_recv:" << endl << dos_recv<< endl << endl;
-                    cout.flush();
-                    std::this_thread::sleep_for(std::chrono::microseconds(1000));
-                }
-
-
-                double weight;
-                double E_span = fmax(E_total(E_shared_high_idx) - E_total(E_shared_low_idx), E_recv(E_shared_high_up_idx) - E_recv(E_shared_low_up_idx));
-                vector<ArrayXd> dos_merge;
-                vector<double>  E_merge;
-                double E_shared_min = fmin(E_total(E_shared_low_idx) , E_recv(E_shared_low_up_idx));
-                double E_shared_max = fmax(E_total(E_shared_high_idx), E_recv(E_shared_high_up_idx));
-                int i = 0, j = 0;
-                bool E_total_finished = false;
-                while(j < E_recv.size() ){
-                    if (i >= E_total.size()){i--; E_total_finished = true;}
-                    if (E_total(i) < E_shared_min && !E_total_finished){
-                        //Take E_total(i)
-                        dos_merge.push_back(dos_total.row(i));
-                        E_merge.push_back(E_total(i));
-                        i++;
-                    }else if (E_total(i) <= E_total(E_shared_high_idx) && !E_total_finished){
-                        if(E_total(i) == E_recv(j)){
-                            //Take Average
-                            weight = (E_total(i) - E_total(E_shared_low_idx)) / E_span;
-                            dos_merge.push_back((1 - weight) * dos_total.row(i) + weight * dos_recv.row(j));
-                            E_merge.push_back(E_total(i));
-                            i++;
-                            j++;
-                        }
-                        else if (E_total(i) < E_recv(j)){
-                            //Take E_total(i)
-                            dos_merge.push_back(dos_total.row(i));
-                            E_merge.push_back(E_total(i));
-                            i++;
-                        }
-                        else if (E_total(i) > E_recv(j)){
-                            //Take E_recv(j)
-                            dos_merge.push_back(dos_recv.row(j));
-                            E_merge.push_back(E_recv(j));
-                            j++;
-                        }
-                    }else{
-                        //Take E_recv(j)
-                        dos_merge.push_back(dos_recv.row(j));
-                        E_merge.push_back(E_recv(j));
-                        j++;
-                    }
-                }
-
-
-                dos_total.resize(dos_merge.size(), M_recv.size());
-                E_total.resize(E_merge.size());
-                for (unsigned int i = 0; i < dos_merge.size(); i++){
-                    dos_total.row(i)    = dos_merge[i];
-                    E_total(i)          = E_merge[i];
-                }
-                dos_merge.clear();
-                E_merge.clear();
-
-                if (debug_merge) {
-                    cout << "OK ";
-                    cout.flush();
-                    std::this_thread::sleep_for(std::chrono::microseconds(1000));
-                }
-            } else if (w == worker.world_ID) {
-                send_dynamic(worker.dos   ,MPI_DOUBLE,0);
-                send_dynamic(worker.E_bins,MPI_DOUBLE,0);
-                send_dynamic(worker.M_bins,MPI_DOUBLE,0);
-            }
-            MPI_Barrier(MPI_COMM_WORLD);
-        }
-        if (trim){
-            if (worker.world_ID == 0) {
-                //Trim away nan rows
-                dos_total = math::Zero_to_NaN(dos_total);
-                math::remove_nan_rows(dos_total, E_total);
-                dos_total = math::NaN_to_Zero(dos_total);
-            }
-        }
-        if (setNaN){
-            if (worker.world_ID == 0) {
-                math::subtract_min_nonzero_nan(dos_total);
-            }
-        }
-        if (worker.world_ID == 0) {
-            //Let the master worker have the results
-            worker.dos_total    = dos_total;
-            worker.E_bins_total = E_total;
-            worker.M_bins_total = M_total;
-        }
-        if (broadcast){
-            broadcast_merger(worker);
-        }
-    }
-
-    void merge3(class_worker &worker, bool broadcast, bool trim) {
-        if(debug_merge){debug_print(worker,"\nMerging. ");}
-
-        ArrayXXd dos_total, dos_temp, dos_recv;
-        ArrayXd E_total, M_total, E_temp, M_temp, E_recv, M_recv;
-        int E_sizes[worker.world_size];
-        int M_sizes[worker.world_size];
-        int E_size = (int) worker.E_bins.size();
-        int M_size = (int) worker.M_bins.size();
-
-        double diff;
-
-        MPI_Gather(&E_size, 1, MPI_INT, E_sizes, 1, MPI_INT, 0, MPI_COMM_WORLD);
-        MPI_Gather(&M_size, 1, MPI_INT, M_sizes, 1, MPI_INT, 0, MPI_COMM_WORLD);
-        if(debug_merge){debug_print(worker," Gathering dos ");}
-
-        if (worker.world_ID == 0) {
-            dos_total = worker.dos;
-            E_total = worker.E_bins;
-            M_total = worker.M_bins;
-        }
-        int from_total, from_up, rows_total, rows_up;
-        int E_merge_idx, E_merge_idx_up;
-        int M_merge_idx, M_merge_idx_up;
-        for (int w = 1; w < worker.world_size; w++) {
-            if (worker.world_ID == 0) {
-                if (debug_merge) {
-                    cout << "Receiving from " << w << endl;
-                    cout.flush();
-                    std::this_thread::sleep_for(std::chrono::microseconds(1000));
-                }
-                dos_recv.resize(E_sizes[w], M_sizes[w]);
-                E_recv.resize(E_sizes[w]);
-                M_recv.resize(M_sizes[w]);
-                MPI_Recv(dos_recv.data(), E_sizes[w] * M_sizes[w], MPI_DOUBLE, w, 60, MPI_COMM_WORLD,
-                         MPI_STATUS_IGNORE);
-                MPI_Recv(E_recv.data(), E_sizes[w], MPI_DOUBLE, w, 61, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                MPI_Recv(M_recv.data(), M_sizes[w], MPI_DOUBLE, w, 62, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-
-                //Find coordinates on dos_total
-                E_merge_idx = math::find_matching_slope(dos_total, dos_recv, E_total, E_recv, M_total, M_recv);
-                M_merge_idx = math::nanmaxCoeff_idx(dos_total.row(E_merge_idx));
-
-//                dos_total.row(E_merge_idx).maxCoeff(&M_merge_idx);
-                //Find coordinates on received dos;
-                E_merge_idx_up = math::binary_search(E_recv, E_total(E_merge_idx));
-                M_merge_idx_up = math::nanmaxCoeff_idx(dos_recv.row(E_merge_idx_up));
-//                dos_recv.row(E_merge_idx_up).maxCoeff(&M_merge_idx_up);
-                //Find difference between heights at these points
-                diff = dos_total(E_merge_idx, M_merge_idx) - dos_recv(E_merge_idx_up, M_merge_idx_up);
-                //Add that difference to the next
-                if (std::isnan(diff)) {
-                    cout << "Tried to concatenate " << w - 1 << " and " << w << ". Diff between two DOS is NaN, exiting"
-                         << endl;
-                    cout << "Merge_idx    = [" << E_merge_idx << ", " << M_merge_idx << "]" << endl;
-                    cout << "Merge_idx_up = [" << E_merge_idx_up << ", " << M_merge_idx_up << "]" << endl;
-
-                    cout << "E_bins_total   " << E_total(E_merge_idx) << " [" << E_merge_idx << "]" << "    = "
-                         << E_total.transpose() << endl;
-                    cout << "E_bins_up      " << E_recv(E_merge_idx_up) << " [" << E_merge_idx_up << "]" << "    = "
-                         << E_recv.transpose() << endl;
-                    cout << "dos_tot" << endl << dos_total << endl;
-                    cout << "dos_rec" << endl << dos_recv << endl;
-                    MPI_Finalize();
-                    exit(1);
-                }
-                math::add_to_nonzero_nonnan(dos_recv, diff);
-                //Now now all doses should be the same height
-                if (debug_merge) {
-                    cout << "Concatenating " << w - 1 << " and " << w << endl;
-                    cout << "Merge_idx    = [" << E_merge_idx << ", " << M_merge_idx << "]" << endl;
-                    cout << "Merge_idx_up = [" << E_merge_idx_up << ", " << M_merge_idx_up << "]" << endl;
-
-                    cout << "E_bins_total   " << E_total(E_merge_idx) << " [" << E_merge_idx << "]" << "    = "
-                         << E_total.transpose() << endl;
-                    cout << "E_bins_up      " << E_recv(E_merge_idx_up) << " [" << E_merge_idx_up << "]" << "    = "
-                         << E_recv.transpose() << endl;
-                    cout << "dos_tot" << endl << dos_total << endl;
-                    cout << "dos_rec" << endl << dos_recv << endl;
-
-                    cout.flush();
-                    std::this_thread::sleep_for(std::chrono::microseconds(1000));
-                }
-
-                //Compute the starting points and number of rows for concatenation
-                from_total = 0;
-                from_up = E_merge_idx_up + 1;
-
-                rows_total = E_merge_idx + 1;
-                rows_up = E_sizes[w] - E_merge_idx_up - 1;
-
-                E_temp.resize(E_total.segment(from_total, rows_total).size() + E_recv.segment(from_up, rows_up).size());
-                dos_temp.resize(dos_total.middleRows(from_total, rows_total).rows() +
-                                dos_recv.middleRows(from_up, rows_up).rows(), M_size);
-
-                dos_temp << dos_total.middleRows(from_total, rows_total),
-                        dos_recv.middleRows(from_up, rows_up);
-                E_temp << E_total.segment(from_total, rows_total),
-                        E_recv.segment(from_up, rows_up);
-                dos_total = dos_temp;
-                E_total = E_temp;
-
-
-                if (debug_merge) {
-                    cout << "OK ";
-                    cout.flush();
-                    std::this_thread::sleep_for(std::chrono::microseconds(1000));
-                }
-            } else if (w == worker.world_ID) {
-                MPI_Send(worker.dos.data(), E_size * M_size, MPI_DOUBLE, 0, 60, MPI_COMM_WORLD);
-                MPI_Send(worker.E_bins.data(), E_size, MPI_DOUBLE, 0, 61, MPI_COMM_WORLD);
-                MPI_Send(worker.M_bins.data(), M_size, MPI_DOUBLE, 0, 62, MPI_COMM_WORLD);
-            }
-            MPI_Barrier(MPI_COMM_WORLD);
-        }
-        if (worker.world_ID == 0) {
-            //Let the master worker have the results
-            worker.dos_total    = dos_total;
-            worker.E_bins_total = E_total;
-            worker.M_bins_total = M_total;
-        }
-        if (trim){
-            if (worker.world_ID == 0) {
-                //Trim away nan rows
-                math::subtract_min_nonzero_nan(worker.dos_total);
-                math::remove_nan_rows(worker.dos_total, worker.E_bins_total);
-            }
-        }
-        if (broadcast){
-            broadcast_merger(worker);
-        }
-    }
+//
+//    void merge2(class_worker &worker, bool broadcast, bool trim, bool setNaN) {
+//        if(debug_merge){debug_print(worker,"\nMerging. ");}
+//        ArrayXXd dos_total;
+//        ArrayXd  E_total;
+//        ArrayXd  M_total;
+//        //Start by trimming
+//
+//
+//        if (worker.world_ID == 0) {
+//            dos_total = worker.dos;
+//            E_total = worker.E_bins;
+//            M_total = worker.M_bins;
+//        }
+//
+//
+//        for (int w = 1; w < worker.world_size; w++) {
+//            if (worker.world_ID == 0) {
+//                if (debug_merge) {
+//                    cout << "Receiving from " << w << endl;
+//                    cout.flush();
+//                    std::this_thread::sleep_for(std::chrono::microseconds(1000));
+//                }
+//                ArrayXXd dos_recv;
+//                ArrayXd E_recv, M_recv;
+//                recv_dynamic(dos_recv,MPI_DOUBLE,w);
+//                recv_dynamic(E_recv  ,MPI_DOUBLE,w);
+//                recv_dynamic(M_recv  ,MPI_DOUBLE,w);
+//                //Find average height of shared sections
+//                int E_shared_low_idx    = math::binary_search(E_total, fmax(E_recv.minCoeff(), E_total.minCoeff()));
+//                int E_shared_high_idx   = math::binary_search(E_total, fmin(E_recv.maxCoeff(), E_total.maxCoeff()));
+//                int E_shared_low_up_idx = math::binary_search(E_recv , fmax(E_recv.minCoeff(), E_total.minCoeff()));
+//                int E_shared_high_up_idx= math::binary_search(E_recv , fmin(E_recv.maxCoeff(), E_total.maxCoeff()));
+//
+//                double diff = math::dos_distance(dos_total.middleRows(E_shared_low_idx   , E_shared_high_idx    - E_shared_low_idx),
+//                                                 dos_recv .middleRows(E_shared_low_up_idx, E_shared_high_up_idx - E_shared_low_up_idx) );
+//
+//                //Add that difference to the next
+//                if (std::isnan(diff)) {
+//                    cout << setprecision(2) << std::fixed << std::showpoint;
+//                    cout << "Tried to concatenate " << w - 1 << " and " << w << ". Diff between two DOS is NaN, exiting" << endl;
+//                    cout << "dos_tot" << endl << dos_total << endl;
+//                    cout << "dos_rec" << endl << dos_recv << endl;
+//                    exit(1);
+//                }
+//
+//                math::add_to_nonzero_nonnan(dos_recv, diff);
+//                //Now now all doses should be the same height
+//
+//                if (debug_merge) {
+//                    int zero_rows = 0;
+//                    int rows_total      = E_shared_high_idx     -  E_shared_low_idx;
+//                    int rows_total_up   = E_shared_high_up_idx  -  E_shared_low_up_idx;
+//                    for (int i = 0; i <dos_recv.rows(); i++){
+//                        if((dos_recv.row(i) == 0).all()){
+//                            zero_rows += 1;
+//                        }
+//                    }
+//                    cout << setprecision(2) << fixed;
+//                    if (rows_total  != rows_total_up){
+//                        cout << "Rows mismatch!!" << endl;
+//                    }
+//                    cout << "Concatenating " << w - 1 << " and " << w << endl;
+//                    cout << "Zero rows recv = " << zero_rows << endl;
+//                    cout << "E_total = " << E_total.size()
+//                         << " dos_total =  " << dos_total.rows()
+//                         << " Shared Rows_total = " << rows_total
+//                         << " E_idx_low = " << E_shared_low_idx
+//                         << " E_idx_high = " << E_shared_high_idx
+//                         << endl;
+//                    cout << "E_recv  = " << E_recv.size()
+//                         << " dos_recv  =  " << dos_recv.rows()
+//                         << " Shared Rows_up    = " << rows_total_up
+//                         << " E_idx_low = " << E_shared_low_up_idx
+//                         << " E_idx_high = " << E_shared_high_up_idx
+//                         << endl;
+////                    cout << "dos_total:" << endl << dos_total << endl << endl;
+////                    cout << "dos_recv:" << endl << dos_recv<< endl << endl;
+//                    cout.flush();
+//                    std::this_thread::sleep_for(std::chrono::microseconds(1000));
+//                }
+//
+//
+//                double weight;
+//                double E_span = fmax(E_total(E_shared_high_idx) - E_total(E_shared_low_idx), E_recv(E_shared_high_up_idx) - E_recv(E_shared_low_up_idx));
+//                vector<ArrayXd> dos_merge;
+//                vector<double>  E_merge;
+//                double E_shared_min = fmin(E_total(E_shared_low_idx) , E_recv(E_shared_low_up_idx));
+//                double E_shared_max = fmax(E_total(E_shared_high_idx), E_recv(E_shared_high_up_idx));
+//                std::set<int>E_recv_used;
+//                if(debug_merge){cout << "Merging " << w-1 << " and " << w<< endl;}
+//                for(int i = 0; i < E_total.size(); i++) {
+//                    if (E_total(i) < E_shared_min) {
+//                        //Take E_total(i)
+//                        dos_merge.push_back(dos_total.row(i));
+//                        E_merge.push_back(E_total(i));
+//                        if(debug_merge) {
+//                            cout << " Inserted " << "i: " << i << endl
+//                                 << " E_total(i): " << E_total(i) << endl
+//                                 << " E_total   : " << E_total.transpose() << endl
+//                                 << " E_recv    : " << E_recv.transpose() << endl
+//                                 << " E_merge   : " << E_merge << endl
+//                                 << endl;
+//                        }
+//                        continue;
+//                    } else if (E_total(i) <= E_total(E_shared_high_idx)) {
+//                        int j = math::binary_search_exact(E_recv, E_total(i));
+//
+//                        //Scenarios:
+//                        //1) E_total(i) == E_recv(j): Continue with merge
+//                        //2) E_total(i) != E_recv(j):  j == -1
+//                        // In case 2 you have to compare backwards and forwards. There will be several new scenarios
+//                        // First find the closest j by doing regular binary search.
+//                        //2a) E_total(i+1) == E_recv(j):  //Reason: E_total has an extra, probably needless row close to E_total(i+1). Just continue;
+//                        //2b) E_total(i+1) != E_recv(j):  //Let's see
+//                        //2ba)E_total(i-1) == E_recv(j):  //Reason: E_total has an extra, probably needless row close to E_total(i-1). Just continue;
+//                        //2bb)E_total(i-1) != E_recv(j):  //Reason: Probably a very unvisited area, merge i and j and keep E_total(i)
+//
+//                        if (j == -1) {
+//                            j = math::binary_search(E_recv, E_total(i));
+//                            if(debug_merge){printf(" Could not find E_total(%d) = %f. Closest match: E_recv(%d) = %f \n", i, E_total(i), j, E_recv(j));}
+//
+//                            if (i + 1 < E_total.size() && i - 1 >= 0 && j + 1 < E_recv.size() && j - 1 >= 0) {
+//                                if (E_total(i + 1) == E_recv(j)) {
+//                                    if(debug_merge){cout << " Continuing due to 2a" << endl;}
+//                                    continue;
+//                                }
+//                                if (E_total(i - 1) == E_recv(j)) {
+//                                    if(debug_merge){cout << " Continuing due to 2ba" << endl;}
+//                                    continue;
+//                                }
+//                                if (E_total(i - 1) == E_recv(j - 1) && E_total(i + 1) == E_recv(j + 1)) {
+//                                    if (E_recv_used.find(j) != E_recv_used.end()) {
+//                                        //Merge taking average, keep E_total(i)
+//                                        weight = (E_total(i) - E_total(E_shared_low_idx)) / E_span;
+//                                        dos_merge.push_back((1 - weight) * dos_total.row(i) + weight * dos_recv.row(j));
+//                                        E_merge.push_back(E_total(i));
+//                                        E_recv_used.insert(j);
+//                                        if(debug_merge) {
+//                                            cout << " Merged as 2bb: " << endl
+//                                                 << " E_total(i): " << E_total(i) << endl
+//                                                 << " E_total   : " << E_total.transpose() << endl
+//                                                 << " E_recv    : " << E_recv.transpose() << endl
+//                                                 << " E_merge   : " << E_merge << endl
+//                                                 << endl;
+//                                        }
+//                                    } else {
+//                                        //Before and after match, but not i and j, and for some reason j has been used already.
+//                                        //If E_total(i) <= E_recv(j), throw an error and exit. Otherwise simply copy E_total(i)
+//                                        if (E_total(i) <= E_recv(j)) {
+//                                            if(debug_merge) {
+//                                                cout << " Wrong order!"
+//                                                     << " E_total(i): " << E_total(i) << endl
+//                                                     << " E_recv(j) : " << E_recv(j) << endl
+//                                                     << " E_total   : " << E_total.transpose() << endl
+//                                                     << " E_recv    : " << E_recv.transpose() << endl
+//                                                     << " E_merge   : " << E_merge << endl;
+//                                            }
+//                                        } else {
+//                                            dos_merge.push_back(dos_total.row(i));
+//                                            E_merge.push_back(E_total(i));
+//                                            if(debug_merge) {
+//                                                cout << " j: " << j << " Was already used. Inserted " << "i: " << i << endl
+//                                                     << " E_total(i): " << E_total(i) << endl
+//                                                     << " E_total   : " << E_total.transpose() << endl
+//                                                     << " E_recv    : " << E_recv.transpose() << endl
+//                                                     << " E_merge   : " << E_merge << endl
+//                                                     << endl;
+//                                            }
+//                                        }
+//                                    }
+//                                }
+//                            } else {
+//                                //Boundary case
+//                                if(debug_merge){cout << "Boundary case. i: " << i << " and j: "<< j<< endl;}
+//                                if (i == E_total.size()) {
+//                                    if (E_total(i - 1) == E_recv(j)) {
+//                                        if(debug_merge){cout << " Continuing due to 2a" << endl;}
+//                                        continue;
+//                                    }
+//                                }
+//                                if(i == 0) {
+//                                    if (E_total(i + 1) == E_recv(j)) {
+//                                        if(debug_merge){cout << " Continuing due to 2ba" << endl;}
+//                                        continue;
+//                                    }
+//                                }
+//                                //No good solution, simply copy i
+//                                dos_merge.push_back(dos_total.row(i));
+//                                E_merge.push_back(E_total(i));
+//                                if(debug_merge) {
+//                                    cout << " No other option. Inserted " << "i: " << i << endl
+//                                         << " E_total(i): " << E_total(i) << endl
+//                                         << " E_total   : " << E_total.transpose() << endl
+//                                         << " E_merge   : " << E_merge << endl
+//                                         << endl;
+//                                }
+//
+//                            }
+//                        } else{
+//                            if (E_recv_used.empty() || E_recv_used.find(j) == E_recv_used.end()) {     //E_recv(j) hasn't been used yet
+//
+//                                //Merge taking Average
+//                                weight = (E_total(i) - E_total(E_shared_low_idx)) / E_span;
+//                                dos_merge.push_back((1 - weight) * dos_total.row(i) + weight * dos_recv.row(j));
+//                                E_merge.push_back(E_total(i));
+//                                E_recv_used.insert(j);
+//                                if(debug_merge) {
+//                                    cout << " Merged  i : " << i << " and j: " << j << endl
+//                                         << " E_total(i): " << E_total(i) << endl
+//                                         << " E_total   : " << E_total.transpose() << endl
+//                                         << " E_recv    : " << E_recv.transpose() << endl
+//                                         << " E_merge   : " << E_merge << endl
+//                                         << endl;
+//                                }
+//                            }else{
+//                                //Damn.. it had been used already. If
+//                                dos_merge.push_back(dos_total.row(i));
+//                                E_merge.push_back(E_total(i));
+//                                if(debug_merge) {
+//                                    cout << " j: " << j << " Was already used. Inserted " << "i: " << i << endl
+//                                         << " E_total(i): " << E_total(i) << endl
+//                                         << " E_total   : " << E_total.transpose() << endl
+//                                         << " E_merge   : " << E_merge << endl
+//                                         << endl;
+//                                }
+//                            }
+//                        }
+//                    }
+//                }
+//
+//                for (int j = 0; j < E_recv.size(); j++){
+//                    //Check that it hasn't been used already
+//                    if (E_recv(j) < E_shared_max || E_recv_used.find(j) != E_recv_used.end()){continue;}
+//                    //Take E_recv(j)
+//                    dos_merge.push_back(dos_recv.row(j));
+//                    E_merge.push_back(E_recv(j));
+//                    E_recv_used.insert(j);
+//
+//                }
+//
+//                dos_total.resize(dos_merge.size(), M_recv.size());
+//                E_total.resize(E_merge.size());
+//                for (unsigned int i = 0; i < dos_merge.size(); i++){
+//                    dos_total.row(i)    = dos_merge[i];
+//                    E_total(i)          = E_merge[i];
+//                }
+//                dos_merge.clear();
+//                E_merge.clear();
+//                E_recv_used.clear();
+//                if (debug_merge) {
+//                    cout << "OK ";
+//                    cout.flush();
+//                    std::this_thread::sleep_for(std::chrono::microseconds(1000));
+//                }
+//            } else if (w == worker.world_ID) {
+//                send_dynamic(worker.dos   ,MPI_DOUBLE,0);
+//                send_dynamic(worker.E_bins,MPI_DOUBLE,0);
+//                send_dynamic(worker.M_bins,MPI_DOUBLE,0);
+//            }
+//            MPI_Barrier(MPI_COMM_WORLD);
+//        }
+//        if (trim){
+//            if (worker.world_ID == 0) {
+//                //Trim away nan rows
+//                dos_total = math::Zero_to_NaN(dos_total);
+//                math::remove_nan_rows(dos_total, E_total);
+//                dos_total = math::NaN_to_Zero(dos_total);
+//            }
+//        }
+//        if (setNaN){
+//            if (worker.world_ID == 0) {
+//                math::subtract_min_nonzero_nan(dos_total);
+//            }
+//        }
+//        if (worker.world_ID == 0) {
+//            //Let the master worker have the results
+//            worker.dos_total    = dos_total;
+//            worker.E_bins_total = E_total;
+//            worker.M_bins_total = M_total;
+//        }
+//        if (broadcast){
+//            broadcast_merger(worker);
+//        }
+//    }
+//
+//    void merge3(class_worker &worker, bool broadcast, bool trim, bool setNaN) {
+//        if(debug_merge){debug_print(worker,"\nMerging. ");}
+//        ArrayXXd dos_total;
+//        ArrayXd  E_total;
+//        ArrayXd  M_total;
+//        //Start by trimming
+//
+//
+//        if (worker.world_ID == 0) {
+//            dos_total = worker.dos;
+//            E_total = worker.E_bins;
+//            M_total = worker.M_bins;
+//        }
+//
+//
+//        for (int w = 1; w < worker.world_size; w++) {
+//            if (worker.world_ID == 0) {
+//                if (debug_merge) {
+//                    cout << "Receiving from " << w << endl;
+//                    cout.flush();
+//                    std::this_thread::sleep_for(std::chrono::microseconds(1000));
+//                }
+//                ArrayXXd dos_recv;
+//                ArrayXd E_recv, M_recv;
+//                recv_dynamic(dos_recv,MPI_DOUBLE,w);
+//                recv_dynamic(E_recv  ,MPI_DOUBLE,w);
+//                recv_dynamic(M_recv  ,MPI_DOUBLE,w);
+//                //Find average height of shared sections
+//                int E_shared_low_idx    = math::binary_search(E_total, fmax(E_recv.minCoeff(), E_total.minCoeff()));
+//                int E_shared_high_idx   = math::binary_search(E_total, fmin(E_recv.maxCoeff(), E_total.maxCoeff()));
+//                int E_shared_low_up_idx = math::binary_search(E_recv , fmax(E_recv.minCoeff(), E_total.minCoeff()));
+//                int E_shared_high_up_idx= math::binary_search(E_recv , fmin(E_recv.maxCoeff(), E_total.maxCoeff()));
+//
+//                double diff = math::dos_distance(dos_total.middleRows(E_shared_low_idx   , E_shared_high_idx    - E_shared_low_idx),
+//                                          dos_recv .middleRows(E_shared_low_up_idx, E_shared_high_up_idx - E_shared_low_up_idx) );
+//
+//                //Add that difference to the next
+//                if (std::isnan(diff)) {
+//                    cout << setprecision(2) << std::fixed << std::showpoint;
+//                    cout << "Tried to concatenate " << w - 1 << " and " << w << ". Diff between two DOS is NaN, exiting" << endl;
+//                    cout << "dos_tot" << endl << dos_total << endl;
+//                    cout << "dos_rec" << endl << dos_recv << endl;
+//                    exit(1);
+//                }
+//
+//                math::add_to_nonzero_nonnan(dos_recv, diff);
+//                //Now now all doses should be the same height
+//
+//                if (debug_merge) {
+//                    int zero_rows = 0;
+//                    int rows_total      = E_shared_high_idx     -  E_shared_low_idx;
+//                    int rows_total_up   = E_shared_high_up_idx  -  E_shared_low_up_idx;
+//                    for (int i = 0; i <dos_recv.rows(); i++){
+//                        if((dos_recv.row(i) == 0).all()){
+//                            zero_rows += 1;
+//                        }
+//                    }
+//                    cout << setprecision(2) << fixed;
+//                    if (rows_total  != rows_total_up){
+//                        cout << "Rows mismatch!!" << endl;
+//                    }
+//                    cout << "Concatenating " << w - 1 << " and " << w << endl;
+//                    cout << "Zero rows recv = " << zero_rows << endl;
+//                    cout << "E_total = " << E_total.size()
+//                         << " dos_total =  " << dos_total.rows()
+//                         << " Shared Rows_total = " << rows_total
+//                         << " E_idx_low = " << E_shared_low_idx
+//                         << " E_idx_high = " << E_shared_high_idx
+//                         << endl;
+//                    cout << "E_recv  = " << E_recv.size()
+//                         << " dos_recv  =  " << dos_recv.rows()
+//                         << " Shared Rows_up    = " << rows_total_up
+//                         << " E_idx_low = " << E_shared_low_up_idx
+//                         << " E_idx_high = " << E_shared_high_up_idx
+//                         << endl;
+////                    cout << "dos_total:" << endl << dos_total << endl << endl;
+////                    cout << "dos_recv:" << endl << dos_recv<< endl << endl;
+//                    cout.flush();
+//                    std::this_thread::sleep_for(std::chrono::microseconds(1000));
+//                }
+//
+//
+//                double weight;
+//                double E_span = fmax(E_total(E_shared_high_idx) - E_total(E_shared_low_idx), E_recv(E_shared_high_up_idx) - E_recv(E_shared_low_up_idx));
+//                vector<ArrayXd> dos_merge;
+//                vector<double>  E_merge;
+//                double E_shared_min = fmin(E_total(E_shared_low_idx) , E_recv(E_shared_low_up_idx));
+//                double E_shared_max = fmax(E_total(E_shared_high_idx), E_recv(E_shared_high_up_idx));
+//                int i = 0, j = 0;
+//                bool E_total_finished = false;
+//                while(j < E_recv.size() ){
+//                    if (i >= E_total.size()){i--; E_total_finished = true;}
+//                    if (E_total(i) < E_shared_min && !E_total_finished){
+//                        //Take E_total(i)
+//                        dos_merge.push_back(dos_total.row(i));
+//                        E_merge.push_back(E_total(i));
+//                        i++;
+//                    }else if (E_total(i) <= E_total(E_shared_high_idx) && !E_total_finished){
+//                        if(E_total(i) == E_recv(j)){
+//                            //Take Average
+//                            weight = (E_total(i) - E_total(E_shared_low_idx)) / E_span;
+//                            dos_merge.push_back((1 - weight) * dos_total.row(i) + weight * dos_recv.row(j));
+//                            E_merge.push_back(E_total(i));
+//                            i++;
+//                            j++;
+//                        }
+//                        else if (E_total(i) < E_recv(j)){
+//                            //Take E_total(i)
+//                            dos_merge.push_back(dos_total.row(i));
+//                            E_merge.push_back(E_total(i));
+//                            i++;
+//                        }
+//                        else if (E_total(i) > E_recv(j)){
+//                            //Take E_recv(j)
+//                            dos_merge.push_back(dos_recv.row(j));
+//                            E_merge.push_back(E_recv(j));
+//                            j++;
+//                        }
+//                    }else{
+//                        //Take E_recv(j)
+//                        dos_merge.push_back(dos_recv.row(j));
+//                        E_merge.push_back(E_recv(j));
+//                        j++;
+//                    }
+//                }
+//
+//
+//                dos_total.resize(dos_merge.size(), M_recv.size());
+//                E_total.resize(E_merge.size());
+//                for (unsigned int i = 0; i < dos_merge.size(); i++){
+//                    dos_total.row(i)    = dos_merge[i];
+//                    E_total(i)          = E_merge[i];
+//                }
+//                dos_merge.clear();
+//                E_merge.clear();
+//
+//                if (debug_merge) {
+//                    cout << "OK ";
+//                    cout.flush();
+//                    std::this_thread::sleep_for(std::chrono::microseconds(1000));
+//                }
+//            } else if (w == worker.world_ID) {
+//                send_dynamic(worker.dos   ,MPI_DOUBLE,0);
+//                send_dynamic(worker.E_bins,MPI_DOUBLE,0);
+//                send_dynamic(worker.M_bins,MPI_DOUBLE,0);
+//            }
+//            MPI_Barrier(MPI_COMM_WORLD);
+//        }
+//        if (trim){
+//            if (worker.world_ID == 0) {
+//                //Trim away nan rows
+//                dos_total = math::Zero_to_NaN(dos_total);
+//                math::remove_nan_rows(dos_total, E_total);
+//                dos_total = math::NaN_to_Zero(dos_total);
+//            }
+//        }
+//        if (setNaN){
+//            if (worker.world_ID == 0) {
+//                math::subtract_min_nonzero_nan(dos_total);
+//            }
+//        }
+//        if (worker.world_ID == 0) {
+//            //Let the master worker have the results
+//            worker.dos_total    = dos_total;
+//            worker.E_bins_total = E_total;
+//            worker.M_bins_total = M_total;
+//        }
+//        if (broadcast){
+//            broadcast_merger(worker);
+//        }
+//    }
+//
+//    void merge4(class_worker &worker, bool broadcast, bool trim) {
+//        if(debug_merge){debug_print(worker,"\nMerging. ");}
+//
+//        ArrayXXd dos_total, dos_temp, dos_recv;
+//        ArrayXd E_total, M_total, E_temp, M_temp, E_recv, M_recv;
+//        int E_sizes[worker.world_size];
+//        int M_sizes[worker.world_size];
+//        int E_size = (int) worker.E_bins.size();
+//        int M_size = (int) worker.M_bins.size();
+//
+//        double diff;
+//
+//        MPI_Gather(&E_size, 1, MPI_INT, E_sizes, 1, MPI_INT, 0, MPI_COMM_WORLD);
+//        MPI_Gather(&M_size, 1, MPI_INT, M_sizes, 1, MPI_INT, 0, MPI_COMM_WORLD);
+//        if(debug_merge){debug_print(worker," Gathering dos ");}
+//
+//        if (worker.world_ID == 0) {
+//            dos_total = worker.dos;
+//            E_total = worker.E_bins;
+//            M_total = worker.M_bins;
+//        }
+//        int from_total, from_up, rows_total, rows_up;
+//        int E_merge_idx, E_merge_idx_up;
+//        int M_merge_idx, M_merge_idx_up;
+//        for (int w = 1; w < worker.world_size; w++) {
+//            if (worker.world_ID == 0) {
+//                if (debug_merge) {
+//                    cout << "Receiving from " << w << endl;
+//                    cout.flush();
+//                    std::this_thread::sleep_for(std::chrono::microseconds(1000));
+//                }
+//                dos_recv.resize(E_sizes[w], M_sizes[w]);
+//                E_recv.resize(E_sizes[w]);
+//                M_recv.resize(M_sizes[w]);
+//                MPI_Recv(dos_recv.data(), E_sizes[w] * M_sizes[w], MPI_DOUBLE, w, 60, MPI_COMM_WORLD,
+//                         MPI_STATUS_IGNORE);
+//                MPI_Recv(E_recv.data(), E_sizes[w], MPI_DOUBLE, w, 61, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+//                MPI_Recv(M_recv.data(), M_sizes[w], MPI_DOUBLE, w, 62, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+//
+//                //Find coordinates on dos_total
+//                E_merge_idx = math::find_matching_slope(dos_total, dos_recv, E_total, E_recv, M_total, M_recv);
+//                M_merge_idx = math::nanmaxCoeff_idx(dos_total.row(E_merge_idx));
+//
+////                dos_total.row(E_merge_idx).maxCoeff(&M_merge_idx);
+//                //Find coordinates on received dos;
+//                E_merge_idx_up = math::binary_search(E_recv, E_total(E_merge_idx));
+//                M_merge_idx_up = math::nanmaxCoeff_idx(dos_recv.row(E_merge_idx_up));
+////                dos_recv.row(E_merge_idx_up).maxCoeff(&M_merge_idx_up);
+//                //Find difference between heights at these points
+//                diff = dos_total(E_merge_idx, M_merge_idx) - dos_recv(E_merge_idx_up, M_merge_idx_up);
+//                //Add that difference to the next
+//                if (std::isnan(diff)) {
+//                    cout << "Tried to concatenate " << w - 1 << " and " << w << ". Diff between two DOS is NaN, exiting"
+//                         << endl;
+//                    cout << "Merge_idx    = [" << E_merge_idx << ", " << M_merge_idx << "]" << endl;
+//                    cout << "Merge_idx_up = [" << E_merge_idx_up << ", " << M_merge_idx_up << "]" << endl;
+//
+//                    cout << "E_bins_total   " << E_total(E_merge_idx) << " [" << E_merge_idx << "]" << "    = "
+//                         << E_total.transpose() << endl;
+//                    cout << "E_bins_up      " << E_recv(E_merge_idx_up) << " [" << E_merge_idx_up << "]" << "    = "
+//                         << E_recv.transpose() << endl;
+//                    cout << "dos_tot" << endl << dos_total << endl;
+//                    cout << "dos_rec" << endl << dos_recv << endl;
+//                    MPI_Finalize();
+//                    exit(1);
+//                }
+//                math::add_to_nonzero_nonnan(dos_recv, diff);
+//                //Now now all doses should be the same height
+//                if (debug_merge) {
+//                    cout << "Concatenating " << w - 1 << " and " << w << endl;
+//                    cout << "Merge_idx    = [" << E_merge_idx << ", " << M_merge_idx << "]" << endl;
+//                    cout << "Merge_idx_up = [" << E_merge_idx_up << ", " << M_merge_idx_up << "]" << endl;
+//
+//                    cout << "E_bins_total   " << E_total(E_merge_idx) << " [" << E_merge_idx << "]" << "    = "
+//                         << E_total.transpose() << endl;
+//                    cout << "E_bins_up      " << E_recv(E_merge_idx_up) << " [" << E_merge_idx_up << "]" << "    = "
+//                         << E_recv.transpose() << endl;
+//                    cout << "dos_tot" << endl << dos_total << endl;
+//                    cout << "dos_rec" << endl << dos_recv << endl;
+//
+//                    cout.flush();
+//                    std::this_thread::sleep_for(std::chrono::microseconds(1000));
+//                }
+//
+//                //Compute the starting points and number of rows for concatenation
+//                from_total = 0;
+//                from_up = E_merge_idx_up + 1;
+//
+//                rows_total = E_merge_idx + 1;
+//                rows_up = E_sizes[w] - E_merge_idx_up - 1;
+//
+//                E_temp.resize(E_total.segment(from_total, rows_total).size() + E_recv.segment(from_up, rows_up).size());
+//                dos_temp.resize(dos_total.middleRows(from_total, rows_total).rows() +
+//                                dos_recv.middleRows(from_up, rows_up).rows(), M_size);
+//
+//                dos_temp << dos_total.middleRows(from_total, rows_total),
+//                        dos_recv.middleRows(from_up, rows_up);
+//                E_temp << E_total.segment(from_total, rows_total),
+//                        E_recv.segment(from_up, rows_up);
+//                dos_total = dos_temp;
+//                E_total = E_temp;
+//
+//
+//                if (debug_merge) {
+//                    cout << "OK ";
+//                    cout.flush();
+//                    std::this_thread::sleep_for(std::chrono::microseconds(1000));
+//                }
+//            } else if (w == worker.world_ID) {
+//                MPI_Send(worker.dos.data(), E_size * M_size, MPI_DOUBLE, 0, 60, MPI_COMM_WORLD);
+//                MPI_Send(worker.E_bins.data(), E_size, MPI_DOUBLE, 0, 61, MPI_COMM_WORLD);
+//                MPI_Send(worker.M_bins.data(), M_size, MPI_DOUBLE, 0, 62, MPI_COMM_WORLD);
+//            }
+//            MPI_Barrier(MPI_COMM_WORLD);
+//        }
+//        if (worker.world_ID == 0) {
+//            //Let the master worker have the results
+//            worker.dos_total    = dos_total;
+//            worker.E_bins_total = E_total;
+//            worker.M_bins_total = M_total;
+//        }
+//        if (trim){
+//            if (worker.world_ID == 0) {
+//                //Trim away nan rows
+//                math::subtract_min_nonzero_nan(worker.dos_total);
+//                math::remove_nan_rows(worker.dos_total, worker.E_bins_total);
+//            }
+//        }
+//        if (broadcast){
+//            broadcast_merger(worker);
+//        }
+//    }
 
     void broadcast_merger(class_worker &worker) {
         if(debug_bcast){debug_print(worker,"\nBroadcasting raw to workers ");}

@@ -19,7 +19,7 @@ namespace constants{
 
     //Lattice Properties
     static const int d = 2;               //Dimension
-    static const int L = 16;               //Linear size
+    static const int L = 10;               //Linear size
     static const int N = (int) std::pow(L,d);  //Number of spins/particles
 
     //DOS and Histogram properties
@@ -51,7 +51,7 @@ namespace constants{
     //Parameters for sub-window splitting
     static const int     min_walks_for_vol_merge = 2;
     static const int     max_area_merges         = 5;
-    static const int     max_vol_merges          = 1;
+    static const int     max_vol_merges          = 3;
 }
 
 

@@ -69,7 +69,7 @@ void wanglandau(class_worker &worker){
     print_status        (worker,true);
     backup.restore_state   (worker) ;
     out.write_data_worker  (worker) ;
-    mpi::merge             (worker,false,true,true) ;
+    mpi::merge             (worker,false,true) ;
     out.write_data_master  (worker) ;
 }
 
@@ -149,37 +149,41 @@ void divide_range(class_worker &worker, class_backup &backup, outdata &out){
     if (timer::divide_range >= constants::rate_divide_range) {
         timer::divide_range = 0;
         worker.t_divide_range.tic();
+        int  need_to_resize;
+        MPI_Allreduce(&worker.need_to_resize_global, &need_to_resize, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+        if (need_to_resize) {
+            if (debug_divide_range) { debug_print(worker, "Dividing global energy\n"); }
+            worker.resize_global_range();
+            worker.divide_global_range_uniformly();
+            worker.synchronize_sets();
+            worker.adjust_local_bins();
+            worker.need_to_resize_global = 0;
+            worker.find_current_state();
+            counter::vol_merges = 0;
+            worker.set_P_increment();
+            return;
+        }
         if (counter::vol_merges < constants::max_vol_merges) {
-            int all_in_window, min_walks, need_to_resize;
-            int in_window = worker.state_in_window;
-            MPI_Allreduce(&counter::walks, &min_walks, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+            int all_in_window, in_window = worker.state_in_window;
+//            MPI_Allreduce(&counter::walks, &min_walks, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
             MPI_Allreduce(&in_window, &all_in_window, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
-            if (min_walks < constants::min_walks_for_vol_merge && counter::area_merges < constants::max_area_merges && all_in_window == 1) {
-                //divide dos area
-                //If anybody had started to help they need to be restored
-                backup.restore_state(worker);
-                worker.help.reset();
-                print_status(worker, true);
-                if (worker.world_ID == 0) { cout << "Dividing according to dos AREA" << endl; }
-                out.write_data_worker  (worker) ;
-                mpi::merge(worker, true, false, false);
-                mpi::divide_global_range_dos_area(worker);
-                worker.set_P_increment();
-                counter::area_merges++;
-            } else if (min_walks >= constants::min_walks_for_vol_merge && counter::vol_merges < constants::max_vol_merges && all_in_window == 1) {
+            if (all_in_window) {
                 //divide dos vol
                 backup.restore_state(worker);
                 print_status(worker, true);
-                out.write_data_worker  (worker) ;
-                if (worker.world_ID == 0) { cout << "Dividing according to dos VOLUME." << endl; }
-                mpi::merge(worker, true, false, false);
+                out.write_data_worker(worker);
+                if (worker.world_ID == 0) { cout << "Dividing according to dos VOLUME" << endl; }
+                mpi::merge(worker, true, false);
                 mpi::divide_global_range_dos_volume(worker);
                 worker.set_P_increment();
-                worker.rewind_to_zero();
                 counter::vol_merges++;
+//                if (counter::vol_merges == constants::max_vol_merges) {
+//                    worker.rewind_to_zero();
+//                }
             }
-
         }
+
+
         worker.t_divide_range.toc();
     }
 
@@ -194,7 +198,7 @@ void backup_to_file(class_worker &worker, outdata &out){
             MPI_Allreduce(&worker.state_in_window, &all_in_window, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
             MPI_Allreduce(&worker.need_to_resize_global, &need_to_resize, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
             if (need_to_resize == 0 && all_in_window == 1 && counter::vol_merges > 0) {
-                mpi::merge(worker,false,false,false);
+                mpi::merge(worker,false,false);
                 out.write_data_master(worker);
             }
         }

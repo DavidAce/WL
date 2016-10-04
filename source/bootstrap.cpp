@@ -16,7 +16,7 @@ void do_bootstrap(class_worker &worker){
     for (int i = 0; i < constants::bootstrap_reps; i++){
         worker.iteration = i + constants::simulation_reps;
         in.load_random_section(worker);
-        mpi::merge    (worker,false,true,true) ;
+        mpi::merge    (worker,false,true) ;
         out.create_iteration_folder_master(worker.iteration, worker.world_ID);
         out.write_data_master(worker) ;
     }
