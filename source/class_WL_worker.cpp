@@ -917,7 +917,7 @@ void class_worker::add_hist_volume(){
         timer::add_hist_volume = 0;
         if (flag_one_over_t == 0) {
             t_check_convergence.tic();
-            math::subtract_min_nonzero_one(histogram);
+//            math::subtract_min_nonzero_one(histogram);
             saturation.push_back(histogram.sum());
             t_check_convergence.toc();
         }
@@ -928,10 +928,9 @@ void class_worker::check_saturation(){
     if (timer::check_saturation >= constants::rate_check_saturation) {
         timer::check_saturation = 0;
         if (flag_one_over_t == 0) {
-            t_check_convergence.tic();
+//            t_check_convergence.tic();
             int idx_to   = (int) saturation.size() - 1;
             int idx_from = (int) (constants::check_saturation_from * idx_to);
-//            cout << "ID: " << world_ID << " Size: "<< saturation.size() << " from: " << idx_from << " to: "<< idx_to << endl;
             if (saturation.empty() || idx_to == idx_from || need_to_resize_global){
                 slope = 0;
                 return;
@@ -947,7 +946,7 @@ void class_worker::check_saturation(){
                 lnf = 1.0 / counter::MCS;
                 flag_one_over_t = 1;         //Change to 1/t algorithm
             }
-            t_check_convergence.toc();
+//            t_check_convergence.toc();
         }else{
             counter::walks = (int) (-log(lnf)/log(2));
         }
