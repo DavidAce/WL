@@ -151,7 +151,7 @@ void divide_range(class_worker &worker, class_backup &backup, outdata &out){
         worker.t_divide_range.tic();
         if (counter::vol_merges < constants::max_vol_merges) {
             int all_in_window, min_walks, need_to_resize;
-            int in_window = worker.in_window;
+            int in_window = worker.state_in_window;
             MPI_Allreduce(&counter::walks, &min_walks, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
             MPI_Allreduce(&in_window, &all_in_window, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
             if (min_walks < constants::min_walks_for_vol_merge && counter::area_merges < constants::max_area_merges && all_in_window == 1) {
@@ -191,7 +191,7 @@ void backup_to_file(class_worker &worker, outdata &out){
             timer::backup = 0;
             int all_in_window;
             int need_to_resize;
-            MPI_Allreduce(&worker.in_window, &all_in_window, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+            MPI_Allreduce(&worker.state_in_window, &all_in_window, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
             MPI_Allreduce(&worker.need_to_resize_global, &need_to_resize, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
             if (need_to_resize == 0 && all_in_window == 1 && counter::vol_merges > 0) {
                 mpi::merge(worker,false,false,false);
@@ -225,7 +225,7 @@ void print_status(class_worker &worker, bool force) {
                         << " Sw: "    << left << setw(5) << counter::swap_accepts
                         << " H: "     << right<< setw(3) <<  worker.help.helping_id
                         << " P: "     << left << setw(5) << 1/worker.P_increment
-                        << " iw: "    << worker.in_window
+                        << " iw: "    << worker.state_in_window
                         << " NR: "    << worker.need_to_resize_global
                         << " 1/t: "   << worker.flag_one_over_t
                         << " Fin: "   << worker.finish_line;

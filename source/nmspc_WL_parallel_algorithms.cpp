@@ -38,7 +38,7 @@ namespace mpi {
                     MPI_Barrier(MPI_COMM_WORLD);
                 }
             }
-            if (worker.in_window != worker.check_in_window(worker.E)){
+            if (worker.state_in_window != worker.check_in_window(worker.E)){
                 cout << "Worker is not really in window! Swap failed!" << endl;
                 exit(1);
             }
@@ -74,7 +74,7 @@ namespace mpi {
                 swap = swap &&  worker.world_ID != worker.world_size - 1;
 
                 //Even if you don't swap you might still want to copy! Unless you're helping out.
-                copy = !swap && !worker.in_window && ((worker.E < E_Y && worker.E < worker.E_min_local) ||
+                copy = !swap && !worker.state_in_window && ((worker.E < E_Y && worker.E < worker.E_min_local) ||
                                                           (worker.E > E_Y && worker.E > worker.E_max_local));
                 copy = copy && !worker.help.giving_help;
                 MPI_Send(&swap, 1, MPI_INT, up, 109, MPI_COMM_WORLD);
@@ -868,7 +868,7 @@ namespace mpi {
         worker.dos          = worker.dos_total.middleRows(from, rows);
         worker.E_bins       = worker.E_bins_total.segment(from, rows);
         worker.histogram    = ArrayXXi::Zero(worker.dos.rows(), worker.dos.cols());
-        worker.in_window    = worker.check_in_window(worker.E);
+        worker.state_in_window    = worker.check_in_window(worker.E);
         worker.find_current_state();
 
         if (worker.model.discrete_model) {
@@ -1153,7 +1153,7 @@ namespace mpi {
             worker.E_max_local = worker.E_bins.maxCoeff();
             worker.M_min_local = worker.M_bins.minCoeff();
             worker.M_max_local = worker.M_bins.maxCoeff();
-            worker.in_window   = worker.check_in_window(worker.E);
+            worker.state_in_window   = worker.check_in_window(worker.E);
             worker.set_P_increment();
             worker.find_current_state();
         }
@@ -1284,7 +1284,7 @@ namespace mpi {
 //                worker.E_max_local = worker.E_bins.maxCoeff();
 //                worker.M_min_local = worker.M_bins.minCoeff();
 //                worker.M_max_local = worker.M_bins.maxCoeff();
-//                worker.in_window = worker.check_in_window(worker.E);
+//                worker.state_in_window = worker.check_in_window(worker.E);
 //                worker.find_current_state();
 ////                worker.P_increment = 1.0 / sqrt(math::count_num_elements(worker.dos));
 //                worker.P_increment = 1.0 / sqrt(worker.E_bins.size());
@@ -1452,7 +1452,7 @@ namespace mpi {
 //                    worker.E_max_local = worker.E_bins.maxCoeff();
 //                    worker.M_min_local = worker.M_bins.minCoeff();
 //                    worker.M_max_local = worker.M_bins.maxCoeff();
-//                    worker.in_window   = worker.check_in_window(worker.E);
+//                    worker.state_in_window   = worker.check_in_window(worker.E);
 //                    worker.P_increment = 1.0/sqrt(math::count_num_elements(worker.dos));
 //                    worker.histogram.resizeLike(worker.dos);
 //                    worker.histogram.fill(0);
@@ -1573,10 +1573,10 @@ namespace mpi {
 //
 //        worker.dos = worker.dos_total.middleRows(from, rows);
 //        worker.E_bins = worker.E_bins_total.segment(from, rows);
-//        worker.in_window = worker.check_in_window(worker.E);
+//        worker.state_in_window = worker.check_in_window(worker.E);
 //        worker.histogram = ArrayXXi::Zero(worker.dos.rows(), worker.dos.cols());
 //
-//        if (worker.in_window) {
+//        if (worker.state_in_window) {
 //            worker.E_idx = math::binary_search(worker.E_bins, worker.E);
 //            worker.M_idx = math::binary_search(worker.M_bins, worker.M);
 //        }

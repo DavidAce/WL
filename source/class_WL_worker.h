@@ -32,6 +32,33 @@ std::ostream& operator<< (std::ostream& out, const std::vector<T>& v) {
     return out;
 }
 
+template <typename T>
+std::ostream& operator<< (std::ostream& out, const std::set<T>& v) {
+    if ( !v.empty() ) {
+        out << "[ ";
+        std::copy (v.begin(), v.end(), std::ostream_iterator<T>(out, " "));
+        out << "]";
+    }
+    return out;
+}
+
+template <typename Derived, typename T>
+typename Derived::PlainObject operator<< (ArrayBase<Derived> &in , const std::set<T>& v) {
+    if (!v.empty()) {
+        Array<typename Derived::Scalar,Dynamic, 1> temp;
+        temp.resize(v.size());
+        int k = 0;
+        for (auto it = v.begin(); it != v.end(); it++) {
+            temp(k) = *it;
+            k++;
+        }
+        in = temp;
+    }
+    return in;
+}
+
+
+
 
 
 class class_worker {
@@ -71,7 +98,8 @@ public:
 
     //WL acceptance criterion
     bool accept;
-    bool in_window;
+    bool state_in_window;
+    bool state_is_valid;
     int  need_to_resize_global;
     //WL convergence parameters
     int     flag_one_over_t;             //turns to 1 when 1/t algorithm starts
@@ -128,6 +156,7 @@ public:
 
     //Functions
     void find_current_state();           //Compute current E and M (and their indices)
+    void find_next_state_exact();
     void find_next_state();
     void find_next_state(bool);
     void find_initial_limits();
@@ -144,10 +173,11 @@ public:
     void compute_number_of_bins(int &, int &);
     bool check_in_window(const double);
     void make_MC_trial() __attribute__((hot));
-    void insert_state() __attribute__((hot));
+    void insert_state(double new_E,double new_M) __attribute__((hot));
     void walk_away_from_window() __attribute__((hot));
     void walk_towards_window() __attribute__((hot));
     void acceptance_criterion() __attribute__((hot));
+    void acceptance_criterion2() __attribute__((hot));
     void accept_MC_trial() __attribute__((hot));
     void reject_MC_trial() __attribute__((hot));
     void set_P_increment();
@@ -187,7 +217,7 @@ public:
             M_max_local     = worker.M_max_local;
             E_set           = worker.E_set;
             M_set           = worker.M_set;
-            in_window       = worker.in_window;
+            in_window       = worker.state_in_window;
             slope           = worker.slope;
             MCS             = counter::MCS;
             walks           = counter::walks;
@@ -215,7 +245,7 @@ public:
             worker.M_max_local  = M_max_local;
             worker.E_set        = E_set;
             worker.M_set        = M_set;
-            worker.in_window    = in_window;
+            worker.state_in_window    = in_window;
             worker.slope        = slope;
             counter::MCS        = MCS;
             counter::walks      = walks;
