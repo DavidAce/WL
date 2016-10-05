@@ -7,7 +7,7 @@
 #define debug_merge     0
 #define debug_bcast     0
 #define debug_divide    0
-#define debug_take_help 0
+#define debug_take_help 1
 #define debug_setup_help 0
 using namespace std;
 
@@ -477,6 +477,80 @@ namespace mpi {
     }
 
     void take_help(class_worker &worker) {
+        //Check if anybody was able to do a walk
+        timer::take_help = 0;
+        if (worker.help.MPI_COMM_HELP != MPI_COMM_NULL) {
+            worker.t_help.tic();
+            struct {
+                int highest_walk;
+                int highest_idx;
+            } in, out;
+            in.highest_walk = counter::walks;
+            in.highest_idx = worker.help.help_rank;
+            MPI_Allreduce(&in, &out, 1, MPI_2INT, MPI_MAXLOC, worker.help.MPI_COMM_HELP);
+            if (out.highest_walk > worker.help.help_walks) {
+                //Somebody made progress, then get everybody up to speed
+                //Now broadcast an updated dos:
+                if (debug_take_help) {
+                    if (out.highest_idx == worker.help.help_rank) {
+                        cout << "ID: " << worker.world_ID
+                             << " Broadcast from " << out.highest_idx
+                             << " (helping: " << worker.help.helping_id << ")"
+                             << " MCS: " << counter::MCS
+                             << " Slope: " << worker.slope
+                             << " Size: " << worker.help.help_size
+                             << " Walks: " << counter::walks
+                             << " Highest walks: " << out.highest_walk
+                             << " Current walks: " << worker.help.help_walks
+                             << endl;
+                    }
+                }
+                MPI_Bcast(worker.dos.data(), (int) worker.dos.size(), MPI_DOUBLE, out.highest_idx, worker.help.MPI_COMM_HELP);
+                worker.help.help_walks = out.highest_walk;
+                for (int i = 0; i < out.highest_walk - counter::walks; i++) {
+                    worker.next_WL_iteration();
+                    if (debug_take_help) {
+                        cout << "ID: " << worker.world_ID
+                             << " moved to " << counter::walks
+                             << endl;
+                    }
+                }
+                worker.histogram.fill(0);
+                worker.saturation.clear();
+            } else {
+                ArrayXXd dos_recv = worker.dos;
+                double weight     = 1.0/worker.help.help_size;
+//                ArrayXXi histogram_incr = worker.histogram - worker.help.histogram_recv; //histogram_recv contains the old (synced) histogram
+                for (int i = 0; i < worker.help.help_size; i++) {
+                    if (i == worker.help.help_rank) {
+//                        worker.help.histogram_recv = histogram_incr;
+                        dos_recv = worker.dos;
+                    }
+                    worker.t_merge.tic();
+                    MPI_Bcast(dos_recv.data(), (int) dos_recv.size(), MPI_DOUBLE, i, worker.help.MPI_COMM_HELP);
+//                    MPI_Bcast(worker.help.histogram_recv.data(), (int) worker.help.histogram_recv.size(), MPI_INT, i, worker.help.MPI_COMM_HELP);
+                    worker.t_merge.toc();
+                    if (i != worker.help.help_rank) {
+
+                        //Add received histogram to your own
+//                        worker.histogram        += worker.help.histogram_recv;
+                        worker.dos              = worker.dos*(1-weight) + dos_recv * weight;
+//                        counter::MCS            += constants::rate_take_help;
+//                        timer::add_hist_volume  += constants::rate_take_help;
+//                        timer::check_saturation += constants::rate_take_help;
+//                        worker.add_hist_volume();
+                    }
+
+                }
+            }
+
+//            worker.help.histogram_recv = worker.histogram;
+//            worker.flag_one_over_t = worker.lnf < 1.0 / max(1, counter::MCS) ? 1 : 0;
+            worker.t_help.toc();
+        }
+    }
+
+    void take_help2(class_worker &worker) {
         //Check if anybody was able to do a walk
         timer::take_help = 0;
         if (worker.help.MPI_COMM_HELP != MPI_COMM_NULL) {
