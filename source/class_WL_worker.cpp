@@ -46,7 +46,7 @@ int timer::divide_range_find;
 class_worker::class_worker(int & id, int & size):
                                 world_ID(id),
                                 world_size(size),
-                                model(),
+                                model(constants::L),
                                 finish_line 			(false),
                                 t_total                (profiling_total,                3,"Total Time"),
                                 t_print                (profiling_print,                3,"Time"),
@@ -79,12 +79,12 @@ void class_worker::find_current_state(){
     if(state_in_window) {
         switch (constants::rw_dims) {
             case 1:
-                E_idx = math::binary_search(E_bins, E);
+                E_idx = math::binary_search_nearest(E_bins, E);
                 M_idx = 0;
                 break;
             case 2:
-                E_idx = math::binary_search(E_bins, E);
-                M_idx = math::binary_search(M_bins, M);
+                E_idx = math::binary_search_nearest(E_bins, E);
+                M_idx = math::binary_search_nearest(M_bins, M);
                 break;
             default:
                 cout << "Wrong rw-dimension  constants::rw_dims" << endl;
@@ -115,12 +115,12 @@ void class_worker::find_next_state(){
 
     switch(constants::rw_dims) {
         case 1:
-            E_idx_trial = math::binary_search(E_bins, E_trial);
+            E_idx_trial = math::binary_search_nearest(E_bins, E_trial);
             M_idx_trial = 0;
             break;
         case 2:
-            E_idx_trial = math::binary_search(E_bins, E_trial);
-            M_idx_trial = math::binary_search(M_bins, M_trial);
+            E_idx_trial = math::binary_search_nearest(E_bins, E_trial);
+            M_idx_trial = math::binary_search_nearest(M_bins, M_trial);
             break;
         default:
             cout << "Wrong dimension:  constants::rw_dims" << endl;
@@ -131,12 +131,12 @@ void class_worker::find_next_state(){
 void class_worker::find_next_state(bool dummy){
     switch (constants::rw_dims) {
         case 1:
-            E_idx_trial = math::binary_search(E_bins, E_trial, E, E_idx);
+            E_idx_trial = math::binary_search_nearest(E_bins, E_trial, E, E_idx);
             M_idx_trial = 0;
             break;
         case 2:
-            E_idx_trial = math::binary_search(E_bins, E_trial, E, E_idx);
-            M_idx_trial = math::binary_search(M_bins, M_trial, M, M_idx);
+            E_idx_trial = math::binary_search_nearest(E_bins, E_trial, E, E_idx);
+            M_idx_trial = math::binary_search_nearest(M_bins, M_trial, M, M_idx);
             break;
         default:
             cout << "Wrong dimension:  constants::rw_dims" << endl;
@@ -471,12 +471,12 @@ void class_worker::adjust_local_bins() {
     E_set_to_array << E_set;
     M_set_to_array << M_set;
 
-    int E_idx_min = math::binary_search(E_set_to_array, E_min_local);
-    int E_idx_max = math::binary_search(E_set_to_array, E_max_local);
+    int E_idx_min = math::binary_search_nearest(E_set_to_array, E_min_local);
+    int E_idx_max = math::binary_search_nearest(E_set_to_array, E_max_local);
     E_min_local   = E_set_to_array(E_idx_min);
     E_max_local   = E_set_to_array(E_idx_max);
-    int M_idx_min = math::binary_search(M_set_to_array, M_min_local);
-    int M_idx_max = math::binary_search(M_set_to_array, M_max_local);
+    int M_idx_min = math::binary_search_nearest(M_set_to_array, M_min_local);
+    int M_idx_max = math::binary_search_nearest(M_set_to_array, M_max_local);
     M_min_local   = M_set_to_array(M_idx_min);
     M_max_local   = M_set_to_array(M_idx_max);
 
@@ -610,8 +610,8 @@ void class_worker::adjust_local_bins() {
 //        //Now try estimating the global size (i.e. the size of the global spectrum)
 //        //Adjust local boundaries
 //        ArrayXd E_bins_global = ArrayXd::LinSpaced(E_global_size, E_min_global, E_max_global);
-//        int E_idx_min = math::binary_search(E_bins_global, E_min_local);
-//        int E_idx_max = math::binary_search(E_bins_global, E_max_local);
+//        int E_idx_min = math::binary_search_nearest(E_bins_global, E_min_local);
+//        int E_idx_max = math::binary_search_nearest(E_bins_global, E_max_local);
 //        E_min_local   = E_bins_global(E_idx_min);
 //        E_max_local   = E_bins_global(E_idx_max);
 //
@@ -808,8 +808,8 @@ void class_worker::acceptance_criterion(){
 //        //The current state will probably be out of window, so E_idx points to either the first
 //        //or last element in E_bins if we try to find it. Even so, let's insert it anyway.
 //        state_in_window = false;
-//        E_idx = math::binary_search(E_bins, E);
-//        M_idx = math::binary_search(M_bins, M);
+//        E_idx = math::binary_search_nearest(E_bins, E);
+//        M_idx = math::binary_search_nearest(M_bins, M);
 //        insert_state();
 //        walk_away_from_window();
 //    }

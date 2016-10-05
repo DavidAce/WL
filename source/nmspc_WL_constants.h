@@ -18,7 +18,7 @@ namespace constants{
     static const double T_max = 6;               //Maximum temperature for thermodynamic quantities
 
     //Lattice Properties
-    static const int d = 2;               //Dimension
+    static const int d = 2;                //Dimension
     static const int L = 32;               //Linear size
     static const int N = (int) std::pow(L,d);  //Number of spins/particles
 

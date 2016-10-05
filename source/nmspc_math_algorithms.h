@@ -2,8 +2,8 @@
 // Created by david on 2016-08-05.
 //
 
-#ifndef WL_NMSPC_MATH_ALGORITHMS_H
-#define WL_NMSPC_MATH_ALGORITHMS_H
+#ifndef NMSPC_MATH_ALGORITHMS_H
+#define NMSPC_MATH_ALGORITHMS_H
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <iostream>
@@ -13,14 +13,7 @@
 using namespace Eigen;
 namespace math{
     //Find index of maximum element in an Eigen-type array
-    //extern int find_max_idx(const Ref<const ArrayXd> &list);
-//    extern int find_max_idx(const Ref<const ArrayXd>  &list);
-
-    //Find the minimum element larger than zero in a array
-//    extern int      find_min_positive(const arrayXi &);
-//    extern double   find_min_positive(const ArrayXd &);
-    extern int      mod2(const int &,const int &);
-    inline int      mod (const int x, const int y){
+    inline int __attribute__((always_inline)) mod (const int x, const int y){
         return x >= 0 ? x%y : x%y + y;
     }
     extern double   volume(const ArrayXXd &dos,const ArrayXd &E,const ArrayXd &M);
@@ -59,8 +52,6 @@ namespace math{
 
 
     }
-
-
 
     template <typename Derived>
     typename Derived::Scalar nansquared(const ArrayBase<Derived> & array)  {
@@ -161,15 +152,6 @@ namespace math{
                 }
             }
         }
-//        std::cout << std::setprecision(5) << std::fixed << std::showpoint;
-//        std::cout << "STD : " << stDev <<std::endl;
-//        std::cout << "Diff = " << sum/std::max(1,count) << std::endl;
-//        std::cout << "Old Distance = "<<std::endl;
-//        std::cout << distance << std::endl << std::endl;
-//        std::cout << "New Distance = "<<std::endl;
-//        distance = array2;
-//        math::add_to_nonzero_nonnan(distance, sum/std::max(1,count) );
-//        std::cout << array1 - distance<< std::endl << std::endl;
         if (count == 0 ){
             return nanzeromean(array1) - nanzeromean(array2);
         }else{
@@ -201,7 +183,7 @@ namespace math{
 //    }
 
     template <typename Derived>
-    inline __attribute__((hot)) typename Derived::Scalar find_min_positive(const ArrayBase<Derived> &array){
+    inline typename Derived::Scalar find_min_positive(const ArrayBase<Derived> &array){
         return ((array > 0 && array == array ).select(array, array.maxCoeff())).minCoeff();
     }
 
@@ -231,7 +213,7 @@ namespace math{
     }
 
     template <typename Derived>
-    inline __attribute__((hot)) void subtract_min_nonzero_one(ArrayBase<Derived> &array){
+    inline void subtract_min_nonzero_one(ArrayBase<Derived> &array){
         auto min_positive = find_min_positive(array);
         array = (array > 0 && array == array).select(array-min_positive+1, array);
     }
@@ -256,47 +238,11 @@ namespace math{
         vec = vec_temp.topRows(k);
     }
 
-//
-//
-//    template <typename Derived, typename T>
-//    inline int binary_search(const ArrayBase<Derived> &list , const T& x){
-//        //Now find the point in list closest to x
-//        auto low  = std::lower_bound(list.derived().data(), list.derived().data() + list.size(), x);
-//        if (low-list.derived().data() >= list.size() ){
-//            low--;
-//        }
-//        return  low-list.derived().data();
-//
-//    }
-//
-//    template <typename Derived, typename T, typename T_idx>
-//    inline int binary_search(const ArrayBase<Derived> &list , const T& x, const T &y, const T_idx &y_idx){
-//        //Now find the point in list closest to x, from below
-//        if (x == y){
-//            return y_idx;
-//        }
-//        if (x > y){
-//            auto low = std::lower_bound(list.derived().data() + y_idx, list.derived().data() + list.size(), x);
-//            while (low-list.derived().data() >= list.size() ){
-//                low--;
-//            }
-//            return  low-list.derived().data();
-//
-//        }
-//        else if(x < y){
-//            auto low =  std::lower_bound(list.derived().data(), list.derived().data() + y_idx, x) ;
-//            while (low-list.derived().data() >= list.size() ){
-//                low--;
-//            }
-//            return  low-list.derived().data();
-//
-//        }
-//
-//    }
+
 
 //Finds the element nearest x in an Eigen array
     template <typename Derived, typename T>
-    inline int binary_search(const ArrayBase<Derived> &list , const T x){
+    inline int binary_search_nearest(const ArrayBase<Derived> &list, const T x){
         //Now find the point in list closest to x
 
         //CPP REFERENCE lower_bound: Iterator pointing to the first element that is not less than value,
@@ -318,7 +264,7 @@ namespace math{
 
 //Finds the element nearest x in an Eigen array if we already know the index of the current value
     template <typename Derived, typename T, typename T_idx>
-    inline int binary_search(const ArrayBase<Derived> &list , const T x, const T y, const T_idx y_idx) {
+    inline int binary_search_nearest(const ArrayBase<Derived> &list, const T x, const T y, const T_idx y_idx) {
         //Now find the point in list closest to x, from below
 
         //CPP REFERENCE lower_bound: Iterator pointing to the first element that is not less than value,
@@ -370,4 +316,4 @@ namespace math{
 
 
 
-#endif //WL_NMSPC_MATH_ALGORITHMS_H
+#endif //NMSPC_MATH_ALGORITHMS_H

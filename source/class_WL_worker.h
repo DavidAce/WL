@@ -81,7 +81,7 @@ public:
 
 
     //Lattice
-    class_model model;
+    class_model model; //Takes argument L, the linear size of your lattice
     //WL Energy and Order parameter and their limits
     double E,M;                         //Current Energy and Order parameter
     double E_trial, M_trial;                 //Proposed
@@ -198,7 +198,7 @@ class class_backup{
 private:
     bool backed_up;
 public:
-    class_backup(){
+    class_backup(): model(constants::L){
         backed_up = false;
     }
     void backup_state(class_worker &worker){
@@ -225,7 +225,7 @@ public:
             MCS             = counter::MCS;
             walks           = counter::walks;
             backed_up       = true;
-//            cout << "ID: " << worker.world_ID << " Is backed up" << endl;
+            cout << "ID: " << worker.world_ID << " Is backed up" << endl;
         }
     }
 
@@ -253,7 +253,7 @@ public:
             counter::MCS        = MCS;
             counter::walks      = walks;
             backed_up = false;
-//            cout << "ID: " << worker.world_ID << " Is now restored" << endl;
+            cout << "ID: " << worker.world_ID << " Is now restored" << endl;
         }
     }
 

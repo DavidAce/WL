@@ -229,10 +229,10 @@ namespace math {
         for (int i = 0; i < E1.size(); i++) {
             if (E1(i) <  E2.minCoeff()) { continue; }
             if (E1(i) >  E2.maxCoeff()) { continue; }
-            x = math::binary_search(E2, E1(i));
+            x = math::binary_search_nearest(E2, E1(i));
             for (int j = 0; j < M1.size(); j++) {
                 if (dos1(i,j) == 0 || std::isnan(dos1(i,j)))  { continue; }
-                y = math::binary_search(M2, M1(j));
+                y = math::binary_search_nearest(M2, M1(j));
                 if (dos2(x,y) == 0 ||std::isnan(dos2(x,y)))  { continue; }
 
                 u1 = gradient_vector(dos1, E1, M1, i, j);

@@ -51,8 +51,8 @@ namespace mpi {
             MPI_Send(&worker.E, 1, MPI_DOUBLE, up, 106, MPI_COMM_WORLD);
             MPI_Send(&worker.M, 1, MPI_DOUBLE, up, 107, MPI_COMM_WORLD);
             MPI_Recv(&dos_X, 1, MPI_DOUBLE, up, 108, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            E_Y_idx = math::binary_search(worker.E_bins, E_Y);
-            M_Y_idx = math::binary_search(worker.M_bins, M_Y);
+            E_Y_idx = math::binary_search_nearest(worker.E_bins, E_Y);
+            M_Y_idx = math::binary_search_nearest(worker.M_bins, M_Y);
 
             //Swap if inside the upper window and vice versa
             swap = 1;
@@ -86,8 +86,8 @@ namespace mpi {
             MPI_Send(&worker.dos(worker.E_idx, worker.M_idx), 1, MPI_DOUBLE, dn, 105, MPI_COMM_WORLD);
             MPI_Recv(&E_X, 1, MPI_DOUBLE, dn, 106, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             MPI_Recv(&M_X, 1, MPI_DOUBLE, dn, 107, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            E_X_idx = math::binary_search(worker.E_bins, E_X);
-            M_X_idx = math::binary_search(worker.M_bins, M_X);
+            E_X_idx = math::binary_search_nearest(worker.E_bins, E_X);
+            M_X_idx = math::binary_search_nearest(worker.M_bins, M_X);
             MPI_Send(&worker.dos(E_X_idx, M_X_idx), 1, MPI_DOUBLE, dn, 108, MPI_COMM_WORLD);
             MPI_Recv(&swap, 1, MPI_INT, dn, 109, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             MPI_Recv(&copy, 1, MPI_INT, dn, 110, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
@@ -169,10 +169,10 @@ namespace mpi {
                 recv_dynamic(E_recv, MPI_DOUBLE, w);
                 recv_dynamic(M_recv, MPI_DOUBLE, w);
                 //Find average height of shared sections
-                int E_shared_low_idx = math::binary_search(E_total, fmax(E_recv.minCoeff(), E_total.minCoeff()));
-                int E_shared_high_idx = math::binary_search(E_total, fmin(E_recv.maxCoeff(), E_total.maxCoeff()));
-                int E_shared_low_up_idx = math::binary_search(E_recv, fmax(E_recv.minCoeff(), E_total.minCoeff()));
-                int E_shared_high_up_idx = math::binary_search(E_recv, fmin(E_recv.maxCoeff(), E_total.maxCoeff()));
+                int E_shared_low_idx = math::binary_search_nearest(E_total, fmax(E_recv.minCoeff(), E_total.minCoeff()));
+                int E_shared_high_idx = math::binary_search_nearest(E_total, fmin(E_recv.maxCoeff(), E_total.maxCoeff()));
+                int E_shared_low_up_idx = math::binary_search_nearest(E_recv, fmax(E_recv.minCoeff(), E_total.minCoeff()));
+                int E_shared_high_up_idx = math::binary_search_nearest(E_recv, fmin(E_recv.maxCoeff(), E_total.maxCoeff()));
 
                 double diff = math::dos_distance(dos_total.middleRows(E_shared_low_idx, E_shared_high_idx - E_shared_low_idx),
                                                  dos_recv.middleRows(E_shared_low_up_idx, E_shared_high_up_idx - E_shared_low_up_idx));
@@ -693,10 +693,10 @@ namespace mpi {
 //                recv_dynamic(E_recv  ,MPI_DOUBLE,w);
 //                recv_dynamic(M_recv  ,MPI_DOUBLE,w);
 //                //Find average height of shared sections
-//                int E_shared_low_idx    = math::binary_search(E_total, fmax(E_recv.minCoeff(), E_total.minCoeff()));
-//                int E_shared_high_idx   = math::binary_search(E_total, fmin(E_recv.maxCoeff(), E_total.maxCoeff()));
-//                int E_shared_low_up_idx = math::binary_search(E_recv , fmax(E_recv.minCoeff(), E_total.minCoeff()));
-//                int E_shared_high_up_idx= math::binary_search(E_recv , fmin(E_recv.maxCoeff(), E_total.maxCoeff()));
+//                int E_shared_low_idx    = math::binary_search_nearest(E_total, fmax(E_recv.minCoeff(), E_total.minCoeff()));
+//                int E_shared_high_idx   = math::binary_search_nearest(E_total, fmin(E_recv.maxCoeff(), E_total.maxCoeff()));
+//                int E_shared_low_up_idx = math::binary_search_nearest(E_recv , fmax(E_recv.minCoeff(), E_total.minCoeff()));
+//                int E_shared_high_up_idx= math::binary_search_nearest(E_recv , fmin(E_recv.maxCoeff(), E_total.maxCoeff()));
 //
 //                double diff = math::dos_distance(dos_total.middleRows(E_shared_low_idx   , E_shared_high_idx    - E_shared_low_idx),
 //                                                 dos_recv .middleRows(E_shared_low_up_idx, E_shared_high_up_idx - E_shared_low_up_idx) );
@@ -783,7 +783,7 @@ namespace mpi {
 //                        //2bb)E_total(i-1) != E_recv(j):  //Reason: Probably a very unvisited area, merge i and j and keep E_total(i)
 //
 //                        if (j == -1) {
-//                            j = math::binary_search(E_recv, E_total(i));
+//                            j = math::binary_search_nearest(E_recv, E_total(i));
 //                            if(debug_merge){printf(" Could not find E_total(%d) = %f. Closest match: E_recv(%d) = %f \n", i, E_total(i), j, E_recv(j));}
 //
 //                            if (i + 1 < E_total.size() && i - 1 >= 0 && j + 1 < E_recv.size() && j - 1 >= 0) {
@@ -978,10 +978,10 @@ namespace mpi {
 //                recv_dynamic(E_recv  ,MPI_DOUBLE,w);
 //                recv_dynamic(M_recv  ,MPI_DOUBLE,w);
 //                //Find average height of shared sections
-//                int E_shared_low_idx    = math::binary_search(E_total, fmax(E_recv.minCoeff(), E_total.minCoeff()));
-//                int E_shared_high_idx   = math::binary_search(E_total, fmin(E_recv.maxCoeff(), E_total.maxCoeff()));
-//                int E_shared_low_up_idx = math::binary_search(E_recv , fmax(E_recv.minCoeff(), E_total.minCoeff()));
-//                int E_shared_high_up_idx= math::binary_search(E_recv , fmin(E_recv.maxCoeff(), E_total.maxCoeff()));
+//                int E_shared_low_idx    = math::binary_search_nearest(E_total, fmax(E_recv.minCoeff(), E_total.minCoeff()));
+//                int E_shared_high_idx   = math::binary_search_nearest(E_total, fmin(E_recv.maxCoeff(), E_total.maxCoeff()));
+//                int E_shared_low_up_idx = math::binary_search_nearest(E_recv , fmax(E_recv.minCoeff(), E_total.minCoeff()));
+//                int E_shared_high_up_idx= math::binary_search_nearest(E_recv , fmin(E_recv.maxCoeff(), E_total.maxCoeff()));
 //
 //                double diff = math::dos_distance(dos_total.middleRows(E_shared_low_idx   , E_shared_high_idx    - E_shared_low_idx),
 //                                          dos_recv .middleRows(E_shared_low_up_idx, E_shared_high_up_idx - E_shared_low_up_idx) );
@@ -1167,7 +1167,7 @@ namespace mpi {
 //
 ////                dos_total.row(E_merge_idx).maxCoeff(&M_merge_idx);
 //                //Find coordinates on received dos;
-//                E_merge_idx_up = math::binary_search(E_recv, E_total(E_merge_idx));
+//                E_merge_idx_up = math::binary_search_nearest(E_recv, E_total(E_merge_idx));
 //                M_merge_idx_up = math::nanmaxCoeff_idx(dos_recv.row(E_merge_idx_up));
 ////                dos_recv.row(E_merge_idx_up).maxCoeff(&M_merge_idx_up);
 //                //Find difference between heights at these points
@@ -1743,8 +1743,8 @@ namespace mpi {
 //        worker.histogram = ArrayXXi::Zero(worker.dos.rows(), worker.dos.cols());
 //
 //        if (worker.state_in_window) {
-//            worker.E_idx = math::binary_search(worker.E_bins, worker.E);
-//            worker.M_idx = math::binary_search(worker.M_bins, worker.M);
+//            worker.E_idx = math::binary_search_nearest(worker.E_bins, worker.E);
+//            worker.M_idx = math::binary_search_nearest(worker.M_bins, worker.M);
 //        }
 //        if (worker.model.discrete_model) {
 //            worker.E_set.clear();
