@@ -876,25 +876,26 @@ void class_worker::rewind_to_lowest_walk(){
     MPI_Allreduce(&counter::walks, &min_walks, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
     counter::walks = min_walks;
     lnf = pow(constants::reduce_factor_lnf, min_walks);
+    finish_line = 0;
     saturation.clear();
     counter::MCS            = (int) (1.0/lnf);
     rewind_timers();
-    flag_one_over_t = 0;
+    help.reset();
 }
 
 void class_worker::rewind_to_zero(){
     counter::walks = 0;
     lnf = 1;
-    int save_area_merges = counter::area_merges;
     int save_vol_merges  = counter::vol_merges;
     start_counters();
-    counter::area_merges = save_area_merges;
     counter::vol_merges  = save_vol_merges;
     finish_line = 0;
     dos.fill(0);
     histogram = ArrayXXi::Zero(dos.rows(), dos.cols());
     saturation.clear();
+    rewind_timers();
     help.reset();
+    flag_one_over_t = 0;
 }
 
 void class_worker::prev_WL_iteration() {

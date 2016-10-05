@@ -559,7 +559,6 @@ namespace mpi {
             worker.t_help_setup.toc();
             return;
         }
-        //If some are finished, start by offloading any help that may be had already
         if (debug_setup_help) { debug_print(worker, "Setting up help. "); }
 
         //Now all the help.available workers need to be set up again. Two scenarios, either they've (1) helped before,
@@ -567,7 +566,7 @@ namespace mpi {
         //If (1), just take_help() and return.
         //If (2), setup from scratch.
         ArrayXi whos_helping_who_old = ArrayXi::Constant(worker.world_size, -1);  //For comparison!
-        ArrayXi whos_helping_who_new = ArrayXi::Constant(worker.world_size, -1); //For comparison!
+        ArrayXi whos_helping_who_new = ArrayXi::Constant(worker.world_size, -1);  //For comparison!
         MPI_Allgather(&worker.help.helping_id, 1, MPI_INT, whos_helping_who_old.data(), 1, MPI_INT, MPI_COMM_WORLD);
         worker.help.available       = worker.finish_line;
         worker.help.giving_help     = false;

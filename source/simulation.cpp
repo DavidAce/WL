@@ -150,8 +150,8 @@ void divide_range(class_worker &worker, class_backup &backup, outdata &out) {
             //divide dos vol
             if (worker.world_ID == 0) { cout << "Dividing according to dos VOLUME" << endl; }
             backup.restore_state(worker);
-            print_status(worker, true);
             worker.help.reset();
+            print_status(worker, true);
             mpi::merge(worker, true, false);
             mpi::divide_global_range_dos_volume(worker);
 //            worker.prev_WL_iteration();

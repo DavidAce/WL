@@ -139,6 +139,9 @@ public:
             available  = 0;
             help_walks = 0;
             MPI_COMM_HELP = MPI_COMM_NULL;
+            MPI_Comm_rank(MPI_COMM_HELP, &help_rank);
+            MPI_Comm_size(MPI_COMM_HELP, &help_size);
+
         }
         ArrayXXi histogram_recv; //Receive histogram from helpers
         bool giving_help;
