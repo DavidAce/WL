@@ -40,7 +40,7 @@ public:
                      +    lattice(math::mod(i  ,constants::L), math::mod(j-1,constants::L));
     }
 
-    inline void __attribute__((hot)) make_new_state(const double E, const double M, double &E_trial, double &M_trial){
+    inline void __attribute__((always_inline)) make_new_state(const double E, const double M, double &E_trial, double &M_trial){
         randI = rn::uniform_integer_L();
         randJ = rn::uniform_integer_L();
         //Is this correct?

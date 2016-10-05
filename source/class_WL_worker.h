@@ -156,9 +156,9 @@ public:
 
     //Functions
     void find_current_state();           //Compute current E and M (and their indices)
-    void find_next_state_exact() __attribute__((always_inline));
-    void find_next_state() __attribute__((always_inline));
-    void find_next_state(bool) __attribute__((always_inline));
+    void find_next_state_exact() __attribute__((hot));
+    void find_next_state() __attribute__((hot));
+    void find_next_state(bool) __attribute__((hot));
     void find_initial_limits();
     void start_counters();
     void rewind_timers();

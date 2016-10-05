@@ -8,15 +8,15 @@
 #define debug_sweep                     0
 #define debug_convergence               0
 #define debug_divide_range              1
-#define debug_status                    1
+#define debug_status                    0
 
 
 using namespace std;
 
 void do_simulations(class_worker &worker){
     //Begin by finding the global energy range in which to work.
-    worker.iteration = -1;
-    find_global_range(worker);
+//    worker.iteration = -1;
+//    find_global_range(worker);
     for (int i = 0; i < constants::simulation_reps; i++){
         worker.iteration = i;
         worker.rewind_to_zero();
@@ -24,21 +24,21 @@ void do_simulations(class_worker &worker){
     }
 }
 
-
-void find_global_range(class_worker &worker){
-    worker.t_total.tic();
-    worker.t_print.tic();
-    while(counter::no_global_change < constants::max_no_global_change){
-        sweep(worker);
-        if (timer::divide_range_find >= constants::rate_divide_range_find){divide_range_find(worker)      ;}
-        if (timer::print             >= constants::rate_print_status     ){print_status     (worker,false);}
-        counter::MCS++;
-        timer::print++;
-        timer::swap++;
-        timer::take_help++;
-        timer::divide_range_find++;
-    }
-}
+//
+//void find_global_range(class_worker &worker){
+//    worker.t_total.tic();
+//    worker.t_print.tic();
+//    while(counter::no_global_change < constants::max_no_global_change){
+//        sweep(worker);
+//        if (timer::divide_range_find >= constants::rate_divide_range_find){divide_range_find(worker)      ;}
+//        if (timer::print             >= constants::rate_print_status     ){print_status     (worker,false);}
+//        counter::MCS++;
+//        timer::print++;
+//        timer::swap++;
+//        timer::take_help++;
+//        timer::divide_range_find++;
+//    }
+//}
 
 
 void wanglandau(class_worker &worker){
@@ -119,31 +119,8 @@ void check_finish_line(class_worker &worker, outdata &out, int &finish_line){
 //    }
 }
 
-
-void divide_range_find(class_worker &worker) {
-    timer::divide_range_find = 0;
-    worker.t_divide_range.tic();
-    int need_to_resize;
-    MPI_Allreduce(&worker.need_to_resize_global, &need_to_resize, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-    if (need_to_resize) {
-        if (debug_divide_range) { debug_print(worker, "Dividing global energy\n"); }
-        worker.resize_global_range();
-        worker.divide_global_range_uniformly();
-        worker.synchronize_sets();
-        worker.adjust_local_bins();
-        worker.need_to_resize_global = 0;
-        worker.find_current_state();
-    } else {
-        counter::no_global_change++;
-    }
-    worker.t_divide_range.toc();
-
-}
-
-
 void divide_range(class_worker &worker, class_backup &backup, outdata &out) {
     //Three situations, and they can only happen IF nobody is helping out or is finished.
-
     //1) We need to resize global range.
     //2) We have done far too few walks to do a dos_volume resize. Then we do a dos_area instead, only if everybody is in window!!
     //3) We have done enough walks to do a dos_volume resize
@@ -161,13 +138,14 @@ void divide_range(class_worker &worker, class_backup &backup, outdata &out) {
         worker.find_current_state();
         counter::vol_merges = 0;
         worker.set_P_increment();
+        worker.prev_WL_iteration();
         return;
     }
     if (counter::vol_merges < constants::max_vol_merges) {
-        int all_in_window, in_window = worker.state_in_window;
-//            MPI_Allreduce(&counter::walks, &min_walks, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+        int all_in_window,min_walks, in_window = worker.state_in_window;
+        MPI_Allreduce(&counter::walks, &min_walks, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
         MPI_Allreduce(&in_window, &all_in_window, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
-        if (all_in_window) {
+        if (all_in_window && min_walks >= counter::vol_merges) {
             //divide dos vol
             backup.restore_state(worker);
             print_status(worker, true);
@@ -175,15 +153,12 @@ void divide_range(class_worker &worker, class_backup &backup, outdata &out) {
             if (worker.world_ID == 0) { cout << "Dividing according to dos VOLUME" << endl; }
             mpi::merge(worker, true, false);
             mpi::divide_global_range_dos_volume(worker);
+//            worker.prev_WL_iteration();
+            worker.rewind_to_lowest_walk();
             worker.set_P_increment();
             counter::vol_merges++;
-//                if (counter::vol_merges == constants::max_vol_merges) {
-//                    worker.rewind_to_zero();
-//                }
         }
     }
-
-
     worker.t_divide_range.toc();
 }
 
@@ -229,10 +204,9 @@ void print_status(class_worker &worker, bool force) {
                     << " iw: "    << worker.state_in_window
                     << " NR: "    << worker.need_to_resize_global
                     << " 1/t: "   << worker.flag_one_over_t
-                    << " Fin: "   << worker.finish_line;
-                    if(debug_status){
-               cout << " slope "  << left << setw(10) << worker.slope;
-                    }
+                    << " Fin: "   << worker.finish_line
+                    << " slope "  << left << setw(10) << worker.slope;
+
                cout << " MCS: "   << left << setw(10) << counter::MCS;
                 worker.t_print               .print_delta();
                 worker.t_sweep               .print_total_reset();
@@ -256,9 +230,8 @@ void print_status(class_worker &worker, bool force) {
     if (worker.world_ID == 0){
         cout    << "-----"
                 << " MaxWalks: "    << fixed << setprecision(0) << (int) ceil(log(constants::minimum_lnf)/log(constants::reduce_factor_lnf))
-                << " Area Merges: " << fixed << setprecision(0) << counter::area_merges << "("<< constants::max_area_merges << ")"
-                << " Vol Merges: "  << fixed << setprecision(0) << counter::vol_merges  << "("<< constants::max_vol_merges  << ")"
-                << " Iteration: "   << fixed << setprecision(0) << worker.iteration     << "("<< constants::simulation_reps << ")";
+                << " Merges: "      << fixed << setprecision(0) << counter::vol_merges  << "("<< constants::max_vol_merges  << ")"
+                << " Iteration: "   << fixed << setprecision(0) << worker.iteration+1   << "("<< constants::simulation_reps << ")";
                 worker.t_total.print_total<double>(); cout << " s";
                 if(debug_status){
                     cout    << " Edge dos: " << fixed << setprecision(3)

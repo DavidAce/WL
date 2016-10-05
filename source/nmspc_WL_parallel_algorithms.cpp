@@ -492,16 +492,18 @@ namespace mpi {
                 //Somebody made progress, then get everybody up to speed
                 //Now broadcast an updated dos:
                 if (debug_take_help) {
-                    if (out.highest_idx == worker.help.help_rank) {
+//                    if (out.highest_idx == worker.help.help_rank) {
                         cout << "ID: " << worker.world_ID
                              << " Broadcast from " << out.highest_idx
-                             << " (helping = " << worker.help.helping_id << ")"
+                             << " (helping: " << worker.help.helping_id << ")"
+                             << " MCS: " << counter::MCS
+                             << " Slope: " << worker.slope
                              << " Size: " << worker.help.help_size
                              << " Walks: " << counter::walks
                              << " Highest walks: " << out.highest_walk
                              << " Current walks: " << worker.help.help_walks
                              << endl;
-                    }
+//                    }
                 }
                 MPI_Bcast(worker.dos.data(), (int) worker.dos.size(), MPI_DOUBLE, out.highest_idx, worker.help.MPI_COMM_HELP);
                 worker.help.help_walks = out.highest_walk;
@@ -516,33 +518,27 @@ namespace mpi {
                 worker.histogram.fill(0);
                 worker.saturation.clear();
             } else {
-
-                worker.t_merge.tic();
                 ArrayXXi histogram_incr = worker.histogram - worker.help.histogram_recv; //histogram_recv contains the old (synced) histogram
-                ArrayXXi histogram_sum = histogram_incr;
                 for (int i = 0; i < worker.help.help_size; i++) {
                     if (i == worker.help.help_rank) {
                         worker.help.histogram_recv = histogram_incr;
                     }
+                    worker.t_merge.tic();
                     MPI_Bcast(worker.help.histogram_recv.data(), (int) worker.help.histogram_recv.size(), MPI_INT, i, worker.help.MPI_COMM_HELP);
+                    worker.t_merge.toc();
                     if (i != worker.help.help_rank) {
+
                         //Add received histogram to your own
-                        histogram_sum += worker.help.histogram_recv;
-//                    worker.histogram        += worker.help.histogram_recv;
-//                    worker.dos              += worker.help.histogram_recv.cast<double>() * worker.lnf;
-//                    counter::MCS            += constants::rate_take_help;
-//                    timer::add_hist_volume  += constants::rate_take_help;
-//                    timer::check_saturation += constants::rate_take_help;
-//                    worker.add_hist_volume();
+                        worker.histogram        += worker.help.histogram_recv;
+                        worker.dos              += worker.help.histogram_recv.cast<double>() * worker.lnf;
+                        counter::MCS            += constants::rate_take_help;
+                        timer::add_hist_volume  += constants::rate_take_help;
+                        timer::check_saturation += constants::rate_take_help;
+                        worker.add_hist_volume();
+
                     }
+
                 }
-                worker.histogram += histogram_sum;
-                worker.dos += histogram_sum.cast<double>() * worker.lnf;
-                counter::MCS += worker.help.help_size * constants::rate_take_help;
-                timer::add_hist_volume += worker.help.help_size * constants::rate_take_help;
-                timer::check_saturation += worker.help.help_size * constants::rate_take_help;
-                worker.add_hist_volume();
-                worker.t_merge.toc();
             }
 
             worker.help.histogram_recv = worker.histogram;
