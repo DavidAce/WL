@@ -19,12 +19,12 @@
 void do_simulations     (class_worker &);
 void find_global_range  (class_worker &);
 void wanglandau         (class_worker &);
-void sweep              (class_worker &);
-void check_convergence  (class_worker &, outdata &out, int &);
-void divide_range_find       (class_worker &);
-void divide_range       (class_worker &, class_backup &, outdata &);
+void sweep              (class_worker &)                            __attribute__((hot));
+void check_finish_line(class_worker &, outdata &out, int &)       __attribute__((hot));
+void divide_range_find  (class_worker &)                            __attribute__((hot));
+void divide_range       (class_worker &, class_backup &, outdata &) __attribute__((hot));
 void backup_to_file(class_worker &, outdata &);
-void print_status       (class_worker &, bool force);
+void print_status       (class_worker &, bool force)                __attribute__((hot));
 
 
 template <typename T>

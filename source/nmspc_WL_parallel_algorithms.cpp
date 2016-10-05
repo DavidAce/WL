@@ -14,142 +14,138 @@ using namespace std;
 namespace mpi {
     void swap(class_worker &worker) {
         //Use MPI Tag in the 100-200 range
-        if (timer::swap >= constants::rate_swap) {
-            timer::swap = 0;
-            worker.t_swap.tic();
-            int abort;
-            MPI_Allreduce(&worker.need_to_resize_global, &abort, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-            if (abort) { worker.t_swap.toc();return; }
-            int swap, copy;
-            double dos_X, dos_Y;
-            double E_X, E_Y, M_X, M_Y;
-            int    E_X_idx, E_Y_idx, M_X_idx, M_Y_idx;
-            double E_min_up, E_max_up;
-            double P_swap;      //Swap probability
-            bool   myTurn = math::mod(worker.world_ID, 2) == math::mod(counter::swaps, 2);
-
-            int up = math::mod(worker.world_ID + 1, worker.world_size);
-            int dn = math::mod(worker.world_ID - 1, worker.world_size);
-            if (debug_swap) {
-                for (int w = 0; w < worker.world_size; w++) {
-                    if (w == worker.world_ID) {
-                        cout << "ID: " << w << " Starting Swap. Myturn = " << myTurn << endl;
-                    }
-                    MPI_Barrier(MPI_COMM_WORLD);
-                }
-            }
-            if (worker.state_in_window != worker.check_in_window(worker.E)){
-                cout << "Worker is not really in window! Swap failed!" << endl;
-                exit(1);
-            }
-
-            if (myTurn) {
-                //Receive relevant info
-                MPI_Recv(&E_Y     , 1, MPI_DOUBLE, up, 101, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-                MPI_Recv(&M_Y     , 1, MPI_DOUBLE, up, 102, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-                MPI_Recv(&E_min_up, 1, MPI_DOUBLE, up, 103, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-                MPI_Recv(&E_max_up, 1, MPI_DOUBLE, up, 104, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-                MPI_Recv(&dos_Y   , 1, MPI_DOUBLE, up, 105, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-                MPI_Send(&worker.E, 1, MPI_DOUBLE, up, 106, MPI_COMM_WORLD);
-                MPI_Send(&worker.M, 1, MPI_DOUBLE, up, 107, MPI_COMM_WORLD);
-                MPI_Recv(&dos_X   , 1, MPI_DOUBLE, up, 108, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-                E_Y_idx = math::binary_search(worker.E_bins, E_Y);
-                M_Y_idx = math::binary_search(worker.M_bins, M_Y);
-
-                //Swap if inside the upper window and vice versa
-                swap = 1;
-                swap = swap &&  worker.E >= E_min_up && E_Y <= worker.E_max_local;
-                swap = swap &&  worker.E <= E_max_up && E_Y >= worker.E_min_local;
-                swap = swap &&  worker.check_in_window(worker.E);
-                swap = swap &&  E_Y <= E_max_up && E_Y >= E_min_up;
-                //Swap with probability P_swap
-                if (swap) {
-                    P_swap = exp(worker.dos(worker.E_idx, worker.M_idx)
-                                 - worker.dos(E_Y_idx, M_Y_idx)
-                                 + dos_Y
-                                 - dos_X);
-                }else{P_swap = 0;}
-                swap = swap && rn::uniform_double_1() < fmin(1, P_swap);
-                //Make sure the last worker doesn't swap!
-                swap = swap &&  worker.world_ID != worker.world_size - 1;
-
-                //Even if you don't swap you might still want to copy! Unless you're helping out.
-                copy = !swap && !worker.state_in_window && ((worker.E < E_Y && worker.E < worker.E_min_local) ||
-                                                          (worker.E > E_Y && worker.E > worker.E_max_local));
-                copy = copy && !worker.help.giving_help;
-                MPI_Send(&swap, 1, MPI_INT, up, 109, MPI_COMM_WORLD);
-                MPI_Send(&copy, 1, MPI_INT, up, 110, MPI_COMM_WORLD);
-
-            } else {
-                MPI_Send(&worker.E                              , 1, MPI_DOUBLE, dn, 101, MPI_COMM_WORLD);
-                MPI_Send(&worker.M                              , 1, MPI_DOUBLE, dn, 102, MPI_COMM_WORLD);
-                MPI_Send(&worker.E_min_local                    , 1, MPI_DOUBLE, dn, 103, MPI_COMM_WORLD);
-                MPI_Send(&worker.E_max_local                    , 1, MPI_DOUBLE, dn, 104, MPI_COMM_WORLD);
-                MPI_Send(&worker.dos(worker.E_idx,worker.M_idx) , 1, MPI_DOUBLE, dn, 105, MPI_COMM_WORLD);
-                MPI_Recv(&E_X                                   , 1, MPI_DOUBLE, dn, 106, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-                MPI_Recv(&M_X                                   , 1, MPI_DOUBLE, dn, 107, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-                E_X_idx = math::binary_search(worker.E_bins, E_X);
-                M_X_idx = math::binary_search(worker.M_bins, M_X);
-                MPI_Send(&worker.dos(E_X_idx, M_X_idx)          , 1, MPI_DOUBLE, dn, 108, MPI_COMM_WORLD);
-                MPI_Recv(&swap                                  , 1, MPI_INT   , dn, 109, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                MPI_Recv(&copy                                  , 1, MPI_INT   , dn, 110, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            }
-
-            if (debug_swap) {
-                for (int w = 0; w < worker.world_size; w++) {
-                    if (w == worker.world_ID) {
-                        cout << "ID: " << w << " Swap = " << swap << " Copy = " << copy << endl;
-                    }
-                    MPI_Barrier(MPI_COMM_WORLD);
-                }
-            }
-
-
-
-            if(debug_swap){debug_print(worker,"Starting swap\n");}
-
-            //Now do the swapping if you got lucky
-            if (myTurn) {
-                if (swap == 1) {
-                    MPI_Sendrecv_replace(worker.model.lattice.data(), (int) worker.model.lattice.size(), MPI_INT, up,
-                                         111, up, 111, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                    worker.E = E_Y;
-                    worker.M = M_Y;
-                    worker.find_current_state();
-                } else if (copy == 1) {
-                    MPI_Recv(worker.model.lattice.data(), (int) worker.model.lattice.size(), MPI_INT, up, 112,
-                             MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                    worker.E = E_Y;
-                    worker.M = M_Y;
-                    worker.find_current_state();
-                }
-            } else {
-                if (swap == 1) {
-                    MPI_Sendrecv_replace(worker.model.lattice.data(), (int) worker.model.lattice.size(), MPI_INT, dn,
-                                         111, dn, 111, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                    worker.E = E_X;
-                    worker.M = M_X;
-                    worker.find_current_state();
-                } else if (copy == 1) {
-                    MPI_Send(worker.model.lattice.data(), (int) worker.model.lattice.size(), MPI_INT, dn, 112,
-                             MPI_COMM_WORLD);
-                }
-            }
-
-
-            if(debug_swap){debug_print(worker,"Swap OK\n");}
-
-            counter::swap_accepts += swap;
-            counter::swaps++;
+        timer::swap = 0;
+        worker.t_swap.tic();
+        int abort;
+        MPI_Allreduce(&worker.need_to_resize_global, &abort, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+        if (abort) {
             worker.t_swap.toc();
+            return;
         }
+        int swap, copy;
+        double dos_X, dos_Y;
+        double E_X, E_Y, M_X, M_Y;
+        int E_X_idx, E_Y_idx, M_X_idx, M_Y_idx;
+        double E_min_up, E_max_up;
+        double P_swap;      //Swap probability
+        bool myTurn = math::mod(worker.world_ID, 2) == math::mod(counter::swaps, 2);
+
+        int up = math::mod(worker.world_ID + 1, worker.world_size);
+        int dn = math::mod(worker.world_ID - 1, worker.world_size);
+        if (debug_swap) {
+            for (int w = 0; w < worker.world_size; w++) {
+                if (w == worker.world_ID) {
+                    cout << "ID: " << w << " Starting Swap. Myturn = " << myTurn << endl;
+                }
+                MPI_Barrier(MPI_COMM_WORLD);
+            }
+        }
+
+        if (myTurn) {
+            //Receive relevant info
+            MPI_Recv(&E_Y, 1, MPI_DOUBLE, up, 101, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Recv(&M_Y, 1, MPI_DOUBLE, up, 102, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Recv(&E_min_up, 1, MPI_DOUBLE, up, 103, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Recv(&E_max_up, 1, MPI_DOUBLE, up, 104, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Recv(&dos_Y, 1, MPI_DOUBLE, up, 105, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Send(&worker.E, 1, MPI_DOUBLE, up, 106, MPI_COMM_WORLD);
+            MPI_Send(&worker.M, 1, MPI_DOUBLE, up, 107, MPI_COMM_WORLD);
+            MPI_Recv(&dos_X, 1, MPI_DOUBLE, up, 108, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            E_Y_idx = math::binary_search(worker.E_bins, E_Y);
+            M_Y_idx = math::binary_search(worker.M_bins, M_Y);
+
+            //Swap if inside the upper window and vice versa
+            swap = 1;
+            swap = swap && worker.E >= E_min_up && E_Y <= worker.E_max_local;
+            swap = swap && worker.E <= E_max_up && E_Y >= worker.E_min_local;
+            swap = swap && worker.check_in_window(worker.E);
+            swap = swap && E_Y <= E_max_up && E_Y >= E_min_up;
+            //Swap with probability P_swap
+            if (swap) {
+                P_swap = exp(worker.dos(worker.E_idx, worker.M_idx)
+                             - worker.dos(E_Y_idx, M_Y_idx)
+                             + dos_Y
+                             - dos_X);
+            } else { P_swap = 0; }
+            swap = swap && rn::uniform_double_1() < fmin(1, P_swap);
+            //Make sure the last worker doesn't swap!
+            swap = swap && worker.world_ID != worker.world_size - 1;
+
+            //Even if you don't swap you might still want to copy! Unless you're helping out.
+            copy = !swap && !worker.state_in_window && ((worker.E < E_Y && worker.E < worker.E_min_local) ||
+                                                        (worker.E > E_Y && worker.E > worker.E_max_local));
+            copy = copy && !worker.help.giving_help;
+            MPI_Send(&swap, 1, MPI_INT, up, 109, MPI_COMM_WORLD);
+            MPI_Send(&copy, 1, MPI_INT, up, 110, MPI_COMM_WORLD);
+
+        } else {
+            MPI_Send(&worker.E, 1, MPI_DOUBLE, dn, 101, MPI_COMM_WORLD);
+            MPI_Send(&worker.M, 1, MPI_DOUBLE, dn, 102, MPI_COMM_WORLD);
+            MPI_Send(&worker.E_min_local, 1, MPI_DOUBLE, dn, 103, MPI_COMM_WORLD);
+            MPI_Send(&worker.E_max_local, 1, MPI_DOUBLE, dn, 104, MPI_COMM_WORLD);
+            MPI_Send(&worker.dos(worker.E_idx, worker.M_idx), 1, MPI_DOUBLE, dn, 105, MPI_COMM_WORLD);
+            MPI_Recv(&E_X, 1, MPI_DOUBLE, dn, 106, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Recv(&M_X, 1, MPI_DOUBLE, dn, 107, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            E_X_idx = math::binary_search(worker.E_bins, E_X);
+            M_X_idx = math::binary_search(worker.M_bins, M_X);
+            MPI_Send(&worker.dos(E_X_idx, M_X_idx), 1, MPI_DOUBLE, dn, 108, MPI_COMM_WORLD);
+            MPI_Recv(&swap, 1, MPI_INT, dn, 109, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Recv(&copy, 1, MPI_INT, dn, 110, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        }
+
+        if (debug_swap) {
+            for (int w = 0; w < worker.world_size; w++) {
+                if (w == worker.world_ID) {
+                    cout << "ID: " << w << " Swap = " << swap << " Copy = " << copy << endl;
+                }
+                MPI_Barrier(MPI_COMM_WORLD);
+            }
+        }
+
+
+        if (debug_swap) { debug_print(worker, "Starting swap\n"); }
+
+        //Now do the swapping if you got lucky
+        if (myTurn) {
+            if (swap == 1) {
+                MPI_Sendrecv_replace(worker.model.lattice.data(), (int) worker.model.lattice.size(), MPI_INT, up,
+                                     111, up, 111, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                worker.E = E_Y;
+                worker.M = M_Y;
+                worker.find_current_state();
+            } else if (copy == 1) {
+                MPI_Recv(worker.model.lattice.data(), (int) worker.model.lattice.size(), MPI_INT, up, 112,
+                         MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                worker.E = E_Y;
+                worker.M = M_Y;
+                worker.find_current_state();
+            }
+        } else {
+            if (swap == 1) {
+                MPI_Sendrecv_replace(worker.model.lattice.data(), (int) worker.model.lattice.size(), MPI_INT, dn,
+                                     111, dn, 111, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                worker.E = E_X;
+                worker.M = M_X;
+                worker.find_current_state();
+            } else if (copy == 1) {
+                MPI_Send(worker.model.lattice.data(), (int) worker.model.lattice.size(), MPI_INT, dn, 112,
+                         MPI_COMM_WORLD);
+            }
+        }
+
+
+        if (debug_swap) { debug_print(worker, "Swap OK\n"); }
+
+        counter::swap_accepts += swap;
+        counter::swaps++;
+        worker.t_swap.toc();
     }
 
     void merge(class_worker &worker, bool broadcast, bool setNaN) {
-        if(debug_merge){debug_print(worker,"\nMerging. ");}
+        if (debug_merge) { debug_print(worker, "\nMerging. "); }
         ArrayXXd dos_total;
-        ArrayXd  E_total;
-        ArrayXd  M_total;
+        ArrayXd E_total;
+        ArrayXd M_total;
         //Start by trimming
 
 
@@ -169,17 +165,17 @@ namespace mpi {
                 }
                 ArrayXXd dos_recv;
                 ArrayXd E_recv, M_recv;
-                recv_dynamic(dos_recv,MPI_DOUBLE,w);
-                recv_dynamic(E_recv  ,MPI_DOUBLE,w);
-                recv_dynamic(M_recv  ,MPI_DOUBLE,w);
+                recv_dynamic(dos_recv, MPI_DOUBLE, w);
+                recv_dynamic(E_recv, MPI_DOUBLE, w);
+                recv_dynamic(M_recv, MPI_DOUBLE, w);
                 //Find average height of shared sections
-                int E_shared_low_idx    = math::binary_search(E_total, fmax(E_recv.minCoeff(), E_total.minCoeff()));
-                int E_shared_high_idx   = math::binary_search(E_total, fmin(E_recv.maxCoeff(), E_total.maxCoeff()));
-                int E_shared_low_up_idx = math::binary_search(E_recv , fmax(E_recv.minCoeff(), E_total.minCoeff()));
-                int E_shared_high_up_idx= math::binary_search(E_recv , fmin(E_recv.maxCoeff(), E_total.maxCoeff()));
+                int E_shared_low_idx = math::binary_search(E_total, fmax(E_recv.minCoeff(), E_total.minCoeff()));
+                int E_shared_high_idx = math::binary_search(E_total, fmin(E_recv.maxCoeff(), E_total.maxCoeff()));
+                int E_shared_low_up_idx = math::binary_search(E_recv, fmax(E_recv.minCoeff(), E_total.minCoeff()));
+                int E_shared_high_up_idx = math::binary_search(E_recv, fmin(E_recv.maxCoeff(), E_total.maxCoeff()));
 
-                double diff = math::dos_distance(dos_total.middleRows(E_shared_low_idx   , E_shared_high_idx    - E_shared_low_idx),
-                                                 dos_recv .middleRows(E_shared_low_up_idx, E_shared_high_up_idx - E_shared_low_up_idx) );
+                double diff = math::dos_distance(dos_total.middleRows(E_shared_low_idx, E_shared_high_idx - E_shared_low_idx),
+                                                 dos_recv.middleRows(E_shared_low_up_idx, E_shared_high_up_idx - E_shared_low_up_idx));
 
                 //Add that difference to the next
                 if (std::isnan(diff)) {
@@ -195,15 +191,15 @@ namespace mpi {
 
                 if (debug_merge) {
                     int zero_rows = 0;
-                    int rows_total      = E_shared_high_idx     -  E_shared_low_idx;
-                    int rows_total_up   = E_shared_high_up_idx  -  E_shared_low_up_idx;
-                    for (int i = 0; i <dos_recv.rows(); i++){
-                        if((dos_recv.row(i) == 0).all()){
+                    int rows_total = E_shared_high_idx - E_shared_low_idx;
+                    int rows_total_up = E_shared_high_up_idx - E_shared_low_up_idx;
+                    for (int i = 0; i < dos_recv.rows(); i++) {
+                        if ((dos_recv.row(i) == 0).all()) {
                             zero_rows += 1;
                         }
                     }
                     cout << setprecision(2) << fixed;
-                    if (rows_total  != rows_total_up){
+                    if (rows_total != rows_total_up) {
                         cout << "Rows mismatch!!" << endl;
                     }
                     cout << "Concatenating " << w - 1 << " and " << w << endl;
@@ -229,9 +225,9 @@ namespace mpi {
                 double weight;
                 double E_span = fmax(E_total(E_shared_high_idx) - E_total(E_shared_low_idx), E_recv(E_shared_high_up_idx) - E_recv(E_shared_low_up_idx));
                 vector<ArrayXd> dos_merge;
-                vector<double>  E_merge;
-                if(debug_merge){cout << "Merging " << w-1 << " and " << w<< endl;}
-                for(int i = 0; i < E_total.size(); i++) {
+                vector<double> E_merge;
+                if (debug_merge) { cout << "Merging " << w - 1 << " and " << w << endl; }
+                for (int i = 0; i < E_total.size(); i++) {
                     if (i < E_shared_low_idx) {
                         //Take E_total(i)
                         dos_merge.push_back(dos_total.row(i));
@@ -268,9 +264,9 @@ namespace mpi {
                     }
                 }
 
-                for (int j = 0; j < E_recv.size(); j++){
+                for (int j = 0; j < E_recv.size(); j++) {
                     //Check that it hasn't been used already
-                    if (j <= E_shared_high_up_idx){continue;}
+                    if (j <= E_shared_high_up_idx) { continue; }
                     //Take E_recv(j)
                     dos_merge.push_back(dos_recv.row(j));
                     E_merge.push_back(E_recv(j));
@@ -284,9 +280,9 @@ namespace mpi {
 
                 dos_total.resize(dos_merge.size(), M_recv.size());
                 E_total.resize(E_merge.size());
-                for (unsigned int i = 0; i < dos_merge.size(); i++){
-                    dos_total.row(i)    = dos_merge[i];
-                    E_total(i)          = E_merge[i];
+                for (unsigned int i = 0; i < dos_merge.size(); i++) {
+                    dos_total.row(i) = dos_merge[i];
+                    E_total(i) = E_merge[i];
                 }
                 dos_merge.clear();
                 E_merge.clear();
@@ -296,28 +292,386 @@ namespace mpi {
                     std::this_thread::sleep_for(std::chrono::microseconds(1000));
                 }
             } else if (w == worker.world_ID) {
-                send_dynamic(worker.dos   ,MPI_DOUBLE,0);
-                send_dynamic(worker.E_bins,MPI_DOUBLE,0);
-                send_dynamic(worker.M_bins,MPI_DOUBLE,0);
+                send_dynamic(worker.dos, MPI_DOUBLE, 0);
+                send_dynamic(worker.E_bins, MPI_DOUBLE, 0);
+                send_dynamic(worker.M_bins, MPI_DOUBLE, 0);
             }
             MPI_Barrier(MPI_COMM_WORLD);
         }
 
-        if (setNaN){
+        if (setNaN) {
             if (worker.world_ID == 0) {
                 math::subtract_min_nonzero_nan(dos_total);
             }
         }
         if (worker.world_ID == 0) {
             //Let the master worker have the results
-            worker.dos_total    = dos_total;
+            worker.dos_total = dos_total;
             worker.E_bins_total = E_total;
             worker.M_bins_total = M_total;
         }
-        if (broadcast){
+        if (broadcast) {
             broadcast_merger(worker);
         }
     }
+
+    void broadcast_merger(class_worker &worker) {
+        if (debug_bcast) { debug_print(worker, "\nBroadcasting raw to workers "); }
+        mpi::bcast_dynamic(worker.dos_total, MPI_DOUBLE, 0);
+        mpi::bcast_dynamic(worker.E_bins_total, MPI_DOUBLE, 0);
+        mpi::bcast_dynamic(worker.M_bins_total, MPI_DOUBLE, 0);
+        if (debug_bcast) { debug_print(worker, "Broadcast OK! \n "); }
+    }
+
+    void divide_global_range_dos_area(class_worker &worker) {
+        //Update limits
+        if (debug_divide) { debug_print(worker, "\n Dividing Area. "); }
+        double global_range = math::area(worker.dos_total, worker.E_bins_total, worker.M_bins_total);
+        double local_range = global_range / worker.world_size;
+        double x = constants::overlap_factor_dos_area / (1 - constants::overlap_factor_dos_area / 2);
+        double overlap_range = local_range * x;//2.0*(worker.world_size - 2.0 + x)/worker.world_size;
+        //The overlap_range is the total range in a domain that will have overlap, either up or down.
+        //Find the boundaries of the DOS domain that gives every worker the  same DOS volume to work on
+        int E_min_local_idx, E_max_local_idx;
+        if (worker.world_ID == 0) { overlap_range = overlap_range / 2; }
+        else if (worker.world_ID == worker.world_size - 1) { overlap_range = overlap_range / 2; }
+        else { overlap_range = overlap_range / 4; }
+        E_min_local_idx = math::area_idx(worker.dos_total, worker.E_bins_total, worker.M_bins_total,
+                                         worker.world_ID * local_range - overlap_range);
+        E_max_local_idx = math::area_idx(worker.dos_total, worker.E_bins_total, worker.M_bins_total,
+                                         (worker.world_ID + 1) * local_range + overlap_range);
+        while (E_max_local_idx - E_min_local_idx < constants::bins) {
+            E_min_local_idx--;
+            E_max_local_idx++;
+            E_min_local_idx = max(E_min_local_idx, 0);
+            E_max_local_idx = min(E_max_local_idx, (int) worker.E_bins_total.size() - 1);
+        }
+
+        worker.E_min_local = worker.E_bins_total(E_min_local_idx);
+        worker.E_max_local = worker.E_bins_total(E_max_local_idx);
+        worker.M_min_local = worker.M_min_global;
+        worker.M_max_local = worker.M_max_global;
+        if (debug_divide) { debug_print(worker, " Inheriting from dos_total. "); }
+
+        //Inherit the corresponding part of the dos
+        int from = E_min_local_idx;
+        int rows = E_max_local_idx - E_min_local_idx + 1;
+
+        if (from + rows > worker.E_bins_total.size()) {
+            cout << "TOO MANY ROWS   |  from + rows = " << from + rows << " E_bins_total.size() = "
+                 << worker.E_bins_total.size() << endl;
+            cout << worker << endl;
+            cout.flush();
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            MPI_Finalize();
+            exit(15);
+        }
+
+
+        worker.dos = worker.dos_total.middleRows(from, rows);
+        worker.E_bins = worker.E_bins_total.segment(from, rows);
+        worker.histogram = ArrayXXi::Zero(worker.dos.rows(), worker.dos.cols());
+        worker.find_current_state();
+
+        if (worker.model.discrete_model) {
+            worker.E_set.clear();
+            for (int i = 0; i < worker.E_bins.size(); i++) {
+                worker.E_set.insert(worker.E_bins(i));
+            }
+        }
+
+        if (debug_divide) {
+            for (int w = 0; w < worker.world_size; w++) {
+                if (w == worker.world_ID) {
+                    cout << setprecision(2);
+                    cout << "ID: " << w << " Bounds : " << worker.E_min_local << " " << worker.E_max_local << endl;
+                    cout << worker.E_bins.transpose() << endl;
+                    cout.flush();
+                    std::this_thread::sleep_for(std::chrono::microseconds(1000));
+                }
+                MPI_Barrier(MPI_COMM_WORLD);
+            }
+            cout.flush();
+            std::this_thread::sleep_for(std::chrono::microseconds(1000));
+        }
+        if (debug_divide) { debug_print(worker, " Merged OK. \n "); }
+
+    }
+
+    void divide_global_range_dos_volume(class_worker &worker) {
+
+        if (debug_divide) { debug_print(worker, " \nDividing dos volume "); }
+
+        double global_range = math::volume(worker.dos_total, worker.E_bins_total, worker.M_bins_total);
+        double local_range = global_range / worker.world_size;
+        double x = constants::overlap_factor_dos_vol / (1 - constants::overlap_factor_dos_vol / 2);
+        double overlap_range = local_range * x;
+        //The overlap_range is the total range in a domain that will have overlap, either up or down.
+        //Find the boundaries of the DOS domain that gives every worker the  same DOS volume to work on
+        int E_min_local_idx, E_max_local_idx;
+        if (worker.world_ID == 0) { overlap_range = overlap_range / 2; }
+        else if (worker.world_ID == worker.world_size - 1) { overlap_range = overlap_range / 2; }
+        else { overlap_range = overlap_range / 4; }
+        E_min_local_idx = math::volume_idx(worker.dos_total, worker.E_bins_total, worker.M_bins_total,
+                                           worker.world_ID * local_range - overlap_range);
+        E_max_local_idx = math::volume_idx(worker.dos_total, worker.E_bins_total, worker.M_bins_total,
+                                           (worker.world_ID + 1) * local_range + overlap_range);
+
+        while (E_max_local_idx - E_min_local_idx < constants::bins) {
+            E_min_local_idx--;
+            E_max_local_idx++;
+            E_min_local_idx = max(E_min_local_idx, 0);
+            E_max_local_idx = min(E_max_local_idx, (int) worker.E_bins_total.size() - 1);
+        }
+
+        worker.E_min_local = worker.E_bins_total(E_min_local_idx);
+        worker.E_max_local = worker.E_bins_total(E_max_local_idx);
+        worker.M_min_local = worker.M_min_global;
+        worker.M_max_local = worker.M_max_global;
+        if (debug_divide) { debug_print(worker, " Inheriting from dos_total "); }
+
+        //Inherit the corresponding part of the dos
+        int from = E_min_local_idx;
+        int rows = E_max_local_idx - E_min_local_idx + 1;
+
+        if (from + rows > worker.E_bins_total.size()) {
+            cout << "TOO MANY ROWS   |  from + rows = " << from + rows << " E_bins_total.size() = "
+                 << worker.E_bins_total.size() << endl;
+            cout << worker << endl;
+            cout.flush();
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            MPI_Finalize();
+            exit(15);
+        }
+
+
+        worker.dos = worker.dos_total.middleRows(from, rows);
+        worker.E_bins = worker.E_bins_total.segment(from, rows);
+        worker.histogram = ArrayXXi::Zero(worker.dos.rows(), worker.dos.cols());
+        worker.state_in_window = worker.check_in_window(worker.E);
+        worker.find_current_state();
+
+        if (worker.model.discrete_model) {
+            worker.E_set.clear();
+            for (int i = 0; i < worker.E_bins.size(); i++) {
+                worker.E_set.insert(worker.E_bins(i));
+            }
+        }
+
+        if (debug_divide) {
+            for (int w = 0; w < worker.world_size; w++) {
+                if (w == worker.world_ID) {
+                    cout << setprecision(2);
+                    cout << "ID: " << w << " Bounds : " << worker.E_min_local << " " << worker.E_max_local << endl;
+                    cout << worker.E_bins.transpose() << endl;
+                    cout.flush();
+                    std::this_thread::sleep_for(std::chrono::microseconds(1000));
+                }
+                MPI_Barrier(MPI_COMM_WORLD);
+            }
+            cout.flush();
+            std::this_thread::sleep_for(std::chrono::microseconds(1000));
+        }
+        if (debug_divide) { debug_print(worker, " Merge OK.\n "); }
+
+    }
+
+    void take_help(class_worker &worker) {
+        //Check if anybody was able to do a walk
+        timer::take_help = 0;
+        if (worker.help.MPI_COMM_HELP != MPI_COMM_NULL) {
+            worker.t_help.tic();
+            struct {
+                int highest_walk;
+                int highest_idx;
+            } in, out;
+            in.highest_walk = counter::walks;
+            in.highest_idx = worker.help.help_rank;
+            MPI_Allreduce(&in, &out, 1, MPI_2INT, MPI_MAXLOC, worker.help.MPI_COMM_HELP);
+            if (out.highest_walk > worker.help.help_walks) {
+                //Somebody made progress, then get everybody up to speed
+                //Now broadcast an updated dos:
+                if (debug_take_help) {
+                    if (out.highest_idx == worker.help.help_rank) {
+                        cout << "ID: " << worker.world_ID
+                             << " Broadcast from " << out.highest_idx
+                             << " (helping = " << worker.help.helping_id << ")"
+                             << " Size: " << worker.help.help_size
+                             << " Walks: " << counter::walks
+                             << " Highest walks: " << out.highest_walk
+                             << " Current walks: " << worker.help.help_walks
+                             << endl;
+                    }
+                }
+                MPI_Bcast(worker.dos.data(), (int) worker.dos.size(), MPI_DOUBLE, out.highest_idx, worker.help.MPI_COMM_HELP);
+                worker.help.help_walks = out.highest_walk;
+                for (int i = 0; i < out.highest_walk - counter::walks; i++) {
+                    worker.next_WL_iteration();
+                    if (debug_take_help) {
+                        cout << "ID: " << worker.world_ID
+                             << " moved to " << counter::walks
+                             << endl;
+                    }
+                }
+                worker.histogram.fill(0);
+                worker.saturation.clear();
+            } else {
+
+                worker.t_merge.tic();
+                ArrayXXi histogram_incr = worker.histogram - worker.help.histogram_recv; //histogram_recv contains the old (synced) histogram
+                ArrayXXi histogram_sum = histogram_incr;
+                for (int i = 0; i < worker.help.help_size; i++) {
+                    if (i == worker.help.help_rank) {
+                        worker.help.histogram_recv = histogram_incr;
+                    }
+                    MPI_Bcast(worker.help.histogram_recv.data(), (int) worker.help.histogram_recv.size(), MPI_INT, i, worker.help.MPI_COMM_HELP);
+                    if (i != worker.help.help_rank) {
+                        //Add received histogram to your own
+                        histogram_sum += worker.help.histogram_recv;
+//                    worker.histogram        += worker.help.histogram_recv;
+//                    worker.dos              += worker.help.histogram_recv.cast<double>() * worker.lnf;
+//                    counter::MCS            += constants::rate_take_help;
+//                    timer::add_hist_volume  += constants::rate_take_help;
+//                    timer::check_saturation += constants::rate_take_help;
+//                    worker.add_hist_volume();
+                    }
+                }
+                worker.histogram += histogram_sum;
+                worker.dos += histogram_sum.cast<double>() * worker.lnf;
+                counter::MCS += worker.help.help_size * constants::rate_take_help;
+                timer::add_hist_volume += worker.help.help_size * constants::rate_take_help;
+                timer::check_saturation += worker.help.help_size * constants::rate_take_help;
+                worker.add_hist_volume();
+                worker.t_merge.toc();
+            }
+
+            worker.help.histogram_recv = worker.histogram;
+            worker.flag_one_over_t = worker.lnf < 1.0 / max(1, counter::MCS) ? 1 : 0;
+            worker.t_help.toc();
+        }
+    }
+
+    void setup_help(class_worker &worker, class_backup &backup) {
+        timer::setup_help = 0;
+        worker.t_help_setup.tic();
+
+        //Find out who's finished
+        int any_finished = worker.finish_line;
+        MPI_Allreduce(MPI_IN_PLACE, &any_finished, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+        //if nobody is finished, return.
+        if (any_finished == 0) {
+            worker.t_help_setup.toc();
+            return;
+        }
+        //If some are finished, start by offloading any help that may be had already
+        if (debug_setup_help) { debug_print(worker, "Setting up help. "); }
+
+        //Now all the help.available workers need to be set up again. Two scenarios, either they've (1) helped before,
+        //or they've (2) never helped.
+        //If (1), just take_help() and return.
+        //If (2), setup from scratch.
+        ArrayXi whos_helping_who_old = ArrayXi::Constant(worker.world_size, -1);  //For comparison!
+        ArrayXi whos_helping_who_new = ArrayXi::Constant(worker.world_size, -1); //For comparison!
+        MPI_Allgather(&worker.help.helping_id, 1, MPI_INT, whos_helping_who_old.data(), 1, MPI_INT, MPI_COMM_WORLD);
+        worker.help.available = worker.finish_line;
+        worker.help.giving_help = false;
+        worker.help.getting_help = false;
+        worker.help.helping_id = -1;
+        ArrayXi all_available(worker.world_size);
+        MPI_Allgather(&worker.help.available, 1, MPI_INT, all_available.data(), 1, MPI_INT, MPI_COMM_WORLD);
+
+        //Now find out who to help next. compute max amount of helpers per worker.
+        int max_helpers = (int) ceil((double) all_available.sum() / (worker.world_size - all_available.sum()));
+        ArrayXi given_help(worker.world_size);
+        given_help.fill(0);
+        for (int w = 0; w < worker.world_size; w++) {
+            if (w == worker.world_ID) {
+                if (worker.finish_line) {
+                    for (int i = 0; i < worker.world_size; i++) {
+                        if (all_available(i) == 0 && given_help(i) < max_helpers) {
+                            given_help(i)++;
+                            worker.help.available = 0;
+                            worker.help.giving_help = true;
+                            worker.help.helping_id = i;
+                            break;
+                        }
+                    }
+                }
+            }
+            MPI_Barrier(MPI_COMM_WORLD);
+            MPI_Bcast(given_help.data(), worker.world_size, MPI_INT, w, MPI_COMM_WORLD);
+        }
+        //If you got help, you are now rank (key) 0 in your own communicator (whose color is your ID).
+        //Otherwise, if you are giving help you join color = helping_id, and pass key = color+1?
+
+        worker.help.getting_help = given_help(worker.world_ID) > 0;
+        if (worker.help.getting_help) {
+            worker.help.color = worker.world_ID;
+            worker.help.key = 0;
+        } else if (worker.help.giving_help) {
+            worker.help.color = worker.help.helping_id;
+            worker.help.key = worker.help.color + 1;
+        } else {
+            worker.help.color = MPI_UNDEFINED;
+            worker.help.key = 0;
+        }
+        MPI_Comm_split(MPI_COMM_WORLD, worker.help.color, worker.help.key, &worker.help.MPI_COMM_HELP);
+        MPI_Allgather(&worker.help.helping_id, 1, MPI_INT, whos_helping_who_new.data(), 1, MPI_INT, MPI_COMM_WORLD);
+
+
+        //If there has been no change since last time, simply return;
+        if (whos_helping_who_new.cwiseEqual(whos_helping_who_old).all()) {
+//            if(debug_setup_help){debug_print(worker,"Same help settings\n");}
+//            if(debug_setup_help){debug_print(worker,worker.help.whos_helping_who.transpose().eval());}
+            worker.t_help_setup.toc();
+            return;
+        }
+        //If you are not getting and not giving help, just leave
+        if (worker.help.MPI_COMM_HELP == MPI_COMM_NULL) {
+            backup.restore_state(worker);
+            worker.t_help_setup.toc();
+            return;
+        }
+        MPI_Comm_rank(worker.help.MPI_COMM_HELP, &worker.help.help_rank);
+        MPI_Comm_size(worker.help.MPI_COMM_HELP, &worker.help.help_size);
+
+        //Now every available guy knows who to help (rank 0 in MPI_COMM_HELP) and the helpees know who to send their info to (Bcast).
+        //Start by backing up and such
+        if (worker.help.giving_help) { backup.backup_state(worker); }
+
+        //Send out the details for help to begin.
+        mpi::bcast_dynamic(worker.dos, MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
+        mpi::bcast_dynamic(worker.E_bins, MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
+        mpi::bcast_dynamic(worker.M_bins, MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
+        MPI_Bcast(&worker.lnf, 1, MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
+        MPI_Bcast(&worker.E, 1, MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
+        MPI_Bcast(&worker.M, 1, MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
+        MPI_Bcast(&counter::MCS, 1, MPI_INT, 0, worker.help.MPI_COMM_HELP);
+        MPI_Bcast(&counter::walks, 1, MPI_INT, 0, worker.help.MPI_COMM_HELP);
+        MPI_Bcast(worker.model.lattice.data(), (int) worker.model.lattice.size(), MPI_INT, 0, worker.help.MPI_COMM_HELP);
+        worker.help.help_walks = counter::walks;
+        if (worker.help.giving_help) {
+            worker.E_min_local = worker.E_bins.minCoeff();
+            worker.E_max_local = worker.E_bins.maxCoeff();
+            worker.M_min_local = worker.M_bins.minCoeff();
+            worker.M_max_local = worker.M_bins.maxCoeff();
+            worker.state_in_window = worker.check_in_window(worker.E);
+            worker.set_P_increment();
+            worker.find_current_state();
+        }
+        worker.histogram.resizeLike(worker.dos);
+        worker.histogram.fill(0);
+        worker.saturation.clear();
+        worker.help.histogram_recv.resizeLike(worker.histogram);
+        worker.help.histogram_recv.fill(0);
+        timer::add_hist_volume = 0;
+        timer::check_saturation = 0;
+        worker.t_help_setup.toc();
+
+    }
+
+}
+
 //
 //    void merge2(class_worker &worker, bool broadcast, bool trim, bool setNaN) {
 //        if(debug_merge){debug_print(worker,"\nMerging. ");}
@@ -909,447 +1263,99 @@ namespace mpi {
 //        }
 //    }
 
-    void broadcast_merger(class_worker &worker) {
-        if(debug_bcast){debug_print(worker,"\nBroadcasting raw to workers ");}
-        mpi::bcast_dynamic(worker.dos_total, MPI_DOUBLE, 0);
-        mpi::bcast_dynamic(worker.E_bins_total, MPI_DOUBLE, 0);
-        mpi::bcast_dynamic(worker.M_bins_total, MPI_DOUBLE, 0);
-        if(debug_bcast){debug_print(worker,"Broadcast OK! \n ");}
-    }
 
-    void divide_global_range_dos_area(class_worker &worker) {
-        //Update limits
-        if(debug_divide){debug_print(worker,"\n Dividing Area. ");}
-        double global_range = math::area(worker.dos_total, worker.E_bins_total, worker.M_bins_total);
-        double local_range = global_range / worker.world_size;
-        double x = constants::overlap_factor_dos_area / (1 - constants::overlap_factor_dos_area / 2);
-        double overlap_range = local_range * x;//2.0*(worker.world_size - 2.0 + x)/worker.world_size;
-        //The overlap_range is the total range in a domain that will have overlap, either up or down.
-        //Find the boundaries of the DOS domain that gives every worker the  same DOS volume to work on
-        int E_min_local_idx, E_max_local_idx;
-        if      (worker.world_ID == 0)                      { overlap_range = overlap_range / 2; }
-        else if (worker.world_ID == worker.world_size - 1)  { overlap_range = overlap_range / 2; }
-        else                                                { overlap_range = overlap_range / 4; }
-        E_min_local_idx = math::area_idx(worker.dos_total, worker.E_bins_total, worker.M_bins_total,
-                                           worker.world_ID * local_range - overlap_range);
-        E_max_local_idx = math::area_idx(worker.dos_total, worker.E_bins_total, worker.M_bins_total,
-                                           (worker.world_ID + 1) * local_range + overlap_range);
-        while (E_max_local_idx - E_min_local_idx < constants::bins) {
-            E_min_local_idx--;
-            E_max_local_idx++;
-            E_min_local_idx = max(E_min_local_idx, 0);
-            E_max_local_idx = min(E_max_local_idx, (int) worker.E_bins_total.size() - 1);
-        }
-
-        worker.E_min_local = worker.E_bins_total(E_min_local_idx);
-        worker.E_max_local = worker.E_bins_total(E_max_local_idx);
-        worker.M_min_local = worker.M_min_global;
-        worker.M_max_local = worker.M_max_global;
-        if(debug_divide){debug_print(worker," Inheriting from dos_total. ");}
-
-        //Inherit the corresponding part of the dos
-        int from = E_min_local_idx;
-        int rows = E_max_local_idx - E_min_local_idx + 1;
-
-        if (from + rows > worker.E_bins_total.size()) {
-            cout << "TOO MANY ROWS   |  from + rows = " << from + rows << " E_bins_total.size() = "
-                 << worker.E_bins_total.size() << endl;
-            cout << worker << endl;
-            cout.flush();
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-            MPI_Finalize();
-            exit(15);
-        }
-
-
-        worker.dos          = worker.dos_total.middleRows(from, rows);
-        worker.E_bins       = worker.E_bins_total.segment(from, rows);
-        worker.histogram    = ArrayXXi::Zero(worker.dos.rows(), worker.dos.cols());
-        worker.find_current_state();
-
-        if (worker.model.discrete_model) {
-            worker.E_set.clear();
-            for (int i = 0; i < worker.E_bins.size(); i++) {
-                worker.E_set.insert(worker.E_bins(i));
-            }
-        }
-
-        if (debug_divide) {
-            for (int w = 0; w < worker.world_size; w++) {
-                if (w == worker.world_ID) {
-                    cout << setprecision(2);
-                    cout << "ID: " << w << " Bounds : " << worker.E_min_local << " " << worker.E_max_local << endl;
-                    cout << worker.E_bins.transpose() << endl;
-                    cout.flush();
-                    std::this_thread::sleep_for(std::chrono::microseconds(1000));
-                }
-                MPI_Barrier(MPI_COMM_WORLD);
-            }
-            cout.flush();
-            std::this_thread::sleep_for(std::chrono::microseconds(1000));
-        }
-        if(debug_divide){debug_print(worker," Merged OK. \n ");}
-
-    }
-
-    void divide_global_range_dos_volume(class_worker &worker) {
-
-        if(debug_divide){debug_print(worker," \nDividing dos volume ");}
-
-        double global_range = math::volume(worker.dos_total, worker.E_bins_total, worker.M_bins_total);
-        double local_range = global_range / worker.world_size;
-        double x = constants::overlap_factor_dos_vol / (1 - constants::overlap_factor_dos_vol / 2);
-        double overlap_range = local_range * x;
-        //The overlap_range is the total range in a domain that will have overlap, either up or down.
-        //Find the boundaries of the DOS domain that gives every worker the  same DOS volume to work on
-        int E_min_local_idx, E_max_local_idx;
-        if (worker.world_ID == 0) { overlap_range = overlap_range / 2; }
-        else if (worker.world_ID == worker.world_size - 1) { overlap_range = overlap_range / 2; }
-        else { overlap_range = overlap_range / 4; }
-        E_min_local_idx = math::volume_idx(worker.dos_total, worker.E_bins_total, worker.M_bins_total,
-                                           worker.world_ID * local_range - overlap_range);
-        E_max_local_idx = math::volume_idx(worker.dos_total, worker.E_bins_total, worker.M_bins_total,
-                                           (worker.world_ID + 1) * local_range + overlap_range);
-
-        while (E_max_local_idx - E_min_local_idx < constants::bins) {
-            E_min_local_idx--;
-            E_max_local_idx++;
-            E_min_local_idx = max(E_min_local_idx, 0);
-            E_max_local_idx = min(E_max_local_idx, (int) worker.E_bins_total.size() - 1);
-        }
-
-        worker.E_min_local = worker.E_bins_total(E_min_local_idx);
-        worker.E_max_local = worker.E_bins_total(E_max_local_idx);
-        worker.M_min_local = worker.M_min_global;
-        worker.M_max_local = worker.M_max_global;
-        if(debug_divide){debug_print(worker," Inheriting from dos_total ");}
-
-        //Inherit the corresponding part of the dos
-        int from = E_min_local_idx;
-        int rows = E_max_local_idx - E_min_local_idx + 1;
-
-        if (from + rows > worker.E_bins_total.size()) {
-            cout << "TOO MANY ROWS   |  from + rows = " << from + rows << " E_bins_total.size() = "
-                 << worker.E_bins_total.size() << endl;
-            cout << worker << endl;
-            cout.flush();
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-            MPI_Finalize();
-            exit(15);
-        }
-
-
-        worker.dos          = worker.dos_total.middleRows(from, rows);
-        worker.E_bins       = worker.E_bins_total.segment(from, rows);
-        worker.histogram    = ArrayXXi::Zero(worker.dos.rows(), worker.dos.cols());
-        worker.state_in_window    = worker.check_in_window(worker.E);
-        worker.find_current_state();
-
-        if (worker.model.discrete_model) {
-            worker.E_set.clear();
-            for (int i = 0; i < worker.E_bins.size(); i++) {
-                worker.E_set.insert(worker.E_bins(i));
-            }
-        }
-
-        if (debug_divide) {
-            for (int w = 0; w < worker.world_size; w++) {
-                if (w == worker.world_ID) {
-                    cout << setprecision(2);
-                    cout << "ID: " << w << " Bounds : " << worker.E_min_local << " " << worker.E_max_local << endl;
-                    cout << worker.E_bins.transpose() << endl;
-                    cout.flush();
-                    std::this_thread::sleep_for(std::chrono::microseconds(1000));
-                }
-                MPI_Barrier(MPI_COMM_WORLD);
-            }
-            cout.flush();
-            std::this_thread::sleep_for(std::chrono::microseconds(1000));
-        }
-        if(debug_divide){debug_print(worker," Merge OK.\n ");}
-
-    }
-
-    void take_help(class_worker &worker) {
-        //Check if anybody was able to do a walk
-        struct {
-            int    highest_walk;
-            int    highest_idx;
-        } in, out;
-        in.highest_walk   = counter::walks;
-        in.highest_idx    = worker.help.help_rank;
-        MPI_Allreduce(&in, &out, 1, MPI_2INT, MPI_MAXLOC, worker.help.MPI_COMM_HELP);
-        if (out.highest_walk > worker.help.help_walks){
-            //Somebody made progress, then get everybody up to speed
-            //Now broadcast an updated dos:
-            if (debug_take_help) {
-                if (out.highest_idx == worker.help.help_rank) {
-                    cout << "ID: " << worker.world_ID
-                         << " Broadcast from " << out.highest_idx
-                         << " (helping = " << worker.help.helping_id << ")"
-                         << " Size: " << worker.help.help_size
-                         << " Walks: " << counter::walks
-                         << " Highest walks: " << out.highest_walk
-                         << " Current walks: " << worker.help.help_walks
-                         << endl;
-                }
-            }
-            MPI_Bcast(worker.dos.data(), (int) worker.dos.size(), MPI_DOUBLE  , out.highest_idx, worker.help.MPI_COMM_HELP);
-            worker.help.help_walks = out.highest_walk;
-            for(int i = 0; i < out.highest_walk - counter::walks; i++){
-                worker.next_WL_iteration();
-                if (debug_take_help) {
-                    cout << "ID: " << worker.world_ID
-                         << " moved to " << counter::walks
-                         << endl;
-                }
-            }
-            worker.histogram.fill(0);
-            worker.saturation.clear();
-        }else {
-
-            worker.t_merge.tic();
-            ArrayXXi histogram_incr = worker.histogram - worker.help.histogram_recv; //histogram_recv contains the old (synced) histogram
-            ArrayXXi histogram_sum  = histogram_incr;
-            for (int i = 0; i < worker.help.help_size; i++) {
-                if (i == worker.help.help_rank) {
-                    worker.help.histogram_recv = histogram_incr;
-                }
-                MPI_Bcast(worker.help.histogram_recv.data(), (int) worker.help.histogram_recv.size(), MPI_INT, i, worker.help.MPI_COMM_HELP);
-                if (i != worker.help.help_rank) {
-                    //Add received histogram to your own
-                    histogram_sum += worker.help.histogram_recv;
-//                    worker.histogram        += worker.help.histogram_recv;
-//                    worker.dos              += worker.help.histogram_recv.cast<double>() * worker.lnf;
-//                    counter::MCS            += constants::rate_take_help;
-//                    timer::add_hist_volume  += constants::rate_take_help;
+//    void take_help2(class_worker &worker) {
+//        //Offload help
+//        if (worker.help.help_rank == 0 && debug_take_help) { cout << "ID: " << worker.world_ID << " Taking help" << endl; }
+//        if (worker.help.getting_help) {
+//            for (int i = 1; i < worker.help.help_size; i++) {
+//                MPI_Status status;
+//                MPI_Recv(worker.help.histogram_recv.data(), (int) worker.help.histogram_recv.size(), MPI_INT, MPI_ANY_SOURCE, worker.world_ID, worker.help.MPI_COMM_HELP, &status);
+//                if (counter::walks == worker.help.help_walks) {
+//                    worker.histogram += worker.help.histogram_recv;
+//                    cout << "Adding " << endl << setprecision(6) << worker.help.histogram_recv.cast<double>() * worker.lnf << endl;
+//                    std::this_thread::sleep_for(std::chrono::microseconds(10000));
+//
+//                    worker.dos += worker.help.histogram_recv.cast<double>() * worker.lnf;
+//                    counter::MCS += constants::rate_take_help;
+//                    timer::add_hist_volume += constants::rate_take_help;
 //                    timer::check_saturation += constants::rate_take_help;
 //                    worker.add_hist_volume();
-                }
-            }
-            worker.histogram += histogram_sum;
-            worker.dos       += histogram_sum.cast<double>() * worker.lnf;
-            counter::MCS            += worker.help.help_size * constants::rate_take_help;
-            timer::add_hist_volume  += worker.help.help_size * constants::rate_take_help;
-            timer::check_saturation += worker.help.help_size * constants::rate_take_help;
-            worker.add_hist_volume();
-            worker.t_merge.toc();
-        }
-
-        worker.help.histogram_recv = worker.histogram;
-        worker.flag_one_over_t = worker.lnf < 1.0 / max(1, counter::MCS) ? 1 : 0;
-    }
-
-    void take_help2(class_worker &worker) {
-        //Offload help
-        if(worker.help.help_rank == 0 && debug_take_help){cout << "ID: " << worker.world_ID << " Taking help" << endl;}
-        if (worker.help.getting_help){
-            for (int i = 1; i < worker.help.help_size; i++) {
-                MPI_Status status;
-                MPI_Recv(worker.help.histogram_recv.data(), (int) worker.help.histogram_recv.size(), MPI_INT, MPI_ANY_SOURCE, worker.world_ID, worker.help.MPI_COMM_HELP, &status);
-                if (counter::walks == worker.help.help_walks) {
-                    worker.histogram += worker.help.histogram_recv;
-                    cout <<"Adding "<<endl << setprecision(6) << worker.help.histogram_recv.cast<double>() * worker.lnf << endl;
-                    std::this_thread::sleep_for(std::chrono::microseconds(10000));
-
-                    worker.dos += worker.help.histogram_recv.cast<double>() * worker.lnf;
-                    counter::MCS += constants::rate_take_help;
-                    timer::add_hist_volume += constants::rate_take_help;
-                    timer::check_saturation += constants::rate_take_help;
-                    worker.add_hist_volume();
-                    worker.check_saturation();
-                }
-            }
-        }else{
-            MPI_Send(worker.histogram.data(), (int) worker.histogram.size(), MPI_INT, 0, worker.help.helping_id, worker.help.MPI_COMM_HELP);
-
-        }
-        //Check who has made the most walks
-        struct {
-            int    highest_walk;
-            int    highest_idx;
-        } in, out;
-        in.highest_walk   = counter::walks;
-        in.highest_idx    = worker.help.help_rank;
-        MPI_Allreduce(&in, &out, 1, MPI_2INT, MPI_MAXLOC, worker.help.MPI_COMM_HELP);
-        if (out.highest_walk > worker.help.help_walks){
-            //Now broadcast an updated dos:
-            if (debug_take_help) {
-                cout << "ID: " << worker.world_ID
-                     << " Broadcast from " << out.highest_idx
-                     << " (world_ID = " << worker.world_ID << ")"
-                     << " Size: " << worker.help.help_size
-                     << " Walks: " << counter::walks
-                     << " Highest walks: " << out.highest_walk
-                     << " Current walks: " << worker.help.help_walks
-                     << endl;
-            }
-            MPI_Bcast(worker.dos.data(), (int) worker.dos.size(), MPI_DOUBLE  , out.highest_idx, worker.help.MPI_COMM_HELP);
-            MPI_Bcast(&counter::MCS  , 1, MPI_INT                             , out.highest_idx, worker.help.MPI_COMM_HELP);
-            worker.help.help_walks = out.highest_walk;
-            for(int i = 0; i < out.highest_walk - counter::walks; i++){
-                worker.next_WL_iteration();
-                if (debug_take_help) {
-                    cout << "ID: " << worker.world_ID
-                         << " moved to " << counter::walks
-                         << endl;
-                }
-            }
-        }
-        worker.flag_one_over_t = worker.lnf < 1.0 / max(1, counter::MCS) ? 1 : 0;
-    }
-
-    void take_help3(class_worker &worker) {
-        //Offload help
-        if(worker.help.help_rank == 0 && debug_take_help){cout << "ID: " << worker.world_ID << " Taking help" << endl;}
-        if (worker.help.getting_help){
-            for (int i = 1; i < worker.help.help_size; i++) {
-                MPI_Status status;
-                MPI_Recv(worker.help.histogram_recv.data(), (int) worker.help.histogram_recv.size(), MPI_INT, MPI_ANY_SOURCE, worker.world_ID, worker.help.MPI_COMM_HELP, &status);
-                if (counter::walks == worker.help.help_walks) {
-                    worker.histogram += worker.help.histogram_recv;
-                    cout <<"Adding "<<endl << setprecision(6) << worker.help.histogram_recv.cast<double>() * worker.lnf << endl;
-                    std::this_thread::sleep_for(std::chrono::microseconds(10000));
-
-                    worker.dos              += worker.help.histogram_recv.cast<double>() * worker.lnf;
-                    counter::MCS            += constants::rate_take_help;
-                    timer::add_hist_volume  += constants::rate_take_help;
-                    timer::check_saturation += constants::rate_take_help;
-                    worker.add_hist_volume();
-                    worker.check_saturation();
-                }
-            }
-        }else{
-            MPI_Send(worker.histogram.data(), (int) worker.histogram.size(), MPI_INT, 0, worker.help.helping_id, worker.help.MPI_COMM_HELP);
-            worker.histogram.fill(0);
-        }
-        //Now broadcast an updated dos:
-        MPI_Bcast(worker.dos.data(), (int) worker.dos.size(), MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
-        MPI_Bcast(&worker.lnf  , 1, MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
-        MPI_Bcast(&counter::MCS, 1, MPI_INT   , 0, worker.help.MPI_COMM_HELP);
-        worker.flag_one_over_t = worker.lnf < 1.0 / max(1, counter::MCS) ? 1 : 0;
-    }
+//                    worker.check_saturation();
+//                }
+//            }
+//        } else {
+//            MPI_Send(worker.histogram.data(), (int) worker.histogram.size(), MPI_INT, 0, worker.help.helping_id, worker.help.MPI_COMM_HELP);
+//
+//        }
+//        //Check who has made the most walks
+//        struct {
+//            int highest_walk;
+//            int highest_idx;
+//        } in, out;
+//        in.highest_walk = counter::walks;
+//        in.highest_idx = worker.help.help_rank;
+//        MPI_Allreduce(&in, &out, 1, MPI_2INT, MPI_MAXLOC, worker.help.MPI_COMM_HELP);
+//        if (out.highest_walk > worker.help.help_walks) {
+//            //Now broadcast an updated dos:
+//            if (debug_take_help) {
+//                cout << "ID: " << worker.world_ID
+//                     << " Broadcast from " << out.highest_idx
+//                     << " (world_ID = " << worker.world_ID << ")"
+//                     << " Size: " << worker.help.help_size
+//                     << " Walks: " << counter::walks
+//                     << " Highest walks: " << out.highest_walk
+//                     << " Current walks: " << worker.help.help_walks
+//                     << endl;
+//            }
+//            MPI_Bcast(worker.dos.data(), (int) worker.dos.size(), MPI_DOUBLE, out.highest_idx, worker.help.MPI_COMM_HELP);
+//            MPI_Bcast(&counter::MCS, 1, MPI_INT, out.highest_idx, worker.help.MPI_COMM_HELP);
+//            worker.help.help_walks = out.highest_walk;
+//            for (int i = 0; i < out.highest_walk - counter::walks; i++) {
+//                worker.next_WL_iteration();
+//                if (debug_take_help) {
+//                    cout << "ID: " << worker.world_ID
+//                         << " moved to " << counter::walks
+//                         << endl;
+//                }
+//            }
+//        }
+//        worker.flag_one_over_t = worker.lnf < 1.0 / max(1, counter::MCS) ? 1 : 0;
+//    }
+//
+//    void take_help3(class_worker &worker) {
+//        //Offload help
+//        if (worker.help.help_rank == 0 && debug_take_help) { cout << "ID: " << worker.world_ID << " Taking help" << endl; }
+//        if (worker.help.getting_help) {
+//            for (int i = 1; i < worker.help.help_size; i++) {
+//                MPI_Status status;
+//                MPI_Recv(worker.help.histogram_recv.data(), (int) worker.help.histogram_recv.size(), MPI_INT, MPI_ANY_SOURCE, worker.world_ID, worker.help.MPI_COMM_HELP, &status);
+//                if (counter::walks == worker.help.help_walks) {
+//                    worker.histogram += worker.help.histogram_recv;
+//                    cout << "Adding " << endl << setprecision(6) << worker.help.histogram_recv.cast<double>() * worker.lnf << endl;
+//                    std::this_thread::sleep_for(std::chrono::microseconds(10000));
+//
+//                    worker.dos += worker.help.histogram_recv.cast<double>() * worker.lnf;
+//                    counter::MCS += constants::rate_take_help;
+//                    timer::add_hist_volume += constants::rate_take_help;
+//                    timer::check_saturation += constants::rate_take_help;
+//                    worker.add_hist_volume();
+//                    worker.check_saturation();
+//                }
+//            }
+//        } else {
+//            MPI_Send(worker.histogram.data(), (int) worker.histogram.size(), MPI_INT, 0, worker.help.helping_id, worker.help.MPI_COMM_HELP);
+//            worker.histogram.fill(0);
+//        }
+//        //Now broadcast an updated dos:
+//        MPI_Bcast(worker.dos.data(), (int) worker.dos.size(), MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
+//        MPI_Bcast(&worker.lnf, 1, MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
+//        MPI_Bcast(&counter::MCS, 1, MPI_INT, 0, worker.help.MPI_COMM_HELP);
+//        worker.flag_one_over_t = worker.lnf < 1.0 / max(1, counter::MCS) ? 1 : 0;
+//    }
+//
 
 
-    void setup_help(class_worker &worker, class_backup &backup) {
-        //Find out who's finished
-        int any_finished = worker.finish_line;
-        MPI_Allreduce(MPI_IN_PLACE, &any_finished, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-        //if nobody is finished, return.
-        if (any_finished == 0) { return; }
-        //If some are finished, start by offloading any help that may be had already
-        if(debug_setup_help){debug_print(worker,"Setting up help. ");}
-
-        //Now all the help.available workers need to be set up again. Two scenarios, either they've (1) helped before,
-        //or they've (2) never helped.
-        //If (1), just take_help() and return.
-        //If (2), setup from scratch.
-        ArrayXi whos_helping_who_old = ArrayXi::Constant(worker.world_size, -1);  //For comparison!
-        ArrayXi whos_helping_who_new = ArrayXi::Constant(worker.world_size, -1); //For comparison!
-        MPI_Allgather(&worker.help.helping_id, 1, MPI_INT, whos_helping_who_old.data(), 1, MPI_INT,MPI_COMM_WORLD);
-        worker.help.available    = worker.finish_line;
-        worker.help.giving_help  = false;
-        worker.help.getting_help = false;
-        worker.help.helping_id = -1;
-        ArrayXi all_available(worker.world_size);
-        MPI_Allgather(&worker.help.available, 1, MPI_INT, all_available.data(), 1, MPI_INT, MPI_COMM_WORLD);
-
-        //Now find out who to help next. compute max amount of helpers per worker.
-        int max_helpers = (int) ceil((double) all_available.sum() / (worker.world_size - all_available.sum()));
-        ArrayXi given_help(worker.world_size);
-        given_help.fill(0);
-        for (int w = 0; w < worker.world_size; w++) {
-            if (w == worker.world_ID) {
-                if (worker.finish_line) {
-                    for (int i = 0; i < worker.world_size; i++) {
-                        if (all_available(i) == 0 && given_help(i) < max_helpers) {
-                            given_help(i)++;
-                            worker.help.available = 0;
-                            worker.help.giving_help = true;
-                            worker.help.helping_id = i;
-                            break;
-                        }
-                    }
-                }
-            }
-            MPI_Barrier(MPI_COMM_WORLD);
-            MPI_Bcast(given_help.data(), worker.world_size, MPI_INT, w, MPI_COMM_WORLD);
-        }
-        //If you got help, you are now rank (key) 0 in your own communicator (whose color is your ID).
-        //Otherwise, if you are giving help you join color = helping_id, and pass key = color+1?
-
-        worker.help.getting_help = given_help(worker.world_ID) > 0;
-        if (worker.help.getting_help){
-            worker.help.color = worker.world_ID;
-            worker.help.key   = 0;
-        }else if(worker.help.giving_help){
-            worker.help.color = worker.help.helping_id;
-            worker.help.key   = worker.help.color+1;
-        }else{
-            worker.help.color = MPI_UNDEFINED;
-            worker.help.key   = 0;
-        }
-        MPI_Comm_split(MPI_COMM_WORLD, worker.help.color, worker.help.key, &worker.help.MPI_COMM_HELP);
-        MPI_Allgather(&worker.help.helping_id, 1, MPI_INT, whos_helping_who_new.data(), 1, MPI_INT,MPI_COMM_WORLD);
-
-
-        //If there has been no change since last time, simply return;
-        if (whos_helping_who_new.cwiseEqual(whos_helping_who_old).all()) {
-//            if(debug_setup_help){debug_print(worker,"Same help settings\n");}
-//            if(debug_setup_help){debug_print(worker,worker.help.whos_helping_who.transpose().eval());}
-            return;
-        }
-        //If you are not getting and not giving help, just leave
-        if (worker.help.MPI_COMM_HELP == MPI_COMM_NULL){
-            backup.restore_state(worker);
-            return;
-        }
-        MPI_Comm_rank(worker.help.MPI_COMM_HELP, &worker.help.help_rank);
-        MPI_Comm_size(worker.help.MPI_COMM_HELP, &worker.help.help_size);
-
-        //Now every available guy knows who to help (rank 0 in MPI_COMM_HELP) and the helpees know who to send their info to (Bcast).
-        //Start by backing up and such
-        if (worker.help.giving_help){backup.backup_state(worker);}
-
-        //Send out the details for help to begin.
-        mpi::bcast_dynamic(worker.dos       , MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
-        mpi::bcast_dynamic(worker.E_bins    , MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
-        mpi::bcast_dynamic(worker.M_bins    , MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
-        MPI_Bcast(&worker.lnf ,  1          , MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
-        MPI_Bcast(&worker.E   ,  1          , MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
-        MPI_Bcast(&worker.M   ,  1          , MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
-        MPI_Bcast(&counter::MCS, 1          , MPI_INT,    0, worker.help.MPI_COMM_HELP);
-        MPI_Bcast(&counter::walks, 1        , MPI_INT,    0, worker.help.MPI_COMM_HELP);
-        MPI_Bcast(worker.model.lattice.data(), (int) worker.model.lattice.size(), MPI_INT, 0, worker.help.MPI_COMM_HELP);
-        worker.help.help_walks = counter::walks;
-        if (worker.help.giving_help){
-            worker.E_min_local = worker.E_bins.minCoeff();
-            worker.E_max_local = worker.E_bins.maxCoeff();
-            worker.M_min_local = worker.M_bins.minCoeff();
-            worker.M_max_local = worker.M_bins.maxCoeff();
-            worker.state_in_window   = worker.check_in_window(worker.E);
-            worker.set_P_increment();
-            worker.find_current_state();
-        }
-        worker.histogram.resizeLike(worker.dos);
-        worker.histogram.fill(0);
-        worker.saturation.clear();
-        worker.help.histogram_recv.resizeLike(worker.histogram);
-        worker.help.histogram_recv.fill(0);
-                            timer::add_hist_volume  += constants::rate_take_help;
-                    timer::check_saturation += constants::rate_take_help;
-
-}
-
-    void help(class_worker &worker, class_backup &backup) {
-        if (timer::take_help >= constants::rate_take_help) {
-            timer::take_help = 0;
-            if (worker.help.MPI_COMM_HELP != MPI_COMM_NULL) {
-                worker.t_help.tic();
-                take_help(worker);
-                worker.t_help.toc();
-            }
-        }
 //        if (timer::sync_help >= constants::rate_sync_help) {
 //            timer::sync_help = 0;
 ////            if (worker.help.MPI_COMM_HELP != MPI_COMM_NULL) {
@@ -1360,13 +1366,7 @@ namespace mpi {
 //        }
 
 
-        if (timer::setup_help >= constants::rate_setup_help) {
-            timer::setup_help = 0;
-            worker.t_help_setup.tic();
-            setup_help(worker, backup);
-            worker.t_help_setup.toc();
-        }
-    }
+
 
 //    void setup_help2(class_worker &worker, class_backup &backup) {
 //        //Find out who's finished
@@ -1478,7 +1478,7 @@ namespace mpi {
 //    }
 
 
-}
+
 
 
 

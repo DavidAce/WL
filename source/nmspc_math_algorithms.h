@@ -83,7 +83,7 @@ namespace math{
     }
 
     template <typename Derived>
-    typename Derived::Scalar nanmaxCoeff(const ArrayBase<Derived> & array)  {
+    inline typename Derived::Scalar nanmaxCoeff(const ArrayBase<Derived> & array)  {
         return (array == array).select(array,0).maxCoeff();
     }
     template <typename Derived>
@@ -195,9 +195,14 @@ namespace math{
         return (int) nansum((temp == temp).select(temp/temp, 0));
     }
 
+//    template <typename Derived>
+//    inline typename Derived::Scalar find_min_positive(const ArrayBase<Derived> &array){
+//        return nanminCoeff((array > 0 && array == array ).select(array, nanmaxCoeff(array)));
+//    }
+
     template <typename Derived>
-    typename Derived::Scalar find_min_positive(const ArrayBase<Derived> &array){
-        return nanminCoeff((array > 0 && array == array ).select(array, nanmaxCoeff(array)));
+    inline __attribute__((hot)) typename Derived::Scalar find_min_positive(const ArrayBase<Derived> &array){
+        return ((array > 0 && array == array ).select(array, array.maxCoeff())).minCoeff();
     }
 
     template <typename Derived>
@@ -226,7 +231,7 @@ namespace math{
     }
 
     template <typename Derived>
-    void subtract_min_nonzero_one(ArrayBase<Derived> &array){
+    inline __attribute__((hot)) void subtract_min_nonzero_one(ArrayBase<Derived> &array){
         auto min_positive = find_min_positive(array);
         array = (array > 0 && array == array).select(array-min_positive+1, array);
     }

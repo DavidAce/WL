@@ -33,14 +33,14 @@ public:
     double get_E();
     double get_M();
 
-    inline int sum_neighbours(const int i, const int j){
+    int __attribute__((always_inline)) sum_neighbours(const int i, const int j){
         return            lattice(math::mod(i+1,constants::L), math::mod(j  ,constants::L))
                      +    lattice(math::mod(i  ,constants::L), math::mod(j+1,constants::L))
                      +    lattice(math::mod(i-1,constants::L), math::mod(j  ,constants::L))
                      +    lattice(math::mod(i  ,constants::L), math::mod(j-1,constants::L));
     }
 
-    inline void make_new_state(const double E, const double M, double &E_trial, double &M_trial){
+    inline void __attribute__((hot)) make_new_state(const double E, const double M, double &E_trial, double &M_trial){
         randI = rn::uniform_integer_L();
         randJ = rn::uniform_integer_L();
         //Is this correct?

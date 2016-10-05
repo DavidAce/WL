@@ -658,9 +658,7 @@ void class_worker::adjust_local_bins() {
 //    }
 //}
 
-bool class_worker::check_in_window(const double x) {
-    return x >= E_min_local && x <= E_max_local;
-}
+
 
 void class_worker::make_MC_trial()  {
 	t_make_MC_trial.tic();
@@ -912,44 +910,41 @@ void class_worker::prev_WL_iteration() {
     saturation.clear();
 }
 
-void class_worker::add_hist_volume(){
-    if (timer::add_hist_volume >= constants::rate_add_hist_volume) {
-        timer::add_hist_volume = 0;
-        if (flag_one_over_t == 0) {
-            t_check_convergence.tic();
-//            math::subtract_min_nonzero_one(histogram);
-            saturation.push_back(histogram.sum());
-            t_check_convergence.toc();
-        }
+void class_worker::add_hist_volume() {
+    timer::add_hist_volume = 0;
+    if (flag_one_over_t == 0) {
+        t_check_convergence.tic();
+        math::subtract_min_nonzero_one(histogram);
+        saturation.push_back(histogram.sum());
+        t_check_convergence.toc();
     }
+
 }
 
-void class_worker::check_saturation(){
-    if (timer::check_saturation >= constants::rate_check_saturation) {
-        timer::check_saturation = 0;
-        if (flag_one_over_t == 0) {
+void class_worker::check_saturation() {
+    timer::check_saturation = 0;
+    if (flag_one_over_t == 0) {
 //            t_check_convergence.tic();
-            int idx_to   = (int) saturation.size() - 1;
-            int idx_from = (int) (constants::check_saturation_from * idx_to);
-            if (saturation.empty() || idx_to == idx_from || need_to_resize_global){
-                slope = 0;
-                return;
-            }
-            vector<double> sat_double (saturation.begin()+idx_from, saturation.end()); //Cast to double
-            ArrayXd Y = Map<ArrayXd>(sat_double.data(),sat_double.size());             //Cast to eigen array
-            ArrayXd X = ArrayXd::LinSpaced(Y.size(),idx_from+1,idx_to);
-            slope = ((X-X.mean()).cwiseProduct(Y-Y.mean())).sum() /fmax(1,(X-X.mean()).cwiseAbs2().sum());
-            if (slope < 0) {
-                next_WL_iteration();
-            }
-            if (lnf < 1.0 / counter::MCS) {
-                lnf = 1.0 / counter::MCS;
-                flag_one_over_t = 1;         //Change to 1/t algorithm
-            }
-//            t_check_convergence.toc();
-        }else{
-            counter::walks = (int) (-log(lnf)/log(2));
+        int idx_to = (int) saturation.size() - 1;
+        int idx_from = (int) (constants::check_saturation_from * idx_to);
+        if (saturation.empty() || idx_to == idx_from || need_to_resize_global) {
+            slope = 0;
+            return;
         }
+        vector<double> sat_double(saturation.begin() + idx_from, saturation.end()); //Cast to double
+        ArrayXd Y = Map<ArrayXd>(sat_double.data(), sat_double.size());             //Cast to eigen array
+        ArrayXd X = ArrayXd::LinSpaced(Y.size(), idx_from + 1, idx_to);
+        slope = ((X - X.mean()).cwiseProduct(Y - Y.mean())).sum() / fmax(1, (X - X.mean()).cwiseAbs2().sum());
+        if (slope < 0) {
+            next_WL_iteration();
+        }
+        if (lnf < 1.0 / counter::MCS) {
+            lnf = 1.0 / counter::MCS;
+            flag_one_over_t = 1;         //Change to 1/t algorithm
+        }
+//            t_check_convergence.toc();
+    } else {
+        counter::walks = (int) (-log(lnf) / log(2));
     }
 }
 

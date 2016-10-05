@@ -156,36 +156,39 @@ public:
 
     //Functions
     void find_current_state();           //Compute current E and M (and their indices)
-    void find_next_state_exact();
-    void find_next_state();
-    void find_next_state(bool);
+    void find_next_state_exact() __attribute__((always_inline));
+    void find_next_state() __attribute__((always_inline));
+    void find_next_state(bool) __attribute__((always_inline));
     void find_initial_limits();
     void start_counters();
     void rewind_timers();
 
     void set_initial_local_bins();
     void update_global_range();
-    void resize_global_range() __attribute__((hot));
+    void resize_global_range();
     void divide_global_range_uniformly();
     void adjust_local_bins();
     void synchronize_sets();
     void resize_local_bins2();
     void compute_number_of_bins(int &, int &);
-    bool check_in_window(const double);
+//    bool check_in_window(const double) __attribute__((always_inline));
+    bool __attribute__((always_inline)) check_in_window(const double x) {
+        return x >= E_min_local && x <= E_max_local;
+    }
     void make_MC_trial() __attribute__((hot));
     void insert_state(double new_E,double new_M) __attribute__((hot));
-    void walk_away_from_window() __attribute__((hot));
-    void walk_towards_window() __attribute__((hot));
+    void walk_away_from_window();
+    void walk_towards_window();
     void acceptance_criterion() __attribute__((hot));
-    void acceptance_criterion2() __attribute__((hot));
-    void accept_MC_trial() __attribute__((hot));
+    void acceptance_criterion2();
+    void accept_MC_trial()  __attribute__((hot));
     void reject_MC_trial() __attribute__((hot));
     void set_P_increment();
     void next_WL_iteration();
     void prev_WL_iteration();
     void rewind_to_lowest_walk();
     void rewind_to_zero();
-    void add_hist_volume();
+    void add_hist_volume() __attribute__((hot));
     void check_saturation();
     friend std::ostream &operator<<(std::ostream &, const class_worker &);
 };
