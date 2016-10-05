@@ -130,6 +130,7 @@ void divide_range(class_worker &worker, class_backup &backup, outdata &out) {
     MPI_Allreduce(&worker.need_to_resize_global, &need_to_resize, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
     if (need_to_resize) {
         if (debug_divide_range) { debug_print(worker, "Dividing global energy\n"); }
+        print_status(worker, true);
         worker.resize_global_range();
         worker.divide_global_range_uniformly();
         worker.synchronize_sets();
@@ -147,10 +148,10 @@ void divide_range(class_worker &worker, class_backup &backup, outdata &out) {
         MPI_Allreduce(&in_window, &all_in_window, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
         if (all_in_window && min_walks >= counter::vol_merges) {
             //divide dos vol
-            backup.restore_state(worker);
-            print_status(worker, true);
-            out.write_data_worker(worker);
             if (worker.world_ID == 0) { cout << "Dividing according to dos VOLUME" << endl; }
+            print_status(worker, true);
+            backup.restore_state(worker);
+            worker.help.reset();
             mpi::merge(worker, true, false);
             mpi::divide_global_range_dos_volume(worker);
 //            worker.prev_WL_iteration();
@@ -233,7 +234,7 @@ void print_status(class_worker &worker, bool force) {
                 << " Merges: "      << fixed << setprecision(0) << counter::vol_merges  << "("<< constants::max_vol_merges  << ")"
                 << " Iteration: "   << fixed << setprecision(0) << worker.iteration+1   << "("<< constants::simulation_reps << ")";
                 worker.t_total.print_total<double>(); cout << " s";
-                if(debug_status){
+                if(true){
                     cout    << " Edge dos: " << fixed << setprecision(3)
                             << worker.dos.topLeftCorner(1,1) << " "
                             << worker.dos.topRightCorner(1,1) << " " ;

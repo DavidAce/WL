@@ -492,7 +492,7 @@ namespace mpi {
                 //Somebody made progress, then get everybody up to speed
                 //Now broadcast an updated dos:
                 if (debug_take_help) {
-//                    if (out.highest_idx == worker.help.help_rank) {
+                    if (out.highest_idx == worker.help.help_rank) {
                         cout << "ID: " << worker.world_ID
                              << " Broadcast from " << out.highest_idx
                              << " (helping: " << worker.help.helping_id << ")"
@@ -503,7 +503,7 @@ namespace mpi {
                              << " Highest walks: " << out.highest_walk
                              << " Current walks: " << worker.help.help_walks
                              << endl;
-//                    }
+                    }
                 }
                 MPI_Bcast(worker.dos.data(), (int) worker.dos.size(), MPI_DOUBLE, out.highest_idx, worker.help.MPI_COMM_HELP);
                 worker.help.help_walks = out.highest_walk;
@@ -569,10 +569,10 @@ namespace mpi {
         ArrayXi whos_helping_who_old = ArrayXi::Constant(worker.world_size, -1);  //For comparison!
         ArrayXi whos_helping_who_new = ArrayXi::Constant(worker.world_size, -1); //For comparison!
         MPI_Allgather(&worker.help.helping_id, 1, MPI_INT, whos_helping_who_old.data(), 1, MPI_INT, MPI_COMM_WORLD);
-        worker.help.available = worker.finish_line;
-        worker.help.giving_help = false;
-        worker.help.getting_help = false;
-        worker.help.helping_id = -1;
+        worker.help.available       = worker.finish_line;
+        worker.help.giving_help     = false;
+        worker.help.getting_help    = false;
+        worker.help.helping_id      = -1;
         ArrayXi all_available(worker.world_size);
         MPI_Allgather(&worker.help.available, 1, MPI_INT, all_available.data(), 1, MPI_INT, MPI_COMM_WORLD);
 
@@ -586,9 +586,9 @@ namespace mpi {
                     for (int i = 0; i < worker.world_size; i++) {
                         if (all_available(i) == 0 && given_help(i) < max_helpers) {
                             given_help(i)++;
-                            worker.help.available = 0;
+                            worker.help.available   = 0;
                             worker.help.giving_help = true;
-                            worker.help.helping_id = i;
+                            worker.help.helping_id  = i;
                             break;
                         }
                     }
@@ -602,14 +602,14 @@ namespace mpi {
 
         worker.help.getting_help = given_help(worker.world_ID) > 0;
         if (worker.help.getting_help) {
-            worker.help.color = worker.world_ID;
-            worker.help.key = 0;
+            worker.help.color   = worker.world_ID;
+            worker.help.key     = 0;
         } else if (worker.help.giving_help) {
-            worker.help.color = worker.help.helping_id;
-            worker.help.key = worker.help.color + 1;
+            worker.help.color   = worker.help.helping_id;
+            worker.help.key     = worker.help.color + 1;
         } else {
-            worker.help.color = MPI_UNDEFINED;
-            worker.help.key = 0;
+            worker.help.color   = MPI_UNDEFINED;
+            worker.help.key     = 0;
         }
         MPI_Comm_split(MPI_COMM_WORLD, worker.help.color, worker.help.key, &worker.help.MPI_COMM_HELP);
         MPI_Allgather(&worker.help.helping_id, 1, MPI_INT, whos_helping_who_new.data(), 1, MPI_INT, MPI_COMM_WORLD);
@@ -617,8 +617,6 @@ namespace mpi {
 
         //If there has been no change since last time, simply return;
         if (whos_helping_who_new.cwiseEqual(whos_helping_who_old).all()) {
-//            if(debug_setup_help){debug_print(worker,"Same help settings\n");}
-//            if(debug_setup_help){debug_print(worker,worker.help.whos_helping_who.transpose().eval());}
             worker.t_help_setup.toc();
             return;
         }
@@ -663,9 +661,7 @@ namespace mpi {
         timer::add_hist_volume = 0;
         timer::check_saturation = 0;
         worker.t_help_setup.toc();
-
     }
-
 }
 
 //
