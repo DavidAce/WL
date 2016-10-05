@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH -J WL
-#SBATCH -t 0-2:00:00
+#SBATCH -t 0-4:00:00
 #SBATCH -N 6
 #SBATCH --exclusive
 export OMP_NUM_THREADS=1
