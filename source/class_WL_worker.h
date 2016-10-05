@@ -135,9 +135,9 @@ public:
         void reset(){
             giving_help = false;
             getting_help = false;
-            helping_id  = -1;
-            available = 0;
-            help_walks =0;
+            helping_id = -1;
+            available  = 0;
+            help_walks = 0;
             MPI_COMM_HELP = MPI_COMM_NULL;
         }
         ArrayXXi histogram_recv; //Receive histogram from helpers
