@@ -518,34 +518,30 @@ namespace mpi {
                 worker.histogram.fill(0);
                 worker.saturation.clear();
             } else {
-                ArrayXXd dos_recv = worker.dos;
-                double weight     = 1.0/worker.help.help_size;
-//                ArrayXXi histogram_incr = worker.histogram - worker.help.histogram_recv; //histogram_recv contains the old (synced) histogram
+                double weight     = 1.0/(worker.help.help_size-1);
+                ArrayXXi histogram_incr = worker.histogram - worker.help.histogram_recv; //histogram_recv contains the old (synced) histogram
                 for (int i = 0; i < worker.help.help_size; i++) {
                     if (i == worker.help.help_rank) {
-//                        worker.help.histogram_recv = histogram_incr;
-                        dos_recv = worker.dos;
+                        worker.help.histogram_recv = histogram_incr;
                     }
                     worker.t_merge.tic();
-                    MPI_Bcast(dos_recv.data(), (int) dos_recv.size(), MPI_DOUBLE, i, worker.help.MPI_COMM_HELP);
-//                    MPI_Bcast(worker.help.histogram_recv.data(), (int) worker.help.histogram_recv.size(), MPI_INT, i, worker.help.MPI_COMM_HELP);
+                    MPI_Bcast(worker.help.histogram_recv.data(), (int) worker.help.histogram_recv.size(), MPI_INT, i, worker.help.MPI_COMM_HELP);
                     worker.t_merge.toc();
                     if (i != worker.help.help_rank) {
-
                         //Add received histogram to your own
-//                        worker.histogram        += worker.help.histogram_recv;
-                        worker.dos              = worker.dos*(1-weight) + dos_recv * weight;
-//                        counter::MCS            += constants::rate_take_help;
-//                        timer::add_hist_volume  += constants::rate_take_help;
-//                        timer::check_saturation += constants::rate_take_help;
-//                        worker.add_hist_volume();
+                        worker.histogram        += (worker.help.histogram_recv.cast<double>() * weight).cast<int>();
+                        worker.dos              += worker.help.histogram_recv.cast<double>() * (weight * worker.lnf);
+                        counter::MCS            += ceil(constants::rate_take_help * weight);
+                        timer::add_hist_volume  += ceil(constants::rate_take_help * weight);
+                        timer::check_saturation += ceil(constants::rate_take_help * weight);
+                        worker.add_hist_volume();
                     }
 
                 }
             }
 
-//            worker.help.histogram_recv = worker.histogram;
-//            worker.flag_one_over_t = worker.lnf < 1.0 / max(1, counter::MCS) ? 1 : 0;
+            worker.help.histogram_recv = worker.histogram;
+            worker.flag_one_over_t = worker.lnf < 1.0 / max(1, counter::MCS) ? 1 : 0;
             worker.t_help.toc();
         }
     }
