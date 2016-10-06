@@ -524,11 +524,13 @@ namespace mpi {
                 MPI_Allreduce(histogram_incr.data(), worker.help.histogram_recv.data(),(int) histogram_incr.size(), MPI_INT, MPI_SUM, worker.help.MPI_COMM_HELP);
                 worker.t_merge.toc();
 
-                worker.histogram        += worker.help.histogram_recv;
-                worker.dos              += worker.help.histogram_recv.cast<double>() * worker.lnf;
-                counter::MCS            += constants::rate_take_help * worker.help.help_size;
-                timer::add_hist_volume  += constants::rate_take_help * worker.help.help_size;
-                timer::check_saturation += constants::rate_take_help * worker.help.help_size;
+                worker.histogram                += worker.help.histogram_recv;
+                worker.dos                      += worker.help.histogram_recv.cast<double>() * worker.lnf;
+                counter::MCS                    += constants::rate_take_help * worker.help.help_size;
+                timer::add_hist_volume          += constants::rate_take_help * worker.help.help_size;
+                timer::check_saturation         += constants::rate_take_help * worker.help.help_size;
+                worker.add_hist_volume_help();
+
 //                for (int i = 0; i < worker.help.help_size; i++) {
 //                    if (i == worker.help.help_rank) {
 //                        worker.help.histogram_recv = histogram_incr;

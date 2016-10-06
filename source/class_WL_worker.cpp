@@ -910,6 +910,18 @@ void class_worker::prev_WL_iteration() {
 }
 
 void class_worker::add_hist_volume() {
+    if (help.MPI_COMM_HELP == MPI_COMM_NULL) {
+        timer::add_hist_volume = 0;
+        if (flag_one_over_t == 0) {
+            t_check_convergence.tic();
+            math::subtract_min_nonzero_one(histogram);
+            saturation.push_back(histogram.sum());
+            t_check_convergence.toc();
+        }
+    }
+}
+
+void class_worker::add_hist_volume_help() {
     timer::add_hist_volume = 0;
     if (flag_one_over_t == 0) {
         t_check_convergence.tic();
@@ -917,8 +929,10 @@ void class_worker::add_hist_volume() {
         saturation.push_back(histogram.sum());
         t_check_convergence.toc();
     }
-
 }
+
+
+
 
 void class_worker::check_saturation() {
     timer::check_saturation = 0;

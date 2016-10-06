@@ -188,7 +188,8 @@ public:
     void prev_WL_iteration();
     void rewind_to_lowest_walk();
     void rewind_to_zero();
-    void add_hist_volume() __attribute__((hot));
+    void add_hist_volume()      __attribute__((hot));
+    void add_hist_volume_help() __attribute__((hot));
     void check_saturation();
     friend std::ostream &operator<<(std::ostream &, const class_worker &);
 };
