@@ -525,9 +525,9 @@ namespace mpi {
                 worker.help.histogram_recv      -= histogram_incr;
                 worker.histogram                += worker.help.histogram_recv;
                 worker.dos                      += worker.help.histogram_recv.cast<double>() * weight; //This is new! try it!
-                counter::MCS                    += constants::rate_take_help * worker.help.help_size;
-                timer::add_hist_volume          += constants::rate_take_help * worker.help.help_size;
-                timer::check_saturation         += constants::rate_take_help * worker.help.help_size;
+                counter::MCS                    += constants::rate_take_help * (worker.help.help_size -1);
+                timer::add_hist_volume          += constants::rate_take_help * (worker.help.help_size -1);
+                timer::check_saturation         += constants::rate_take_help * (worker.help.help_size -1);
                 worker.add_hist_volume_help();
                 worker.t_merge.toc();
             }
