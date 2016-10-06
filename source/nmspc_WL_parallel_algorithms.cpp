@@ -518,36 +518,18 @@ namespace mpi {
                 worker.histogram.fill(0);
                 worker.saturation.clear();
             } else {
-//                double weight     = 1.0/(worker.help.help_size-1);
+                double weight     = 1.0/(worker.help.help_size-1);
                 worker.t_merge.tic();
                 ArrayXXi histogram_incr = worker.histogram - worker.help.histogram_recv; //histogram_recv contains the old (synced) histogram
                 MPI_Allreduce(histogram_incr.data(), worker.help.histogram_recv.data(),(int) histogram_incr.size(), MPI_INT, MPI_SUM, worker.help.MPI_COMM_HELP);
                 worker.t_merge.toc();
 
                 worker.histogram                += worker.help.histogram_recv;
-                worker.dos                      += worker.help.histogram_recv.cast<double>() * worker.lnf;
+                worker.dos                      += worker.help.histogram_recv.cast<double>() * (worker.lnf*weight); //This is new! try it!
                 counter::MCS                    += constants::rate_take_help * worker.help.help_size;
                 timer::add_hist_volume          += constants::rate_take_help * worker.help.help_size;
                 timer::check_saturation         += constants::rate_take_help * worker.help.help_size;
                 worker.add_hist_volume_help();
-
-//                for (int i = 0; i < worker.help.help_size; i++) {
-//                    if (i == worker.help.help_rank) {
-//                        worker.help.histogram_recv = histogram_incr;
-//                    }
-//                    MPI_Bcast(worker.help.histogram_recv.data(), (int) worker.help.histogram_recv.size(), MPI_INT, i, worker.help.MPI_COMM_HELP);
-//                    worker.t_merge.toc();
-//                    if (i != worker.help.help_rank) {
-//                        //Add received histogram to your own
-//                        worker.histogram        += worker.help.histogram_recv;
-//                        worker.dos              += worker.help.histogram_recv.cast<double>() * (weight * worker.lnf);
-//
-//
-//
-//                        worker.add_hist_volume();
-//                    }
-//
-//                }
             }
 
             worker.help.histogram_recv = worker.histogram;
