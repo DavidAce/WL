@@ -9,8 +9,8 @@
 namespace constants{
 
     //WL boostrap properties
-    static const int simulation_reps = 4;      //Number of independent do_simulations
-    static const int bootstrap_reps  = 16;
+    static const int simulation_reps = 2;      //Number of independent do_simulations
+    static const int bootstrap_reps  = 8;
 
     //WL thermodynamics properties
     static const int    T_num = 500;             //Number of temperatures for thermodynamic quantities
@@ -28,10 +28,10 @@ namespace constants{
     //Rates for checking and printing (MCS units)
     static const int    rate_add_hist_volume   = 250;       //How often to append reduced volume to an array called "saturation", which indicates if the current walk has converged when it flattens out.
     static const int    rate_check_finish_line = 5000;      //Check if everybodies modification factor is below minimum_lnf
-    static const int    rate_take_help         = 10;
+    static const int    rate_check_help        = 5000;
+    static const int    rate_take_help         = 1;
     static const int    rate_setup_help        = 5000;
     static const int    rate_check_saturation  = 5000;      //How often to check if saturation has flattened out
-//    static const int    rate_divide_range_find = 5000;     //How often to check if we can merge all dos and split energy subwindows in a smarter way.
     static const int    rate_divide_range      = 5000;     //How often to check if we can merge all dos and split energy subwindows in a smarter way.
     static const int    rate_swap              = 500;       //How often to swap walkers in adjacent windows
     static const int    rate_backup_data       = 500000;    //How often to backup progress

@@ -37,6 +37,7 @@ int timer::check_finish_line;
 int timer::backup;
 int timer::print;
 int timer::swap;
+int timer::check_help;
 int timer::take_help;
 int timer::setup_help;
 int timer::divide_range;
@@ -203,6 +204,7 @@ void class_worker::start_counters() {
     timer::backup               = 0;
     timer::print                = 0;
     timer::swap 				= 0;
+    timer::check_help        	= 0;
     timer::take_help        	= 0;
     timer::setup_help			= 0;
     timer::divide_range         = 0;
@@ -217,6 +219,7 @@ void class_worker::rewind_timers(){
     timer::backup               = 0;// math::mod(counter::MCS, constants::rate_backup_data      );
     timer::print                = 0;// math::mod(counter::MCS, constants::rate_print_status     );
     timer::swap 				= 0;// math::mod(counter::MCS, constants::rate_swap             );
+    timer::check_help        	= 0;// math::mod(counter::MCS, constants::rate_take_help        );
     timer::take_help        	= 0;// math::mod(counter::MCS, constants::rate_take_help        );
     timer::setup_help			= 0;// math::mod(counter::MCS, constants::rate_setup_help       );
     timer::divide_range         = 0;// math::mod(counter::MCS, constants::rate_divide_range     );
@@ -443,27 +446,6 @@ void class_worker::synchronize_sets(){
 
 void class_worker::adjust_local_bins() {
     // This function does rebinning of dos and histograms.
-//    cout << "Hej 1" << endl;
-//    for(int w = 0; w < world_size; w++){
-//        if (world_ID == w){
-//            cout << "Size: " << E_set.size() << " ";
-//            cout << E_set << endl;
-//            cout.flush();
-//            std::this_thread::sleep_for(std::chrono::microseconds(10000));
-//        }
-//        MPI_Barrier(MPI_COMM_WORLD);
-//    }
-//    MPI_Barrier(MPI_COMM_WORLD);
-//    for(int w = 0; w < world_size; w++){
-//        if (world_ID == w){
-//            cout << "Size: " << M_set.size() << " ";
-//            cout << M_set << endl;
-//            cout.flush();
-//            std::this_thread::sleep_for(std::chrono::microseconds(10000));
-//        }
-//        MPI_Barrier(MPI_COMM_WORLD);
-//    }
-//    MPI_Barrier(MPI_COMM_WORLD);
 
     //Snap the local boundaries to existing energies
     ArrayXd E_set_to_array;
@@ -483,42 +465,13 @@ void class_worker::adjust_local_bins() {
 
     ArrayXd E_old = E_bins;
     ArrayXd M_old = M_bins;
-//    for(int w = 0; w < world_size; w++){
-//        if (world_ID == w){
-//            cout << "ID: "<< world_ID << " E    : " << E_bins.transpose() << endl;
-//            cout << "ID: "<< world_ID << " M    : " << M_bins.transpose() << endl;
-//            cout << "ID: "<< world_ID << " E_idx: " <<E_idx_min << " " << E_idx_max << endl;
-//            cout << "ID: "<< world_ID << " M_idx: " <<M_idx_min << " " << M_idx_max << endl;
-//            cout.flush();
-//            std::this_thread::sleep_for(std::chrono::microseconds(10000));
-//        }
-//        MPI_Barrier(MPI_COMM_WORLD);
-//    }
-//    MPI_Barrier(MPI_COMM_WORLD);
 
-//    cout <<"Hej 3" << endl;
-    MPI_Barrier(MPI_COMM_WORLD);
     E_bins                  = E_set_to_array.segment(E_idx_min, E_idx_max-E_idx_min+1);
     M_bins                  = M_set_to_array.segment(M_idx_min, M_idx_max-M_idx_min+1);
-
-//    for(int w = 0; w < world_size; w++){
-//        if (world_ID == w){
-//            cout << "ID: "<< world_ID << " E_new("<< E_bins.size() << ")   : " << E_bins.transpose() << endl;
-//            cout << "ID: "<< world_ID << " M_new("<< M_bins.size() << ")   : " << M_bins.transpose() << endl;
-//            cout.flush();
-//            std::this_thread::sleep_for(std::chrono::microseconds(10000));
-//        }
-//        MPI_Barrier(MPI_COMM_WORLD);
-//    }
-    MPI_Barrier(MPI_COMM_WORLD);
-//    cout << "Hej 33" << endl;
-    MPI_Barrier(MPI_COMM_WORLD);
-//    int E_new_size =(int)E_bins.size();
-//    int M_new_size =(int)M_bins.size();
-    histogram  = ArrayXXi::Zero(E_bins.size(), M_bins.size());
-    dos        = ArrayXXd::Zero(E_bins.size(), M_bins.size());
+    histogram               = ArrayXXi::Zero(E_bins.size(), M_bins.size());
+    help.histogram_recv     = histogram;
+    dos                     = ArrayXXd::Zero(E_bins.size(), M_bins.size());
 //    cout << "Hej 4" << endl;
-    MPI_Barrier(MPI_COMM_WORLD);
 //    int x, y, i, j;
 //    double dR, dx, dy;
 //    int E_old_size = (int) E_bins.size();
@@ -867,6 +820,7 @@ void class_worker::set_P_increment(){
 void class_worker::next_WL_iteration() {
     lnf = fmax(1e-12, lnf*constants::reduce_factor_lnf);
     histogram.fill(0);
+    help.histogram_recv = histogram;
     saturation.clear();
     counter::walks++;
 }
@@ -892,6 +846,7 @@ void class_worker::rewind_to_zero(){
     finish_line = 0;
     dos.fill(0);
     histogram = ArrayXXi::Zero(dos.rows(), dos.cols());
+    help.histogram_recv = histogram;
     saturation.clear();
     rewind_timers();
     help.reset();
@@ -906,6 +861,7 @@ void class_worker::prev_WL_iteration() {
     counter::MCS            = counter::walks == 0 ? 0 : (int) (1.0 / lnf);
     flag_one_over_t         = 0;
     histogram.fill(0);
+    help.histogram_recv = histogram;
     saturation.clear();
 }
 

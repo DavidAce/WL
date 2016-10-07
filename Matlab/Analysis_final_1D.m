@@ -1,6 +1,6 @@
 close all
 clear all;
-L = 12;
+L = 16;
 N = L^2;
 dos1D = load(['../outdata/final/dos1D.dat']);
 E     = load(['../outdata/final/E.dat']);

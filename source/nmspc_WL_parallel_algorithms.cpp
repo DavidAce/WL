@@ -371,6 +371,8 @@ namespace mpi {
         worker.dos = worker.dos_total.middleRows(from, rows);
         worker.E_bins = worker.E_bins_total.segment(from, rows);
         worker.histogram = ArrayXXi::Zero(worker.dos.rows(), worker.dos.cols());
+        worker.help.histogram_recv = worker.histogram;
+
         worker.find_current_state();
 
         if (worker.model.discrete_model) {
@@ -448,6 +450,7 @@ namespace mpi {
         worker.dos = worker.dos_total.middleRows(from, rows);
         worker.E_bins = worker.E_bins_total.segment(from, rows);
         worker.histogram = ArrayXXi::Zero(worker.dos.rows(), worker.dos.cols());
+        worker.help.histogram_recv = worker.histogram;
         worker.state_in_window = worker.check_in_window(worker.E);
         worker.find_current_state();
 
@@ -476,11 +479,11 @@ namespace mpi {
 
     }
 
-    void take_help(class_worker &worker) {
+    void check_help(class_worker &worker) {
         //Check if anybody was able to do a walk
-        timer::take_help = 0;
+        timer::check_help = 0;
         if (worker.help.MPI_COMM_HELP != MPI_COMM_NULL) {
-            worker.t_help.tic();
+            worker.t_merge.tic();
             struct {
                 int highest_walk;
                 int highest_idx;
@@ -490,7 +493,7 @@ namespace mpi {
             MPI_Allreduce(&in, &out, 1, MPI_2INT, MPI_MAXLOC, worker.help.MPI_COMM_HELP);
             if (out.highest_walk > worker.help.help_walks) {
                 //Somebody made progress, then get everybody up to speed
-                //Now broadcast an updated dos:
+                //Also, broadcast an updated dos
                 if (debug_take_help) {
                     if (out.highest_idx == worker.help.help_rank) {
                         cout << "ID: " << worker.world_ID
@@ -516,27 +519,34 @@ namespace mpi {
                     }
                 }
                 worker.histogram.fill(0);
+                worker.help.histogram_recv = worker.histogram;
                 worker.saturation.clear();
-            } else {
-                double weight     = worker.lnf * 1.0/(worker.help.help_size-1);
-                worker.t_merge.tic();
-                ArrayXXi histogram_incr = worker.histogram - worker.help.histogram_recv; //histogram_recv contains the old (synced) histogram
-                MPI_Allreduce(histogram_incr.data(), worker.help.histogram_recv.data(),(int) histogram_incr.size(), MPI_INT, MPI_SUM, worker.help.MPI_COMM_HELP);
-                worker.help.histogram_recv      -= histogram_incr;
-                worker.histogram                += worker.help.histogram_recv;
-                worker.dos                      += worker.help.histogram_recv.cast<double>() * weight; //This is new! try it!
-                counter::MCS                    += constants::rate_take_help * (worker.help.help_size -1);
-                timer::add_hist_volume          += constants::rate_take_help * (worker.help.help_size -1);
-                timer::check_saturation         += constants::rate_take_help * (worker.help.help_size -1);
-                worker.add_hist_volume_help();
-                worker.t_merge.toc();
+                worker.flag_one_over_t = worker.lnf < 1.0 / max(1, counter::MCS) ? 1 : 0;
             }
-
-            worker.help.histogram_recv = worker.histogram;
-            worker.flag_one_over_t = worker.lnf < 1.0 / max(1, counter::MCS) ? 1 : 0;
-            worker.t_help.toc();
+            worker.t_merge.toc();
         }
     }
+
+    void take_help(class_worker &worker) {
+        //Check if anybody was able to do a walk
+        timer::take_help = 0;
+        if (worker.help.MPI_COMM_HELP != MPI_COMM_NULL) {
+            worker.t_help.tic();
+            ArrayXXi histogram_incr     = worker.histogram - worker.help.histogram_recv; //histogram_recv contains the old (synced) histogram
+            MPI_Allreduce(histogram_incr.data(), worker.help.histogram_recv.data(), (int) histogram_incr.size(), MPI_INT, MPI_SUM, worker.help.MPI_COMM_HELP);
+            worker.help.histogram_recv  -= histogram_incr;
+            worker.histogram            += worker.help.histogram_recv;
+            worker.dos                  += worker.help.histogram_recv.cast<double>() * worker.lnf;
+            counter::MCS                += constants::rate_take_help * (worker.help.help_size - 1);
+            timer::add_hist_volume      += constants::rate_take_help * (worker.help.help_size - 1);
+            timer::check_saturation     += constants::rate_take_help * (worker.help.help_size - 1);
+            worker.add_hist_volume_help();
+            worker.help.histogram_recv = worker.histogram;
+            worker.t_help.toc();
+        }
+
+    }
+
 
     void take_help2(class_worker &worker) {
         //Check if anybody was able to do a walk
@@ -695,15 +705,20 @@ namespace mpi {
         if (worker.help.giving_help) { backup.backup_state(worker); }
 
         //Send out the details for help to begin.
-        mpi::bcast_dynamic(worker.dos, MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
-        mpi::bcast_dynamic(worker.E_bins, MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
-        mpi::bcast_dynamic(worker.M_bins, MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
-        MPI_Bcast(&worker.lnf, 1, MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
-        MPI_Bcast(&worker.E, 1, MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
-        MPI_Bcast(&worker.M, 1, MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
-        MPI_Bcast(&counter::MCS, 1, MPI_INT, 0, worker.help.MPI_COMM_HELP);
+        mpi::bcast_dynamic(worker.dos,       MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
+        mpi::bcast_dynamic(worker.histogram, MPI_INT   , 0, worker.help.MPI_COMM_HELP);
+        mpi::bcast_dynamic(worker.E_bins,    MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
+        mpi::bcast_dynamic(worker.M_bins,    MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
+        MPI_Bcast(&worker.lnf,     1, MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
+        MPI_Bcast(&worker.E,       1, MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
+        MPI_Bcast(&worker.M,       1, MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
+        MPI_Bcast(&counter::MCS,   1, MPI_INT, 0, worker.help.MPI_COMM_HELP);
         MPI_Bcast(&counter::walks, 1, MPI_INT, 0, worker.help.MPI_COMM_HELP);
         MPI_Bcast(worker.model.lattice.data(), (int) worker.model.lattice.size(), MPI_INT, 0, worker.help.MPI_COMM_HELP);
+        ArrayXi saturation_map = Map<ArrayXi>(worker.saturation.data(), (int)worker.saturation.size());
+        mpi::bcast_dynamic(saturation_map, MPI_INT   , 0, worker.help.MPI_COMM_HELP);
+        worker.help.histogram_recv = worker.histogram;
+
         worker.help.help_walks = counter::walks;
         if (worker.help.giving_help) {
             worker.E_min_local = worker.E_bins.minCoeff();
@@ -714,13 +729,10 @@ namespace mpi {
             worker.set_P_increment();
             worker.find_current_state();
         }
-        worker.histogram.resizeLike(worker.dos);
-        worker.histogram.fill(0);
-        worker.saturation.clear();
-        worker.help.histogram_recv.resizeLike(worker.histogram);
-        worker.help.histogram_recv.fill(0);
-        timer::add_hist_volume = 0;
-        timer::check_saturation = 0;
+        timer::add_hist_volume      = 0;
+        timer::check_saturation     = 0;
+        timer::take_help            = 0;
+        timer::check_help           = 0;
         worker.t_help_setup.toc();
     }
 }

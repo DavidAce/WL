@@ -50,6 +50,7 @@ void wanglandau(class_worker &worker){
     worker.t_print.tic();
     while(finish_line == 0){
         sweep(worker);
+        if (timer::check_help           >= constants::rate_check_help       ){mpi::check_help        (worker)                 ;}
         if (timer::take_help            >= constants::rate_take_help        ){mpi::take_help         (worker)                 ;}
         if (timer::setup_help           >= constants::rate_setup_help       ){mpi::setup_help        (worker,backup)          ;}
         if (timer::swap                 >= constants::rate_swap             ){mpi::swap              (worker)                 ;}
@@ -66,6 +67,7 @@ void wanglandau(class_worker &worker){
         timer::backup++;
         timer::print++;
         timer::swap++;
+        timer::check_help++;
         timer::take_help++;
         timer::setup_help++;
         timer::divide_range++;
@@ -94,10 +96,6 @@ void sweep(class_worker &worker){
 }
 
 void check_finish_line(class_worker &worker, outdata &out, int &finish_line){
-//    if (debug_convergence) { cout << "ID: " << worker.world_ID << " Add hist volume "<< endl; }
-//    worker.add_hist_volume();
-//    if (debug_convergence) { cout << "ID: " << worker.world_ID << " Check Saturation "<< endl; }
-//    worker.check_saturation();
         timer::check_finish_line = 0;
         if (debug_convergence) { debug_print(worker, "Check Finish line "); }
         if (!worker.help.giving_help){
@@ -107,16 +105,6 @@ void check_finish_line(class_worker &worker, outdata &out, int &finish_line){
             }
         }
         MPI_Allreduce(&worker.finish_line, &finish_line, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
-
-//    if (worker.flag_one_over_t) {
-//        worker.lnf = 1.0 / counter::MCS;
-//    } else {
-//        if (worker.lnf < 1.0 / max(1, counter::MCS)) {
-//            worker.flag_one_over_t = 1;
-//        }else{
-//            worker.flag_one_over_t = 0;
-//        }
-//    }
 }
 
 void divide_range(class_worker &worker, class_backup &backup, outdata &out) {
