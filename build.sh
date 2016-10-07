@@ -24,6 +24,7 @@ then
     export CC=/software/apps/gcc/5.3.0/build01/bin/gcc
     export CXX=/software/apps/gcc/5.3.0/build01/bin/g++
 elif [[ "$HOSTNAME" == *"beskow"* ]]
+then
     echo "We're on beskow!";
     module load cmake/3.0.2
 else
