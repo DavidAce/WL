@@ -26,6 +26,10 @@ then
 elif [[ "$HOSTNAME" == *"beskow"* ]]
 then
     echo "We're on beskow!";
+    module ()
+    {
+    eval `/opt/modules/3.2.6.7/bin/modulecmd bash $*`
+    }
     module swap PrgEnv-cray/5.2.56 PrgEnv-intel/5.2.56;
     module load intel/16.0.1.150;
     module load gcc/5.1.0;
