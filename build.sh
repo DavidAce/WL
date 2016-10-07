@@ -23,6 +23,9 @@ then
     module load buildenv-intel/2016-3
     export CC=/software/apps/gcc/5.3.0/build01/bin/gcc
     export CXX=/software/apps/gcc/5.3.0/build01/bin/g++
+elif [[ "$HOSTNAME" == *"beskow"* ]]
+    echo "We're on beskow!";
+    module load cmake/3.0.2
 else
     echo "We're on my pc!"
 fi
