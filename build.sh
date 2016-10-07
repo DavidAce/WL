@@ -26,6 +26,7 @@ then
 elif [[ "$HOSTNAME" == *"beskow"* ]]
 then
     echo "We're on beskow!";
+    module load gcc/5.1.0
     module add cmake/3.0.2
 else
     echo "We're on my pc!"
