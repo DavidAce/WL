@@ -56,6 +56,7 @@ else()
 endif()
 message("Compiling with: ${CMAKE_CXX_COMPILER_ID}")
 
+#target_link_libraries(WL shared)
 
 
 file(GLOB_RECURSE WL_SOURCES "source/*.cpp")

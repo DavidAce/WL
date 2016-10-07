@@ -533,7 +533,7 @@ namespace mpi {
         if (worker.help.MPI_COMM_HELP != MPI_COMM_NULL) {
             worker.t_help.tic();
             ArrayXXi histogram_incr     = worker.histogram - worker.help.histogram_recv; //histogram_recv contains the old (synced) histogram
-            MPI_Allreduce(histogram_incr.data(), worker.help.histogram_recv.data(), (int) histogram_incr.size(), MPI_INT, MPI_SUM, worker.help.MPI_COMM_HELP);
+            MPI_Allreduce(histogram_incr.data(), worker.help.histogram_recv.data(), (int) histogram_incr.size(), MPI_INT, MPI_MAX, worker.help.MPI_COMM_HELP);
             worker.help.histogram_recv  -= histogram_incr;
             worker.histogram            += worker.help.histogram_recv;
             worker.dos                  += worker.help.histogram_recv.cast<double>() * worker.lnf;
