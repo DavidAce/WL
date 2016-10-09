@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH -J WL
-#SBATCH -t 0-6:00:00
+#SBATCH -t 0-0:40:00
 #SBATCH -N 6
 #SBATCH -e error_file.e
 #SBATCH -o output_file.o
