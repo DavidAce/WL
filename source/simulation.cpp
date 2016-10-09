@@ -37,14 +37,14 @@ void wanglandau(class_worker &worker){
         worker.t_merge.tic();
         if (timer::swap                 >= constants::rate_swap             ){mpi::swap              (worker)                 ;}
         worker.t_merge.toc();
-        if (timer::check_help           >= constants::rate_check_help       ){mpi::check_help        (worker)                 ;}
-        if (timer::take_help            >= constants::rate_take_help        ){mpi::take_help         (worker)                 ;}
-        if (timer::setup_help           >= constants::rate_setup_help       ){mpi::setup_help        (worker,backup)          ;}
         if (timer::add_dos              >= constants::rate_add_dos          ){worker.add_dos         ()                       ;}
         if (timer::add_hist_volume      >= constants::rate_add_hist_volume  ){worker.add_hist_volume ()                       ;}
         if (timer::check_saturation     >= constants::rate_check_saturation ){worker.check_saturation()                       ;}
         if (timer::check_finish_line    >= constants::rate_check_finish_line){check_finish_line      (worker,out, finish_line);}
         if (timer::divide_range         >= constants::rate_divide_range     ){divide_range           (worker, backup,out)     ;}
+        if (timer::check_help           >= constants::rate_check_help       ){mpi::check_help        (worker)                 ;}
+        if (timer::take_help            >= constants::rate_take_help        ){mpi::take_help         (worker)                 ;}
+        if (timer::setup_help           >= constants::rate_setup_help       ){mpi::setup_help        (worker,backup)          ;}
         if (timer::print                >= constants::rate_print_status     ){print_status           (worker,false)           ;}
 
         counter::MCS++;
@@ -79,6 +79,7 @@ void sweep(class_worker &worker){
         }else{
             worker.reject_MC_trial();
         }
+        timer::increment++;
     }
     if (worker.flag_one_over_t) {
         worker.lnf = 1.0 / counter::MCS;

@@ -7,7 +7,7 @@
 #define debug_merge     0
 #define debug_bcast     0
 #define debug_divide    0
-#define debug_take_help 1
+#define debug_take_help 0
 #define debug_setup_help 0
 using namespace std;
 
@@ -18,7 +18,6 @@ namespace mpi {
         worker.t_swap.tic();
 
         int abort;
-        MPI_Barrier(MPI_COMM_WORLD);
         MPI_Allreduce(&worker.need_to_resize_global, &abort, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
 
         if (abort || counter::vol_merges < 1) {
@@ -476,7 +475,7 @@ namespace mpi {
                 int highest_idx;
             } in, out;
             in.highest_walk = counter::walks;
-            in.highest_idx = worker.help.help_rank;
+            in.highest_idx  = worker.help.help_rank;
             MPI_Allreduce(&in, &out, 1, MPI_2INT, MPI_MAXLOC, worker.help.MPI_COMM_HELP);
             if (out.highest_walk > worker.help.help_walks) {
                 //Somebody made progress, then get everybody up to speed
@@ -507,7 +506,6 @@ namespace mpi {
                 }
                 worker.histogram.setZero();
                 worker.saturation.clear();
-                worker.random_walk.clear();
             }
         }
     }
@@ -517,9 +515,25 @@ namespace mpi {
         timer::take_help = 0;
         if (worker.help.MPI_COMM_HELP != MPI_COMM_NULL) {
             worker.t_help.tic();
-            auto size = worker.random_walk.size();
-            vector<state> random_walk_recv(size * worker.help.help_size);
-            MPI_Allgather(worker.random_walk.data(), (int)size, MPI_2INT,  random_walk_recv.data(), (int)size, MPI_2INT,worker.help.MPI_COMM_HELP);
+            int  size = (int)worker.random_walk.size();
+            vector<state> random_walk_recv((unsigned long)(size * worker.help.help_size));
+            if (debug_take_help){
+                ArrayXi sizes(worker.help.help_size);
+                MPI_Allgather(&size,1,MPI_INT, sizes.data(),1,MPI_INT, worker.help.MPI_COMM_HELP);
+                if ((sizes != sizes(0)).any() ){
+                    if (worker.help.help_rank == 0){cout << "Random walk size mismatch!" << endl;}
+                    for (int w = 0 ; w < worker.help.help_size; w++) {
+                        if (w == worker.help.help_rank) {
+                            cout << "ID: " << worker.world_ID << " Help size: " << worker.help.help_size << endl << " rw size: " << size << endl;
+                            cout << random_walk_recv << endl;
+                            cout << worker.random_walk << endl;
+
+                        }
+                    }
+                }
+            }
+
+            MPI_Allgather(worker.random_walk.data(), size, MPI_2INT,  random_walk_recv.data(), size, MPI_2INT, worker.help.MPI_COMM_HELP);
             for(int i = 0; i < random_walk_recv.size(); i++){
                 worker.histogram(random_walk_recv[i].E_idx,random_walk_recv[i].M_idx) += 1;
                 worker.dos      (random_walk_recv[i].E_idx,random_walk_recv[i].M_idx) += worker.lnf;
@@ -704,8 +718,6 @@ namespace mpi {
         MPI_Bcast(worker.model.lattice.data(), (int) worker.model.lattice.size(), MPI_INT, 0, worker.help.MPI_COMM_HELP);
         ArrayXi saturation_map = Map<ArrayXi>(worker.saturation.data(), (int)worker.saturation.size());
         mpi::bcast_dynamic(saturation_map, MPI_INT   , 0, worker.help.MPI_COMM_HELP);
-        worker.random_walk.clear();
-//        worker.histogram_incr       = ArrayXXi::Zero(worker.histogram.rows(), worker.histogram.cols());
         worker.help.help_walks      = counter::walks;
         if (worker.help.giving_help) {
             worker.E_min_local      = worker.E_bins.minCoeff();
@@ -713,9 +725,11 @@ namespace mpi {
             worker.M_min_local      = worker.M_bins.minCoeff();
             worker.M_max_local      = worker.M_bins.maxCoeff();
             worker.state_in_window  = worker.check_in_window(worker.E);
-            worker.set_rate_increment();
             worker.find_current_state();
         }
+        worker.set_rate_increment();
+        worker.random_walk.clear();
+
         timer::increment            = 0;
         timer::add_dos              = 0;
         timer::add_hist_volume      = 0;

@@ -28,6 +28,7 @@ struct state{
 };
 
 
+std::ostream& operator<< (std::ostream& out, const std::vector<state>& v);
 
 template <typename T>
 std::ostream& operator<< (std::ostream& out, const std::vector<T>& v) {
@@ -214,7 +215,7 @@ public:
     void backup_state(class_worker &worker){
         if (!backed_up) {
             lnf             = worker.lnf;
-            P_increment     = worker.rate_increment;
+            rate_increment  = worker.rate_increment;
             dos             = worker.dos;
             histogram       = worker.histogram;
             E_bins          = worker.E_bins;
@@ -242,7 +243,7 @@ public:
     void restore_state(class_worker &worker){
         if (backed_up) {
             worker.lnf          = lnf;
-            worker.rate_increment  = P_increment;
+            worker.rate_increment = rate_increment;
             worker.dos          = dos;
             worker.histogram    = histogram;
             worker.E_bins       = E_bins;
@@ -269,7 +270,7 @@ public:
 
     //Main data structures of the WL algorithm. Needed very often.
     double lnf;             //Modification factor of WL-algorithm
-    double P_increment;     //Increment probability should be proportional to number of bins
+    int rate_increment;     //Increment probability should be proportional to number of bins
 
     //WL DOS and Histograms
     ArrayXXd dos;

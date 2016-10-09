@@ -42,6 +42,18 @@ int timer::take_help;
 int timer::setup_help;
 int timer::divide_range;
 
+
+std::ostream& operator<< (std::ostream& out, const std::vector<state>& v) {
+    if (!v.empty()) {
+        out << "[ ";
+        for (int i = 0; i < v.size(); i++) {
+            out << "(" << v[i].E_idx << "," << v[i].M_idx << ") ";
+        }
+        out << "]";
+    }
+    return out;
+}
+
 //Constructors
 class_worker::class_worker(int & id, int & size):
                                 world_ID(id),
@@ -406,7 +418,6 @@ void class_worker::adjust_local_bins() {
     M_bins                  = M_set_to_array.segment(M_idx_min, M_idx_max-M_idx_min+1);
     histogram               = ArrayXXi::Zero(E_bins.size(), M_bins.size());
     dos                     = ArrayXXd::Zero(E_bins.size(), M_bins.size());
-    random_walk.clear();
 
 
 //    cout << "Hej 4" << endl;
@@ -669,7 +680,7 @@ void class_worker::accept_MC_trial() {
         E_idx                       = E_idx_trial;
         M_idx                       = M_idx_trial;
 
-        if (++timer::increment >= rate_increment) {
+        if (timer::increment >= rate_increment) {
             timer::increment = 0;
             random_walk.push_back({E_idx,M_idx});
 
@@ -680,7 +691,7 @@ void class_worker::accept_MC_trial() {
 
 void class_worker::reject_MC_trial() {
     if (state_in_window && state_is_valid) {
-        if (++timer::increment >= rate_increment) {
+        if (timer::increment >= rate_increment) {
             timer::increment = 0;
             random_walk.push_back({E_idx,M_idx});
         }
@@ -707,7 +718,6 @@ void class_worker::set_rate_increment(){
 void class_worker::next_WL_iteration() {
     lnf = fmax(1e-12, lnf*constants::reduce_factor_lnf);
     histogram.setZero();
-    random_walk.clear();
     saturation.clear();
     counter::walks++;
 }
@@ -718,7 +728,6 @@ void class_worker::rewind_to_lowest_walk(){
     counter::walks = min_walks;
     lnf = pow(constants::reduce_factor_lnf, min_walks);
     finish_line = 0;
-    random_walk.clear();
     saturation.clear();
     counter::MCS            = (int) (1.0/lnf);
 //    rewind_timers();
@@ -749,7 +758,6 @@ void class_worker::prev_WL_iteration() {
     counter::MCS            = counter::walks == 0 ? 0 : (int) (1.0 / lnf);
     flag_one_over_t         = 0;
     histogram.setZero();
-    random_walk.clear();
     saturation.clear();
 }
 
