@@ -646,6 +646,7 @@ void class_worker::acceptance_criterion(){
                 //Has been outside, now reentering the window
                 accept          = true;
                 state_in_window = true;
+//                cout << "ID: " << world_ID << " Reentering ("<< counter::MCS << "): " << random_walk <<endl;
                 find_next_state_exact();
                 if (!state_is_valid){
                     //New energy has been found, insert
@@ -654,6 +655,8 @@ void class_worker::acceptance_criterion(){
                 }
             }else{
                 //Still out of window... prefer to move towards window.
+//                cout << "ID: " << world_ID << " Walking towards window("<< counter::MCS << "): " << random_walk << endl;
+
                 state_in_window = false;
                 walk_towards_window();
             }
@@ -679,8 +682,7 @@ void class_worker::accept_MC_trial() {
     if (state_in_window && state_is_valid) {
         E_idx                       = E_idx_trial;
         M_idx                       = M_idx_trial;
-
-        if (timer::increment >= rate_increment) {
+        if (++timer::increment >= rate_increment) {
             timer::increment = 0;
             random_walk.push_back({E_idx,M_idx});
 
@@ -691,7 +693,7 @@ void class_worker::accept_MC_trial() {
 
 void class_worker::reject_MC_trial() {
     if (state_in_window && state_is_valid) {
-        if (timer::increment >= rate_increment) {
+        if (++timer::increment >= rate_increment) {
             timer::increment = 0;
             random_walk.push_back({E_idx,M_idx});
         }
@@ -712,13 +714,15 @@ void class_worker::set_rate_increment(){
             dos_width += 1;
         }
     }
-    rate_increment = max(1, (int)std::sqrt(fmax(dos_width,dos_height)));
+//    rate_increment = max(1, (int)std::sqrt(fmax(dos_width,dos_height)));
+    rate_increment = constants::N;
 }
 
 void class_worker::next_WL_iteration() {
     lnf = fmax(1e-12, lnf*constants::reduce_factor_lnf);
     histogram.setZero();
     saturation.clear();
+    random_walk.clear();
     counter::walks++;
 }
 
@@ -731,6 +735,7 @@ void class_worker::rewind_to_lowest_walk(){
     saturation.clear();
     counter::MCS            = (int) (1.0/lnf);
 //    rewind_timers();
+    random_walk.clear();
     help.reset();
 }
 
@@ -747,6 +752,7 @@ void class_worker::rewind_to_zero(){
     saturation.clear();
     rewind_timers();
     help.reset();
+
     flag_one_over_t = 0;
 }
 
@@ -759,6 +765,7 @@ void class_worker::prev_WL_iteration() {
     flag_one_over_t         = 0;
     histogram.setZero();
     saturation.clear();
+    random_walk.clear();
 }
 
 

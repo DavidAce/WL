@@ -79,7 +79,6 @@ void sweep(class_worker &worker){
         }else{
             worker.reject_MC_trial();
         }
-        timer::increment++;
     }
     if (worker.flag_one_over_t) {
         worker.lnf = 1.0 / counter::MCS;

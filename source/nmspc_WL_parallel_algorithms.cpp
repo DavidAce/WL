@@ -435,10 +435,10 @@ namespace mpi {
         }
 
 
-        worker.dos = worker.dos_total.middleRows(from, rows);
-        worker.E_bins = worker.E_bins_total.segment(from, rows);
+        worker.dos                  = worker.dos_total.middleRows(from, rows);
+        worker.E_bins               = worker.E_bins_total.segment(from, rows);
         worker.histogram            = ArrayXXi::Zero(worker.dos.rows(), worker.dos.cols());
-        worker.state_in_window = worker.check_in_window(worker.E);
+        worker.state_in_window      = worker.check_in_window(worker.E);
         worker.find_current_state();
 
         if (worker.model.discrete_model) {
@@ -516,24 +516,40 @@ namespace mpi {
         if (worker.help.MPI_COMM_HELP != MPI_COMM_NULL) {
             worker.t_help.tic();
             int  size = (int)worker.random_walk.size();
-            vector<state> random_walk_recv((unsigned long)(size * worker.help.help_size));
-            if (debug_take_help){
-                ArrayXi sizes(worker.help.help_size);
-                MPI_Allgather(&size,1,MPI_INT, sizes.data(),1,MPI_INT, worker.help.MPI_COMM_HELP);
-                if ((sizes != sizes(0)).any() ){
-                    if (worker.help.help_rank == 0){cout << "Random walk size mismatch!" << endl;}
-                    for (int w = 0 ; w < worker.help.help_size; w++) {
-                        if (w == worker.help.help_rank) {
-                            cout << "ID: " << worker.world_ID << " Help size: " << worker.help.help_size << endl << " rw size: " << size << endl;
-                            cout << random_walk_recv << endl;
-                            cout << worker.random_walk << endl;
-
-                        }
-                    }
-                }
+            ArrayXi sizes(worker.help.help_size);
+            ArrayXi displ(worker.help.help_size);
+            MPI_Allgather(&size,1,MPI_INT, sizes.data(),1,MPI_INT, worker.help.MPI_COMM_HELP);
+            displ(0) = 0;
+            for (int i = 1; i < worker.help.help_size; i++){
+                displ(i) = displ(i-1) + sizes(i-1);
             }
+            vector<state> random_walk_recv((unsigned long)(sizes.sum()));
+//            if (debug_take_help){
+//                ArrayXi sizes(worker.help.help_size);
+//                MPI_Allgather(&size,1,MPI_INT, sizes.data(),1,MPI_INT, worker.help.MPI_COMM_HELP);
+//                if ((sizes != sizes(0)).any() ){
+//                    if (worker.help.help_rank == 0){cout << "Random walk size mismatch!" << endl;}
+//                    for (int w = 0 ; w < worker.help.help_size; w++) {
+//                        if (w == worker.help.help_rank) {
+//                            cout << "ID: " << worker.world_ID << " Help size: " << worker.help.help_size << endl << " rw size: " << size << endl;
+//                            cout << random_walk_recv << endl;
+//                            cout << worker.random_walk << endl;
+//
+//                        }
+//                    }
+//                }
+//            }
+//            cout << "ID: " << worker.world_ID << " current state E: " << worker.E <<  "  " << worker.M  << " MCS: "<< counter::MCS << endl;
+//
+//            cout << "ID: " << worker.world_ID
+//                 << " Old: " << worker.random_walk << endl;
 
-            MPI_Allgather(worker.random_walk.data(), size, MPI_2INT,  random_walk_recv.data(), size, MPI_2INT, worker.help.MPI_COMM_HELP);
+            MPI_Allgatherv(worker.random_walk.data(), size, MPI_2INT,  random_walk_recv.data(), sizes.data(), displ.data(), MPI_2INT, worker.help.MPI_COMM_HELP);
+//            MPI_Allgather(worker.random_walk.data(), size, MPI_2INT,  random_walk_recv.data(), size, MPI_2INT, worker.help.MPI_COMM_HELP);
+//            cout << "ID: " << worker.world_ID
+//                 << " New: " <<random_walk_recv << endl;
+//            MPI_Barrier(worker.help.MPI_COMM_HELP);
+//            exit(1);
             for(int i = 0; i < random_walk_recv.size(); i++){
                 worker.histogram(random_walk_recv[i].E_idx,random_walk_recv[i].M_idx) += 1;
                 worker.dos      (random_walk_recv[i].E_idx,random_walk_recv[i].M_idx) += worker.lnf;
@@ -711,11 +727,11 @@ namespace mpi {
         mpi::bcast_dynamic(worker.E_bins,    MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
         mpi::bcast_dynamic(worker.M_bins,    MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
         MPI_Bcast(&worker.lnf,     1, MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
-        MPI_Bcast(&worker.E,       1, MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
-        MPI_Bcast(&worker.M,       1, MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
+//        MPI_Bcast(&worker.E,       1, MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
+//        MPI_Bcast(&worker.M,       1, MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
         MPI_Bcast(&counter::MCS,   1, MPI_INT, 0, worker.help.MPI_COMM_HELP);
         MPI_Bcast(&counter::walks, 1, MPI_INT, 0, worker.help.MPI_COMM_HELP);
-        MPI_Bcast(worker.model.lattice.data(), (int) worker.model.lattice.size(), MPI_INT, 0, worker.help.MPI_COMM_HELP);
+//        MPI_Bcast(worker.model.lattice.data(), (int) worker.model.lattice.size(), MPI_INT, 0, worker.help.MPI_COMM_HELP);
         ArrayXi saturation_map = Map<ArrayXi>(worker.saturation.data(), (int)worker.saturation.size());
         mpi::bcast_dynamic(saturation_map, MPI_INT   , 0, worker.help.MPI_COMM_HELP);
         worker.help.help_walks      = counter::walks;
@@ -725,7 +741,7 @@ namespace mpi {
             worker.M_min_local      = worker.M_bins.minCoeff();
             worker.M_max_local      = worker.M_bins.maxCoeff();
             worker.state_in_window  = worker.check_in_window(worker.E);
-            worker.find_current_state();
+//            worker.find_current_state();
         }
         worker.set_rate_increment();
         worker.random_walk.clear();
