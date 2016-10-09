@@ -24,22 +24,6 @@ void do_simulations(class_worker &worker){
     }
 }
 
-//
-//void find_global_range(class_worker &worker){
-//    worker.t_total.tic();
-//    worker.t_print.tic();
-//    while(counter::no_global_change < constants::max_no_global_change){
-//        sweep(worker);
-//        if (timer::divide_range_find >= constants::rate_divide_range_find){divide_range_find(worker)      ;}
-//        if (timer::print             >= constants::rate_print_status     ){print_status     (worker,false);}
-//        counter::MCS++;
-//        timer::print++;
-//        timer::swap++;
-//        timer::take_help++;
-//        timer::divide_range_find++;
-//    }
-//}
-
 
 void wanglandau(class_worker &worker){
     int finish_line = 0;
@@ -50,10 +34,13 @@ void wanglandau(class_worker &worker){
     worker.t_print.tic();
     while(finish_line == 0){
         sweep(worker);
+        worker.t_merge.tic();
+        if (timer::swap                 >= constants::rate_swap             ){mpi::swap              (worker)                 ;}
+        worker.t_merge.toc();
         if (timer::check_help           >= constants::rate_check_help       ){mpi::check_help        (worker)                 ;}
         if (timer::take_help            >= constants::rate_take_help        ){mpi::take_help         (worker)                 ;}
         if (timer::setup_help           >= constants::rate_setup_help       ){mpi::setup_help        (worker,backup)          ;}
-        if (timer::swap                 >= constants::rate_swap             ){mpi::swap              (worker)                 ;}
+        if (timer::add_dos              >= constants::rate_add_dos          ){worker.add_dos         ()                       ;}
         if (timer::add_hist_volume      >= constants::rate_add_hist_volume  ){worker.add_hist_volume ()                       ;}
         if (timer::check_saturation     >= constants::rate_check_saturation ){worker.check_saturation()                       ;}
         if (timer::check_finish_line    >= constants::rate_check_finish_line){check_finish_line      (worker,out, finish_line);}
@@ -61,6 +48,7 @@ void wanglandau(class_worker &worker){
         if (timer::print                >= constants::rate_print_status     ){print_status           (worker,false)           ;}
 
         counter::MCS++;
+        timer::add_dos++;
         timer::add_hist_volume++;
         timer::check_finish_line++;
         timer::check_saturation++;
@@ -71,6 +59,7 @@ void wanglandau(class_worker &worker){
         timer::take_help++;
         timer::setup_help++;
         timer::divide_range++;
+
     }
     print_status           (worker,true);
     backup.restore_state   (worker) ;
@@ -91,7 +80,11 @@ void sweep(class_worker &worker){
             worker.reject_MC_trial();
         }
     }
-
+    if (worker.flag_one_over_t) {
+        worker.lnf = 1.0 / counter::MCS;
+    } else {
+        worker.flag_one_over_t = worker.lnf < 1.0 / max(1, counter::MCS) ? 1 : 0;
+    }
     worker.t_sweep.toc();
 }
 
@@ -126,7 +119,7 @@ void divide_range(class_worker &worker, class_backup &backup, outdata &out) {
         worker.need_to_resize_global = 0;
         worker.find_current_state();
         counter::vol_merges = 0;
-        worker.set_P_increment();
+        worker.set_rate_increment();
         worker.prev_WL_iteration();
         return;
     }
@@ -139,13 +132,15 @@ void divide_range(class_worker &worker, class_backup &backup, outdata &out) {
             if (worker.world_ID == 0) { cout << "Dividing according to dos VOLUME" << endl; }
             backup.restore_state(worker);
             worker.help.reset();
-            print_status(worker, true);
             mpi::merge(worker, true, false);
             mpi::divide_global_range_dos_volume(worker);
-//            worker.prev_WL_iteration();
             worker.rewind_to_lowest_walk();
-            worker.set_P_increment();
+            worker.set_rate_increment();
             counter::vol_merges++;
+            if (counter::vol_merges == constants::max_vol_merges){
+                worker.rewind_to_zero();
+            }
+            print_status(worker, true);
         }
     }
     worker.t_divide_range.toc();
@@ -187,14 +182,19 @@ void print_status(class_worker &worker, bool force) {
                     }
                cout << " dE: "    << left << setw(7) << setprecision(2)   << worker.E_max_local - worker.E_min_local
                     << " : ["     << left << setw(7) << setprecision(1)   << worker.E_bins(0) << " " << left << setw(7) << setprecision(1) << worker.E_bins(worker.E_bins.size()-1) << "]"
-                    << " Sw: "    << left << setw(5) << counter::swap_accepts
+                    << " Sw: "    << left << setw(7) << counter::swap_accepts
                     << " H: "     << right<< setw(3) <<  worker.help.helping_id
-                    << " P: "     << left << setw(5) << 1/worker.P_increment
+                    << " I: "     << left << setw(5) << worker.rate_increment
                     << " iw: "    << worker.state_in_window
                     << " NR: "    << worker.need_to_resize_global
                     << " 1/t: "   << worker.flag_one_over_t
                     << " Fin: "   << worker.finish_line
                     << " slope "  << left << setw(10) << worker.slope;
+                    if(true) {
+                cout<< " Edge dos: " << fixed << setprecision(3)
+                    << left << setw(10) << worker.dos.topLeftCorner(1, 1).sum() << " "
+                    << left << setw(10) << worker.dos.topRightCorner(1, 1).sum();
+                    }
 
                cout << " MCS: "   << left << setw(10) << counter::MCS;
                 worker.t_print               .print_delta();

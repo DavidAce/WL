@@ -28,9 +28,9 @@ int counter::MCS;
 int counter::walks;
 int counter::swaps;
 int counter::swap_accepts;
-int counter::area_merges;
 int counter::vol_merges;
-int counter::no_global_change;
+int timer::increment;
+int timer::add_dos;
 int timer::add_hist_volume;
 int timer::check_saturation;
 int timer::check_finish_line;
@@ -41,7 +41,6 @@ int timer::check_help;
 int timer::take_help;
 int timer::setup_help;
 int timer::divide_range;
-int timer::divide_range_find;
 
 //Constructors
 class_worker::class_worker(int & id, int & size):
@@ -71,7 +70,7 @@ class_worker::class_worker(int & id, int & size):
     need_to_resize_global = 0;
     update_global_range();
     start_counters();
-    P_increment = 1;
+    rate_increment = 1;
     cout << "ID: " << world_ID << " Started OK"<<endl;
 }
 
@@ -195,9 +194,9 @@ void class_worker::start_counters() {
     counter::walks              = 0;
     counter::swaps              = 0;
     counter::swap_accepts       = 0;
-    counter::area_merges        = 0;
     counter::vol_merges         = 0;
-    counter::no_global_change   = 0;
+    timer::increment            = 0;
+    timer::add_dos              = 0;
     timer::add_hist_volume      = 0;
     timer::check_saturation     = 0;
     timer::check_finish_line    = 0;
@@ -208,11 +207,12 @@ void class_worker::start_counters() {
     timer::take_help        	= 0;
     timer::setup_help			= 0;
     timer::divide_range         = 0;
-    timer::divide_range_find    = 0;
     flag_one_over_t             = 0;
 }
 
 void class_worker::rewind_timers(){
+    timer::increment            = 0;
+    timer::add_dos              = 0;// math::mod(counter::MCS, constants::rate_add_hist_volume  );
     timer::add_hist_volume      = 0;// math::mod(counter::MCS, constants::rate_add_hist_volume  );
     timer::check_saturation     = 0;// math::mod(counter::MCS, constants::rate_check_saturation );
     timer::check_finish_line    = 0;// math::mod(counter::MCS, constants::rate_check_finish_line);
@@ -226,6 +226,7 @@ void class_worker::rewind_timers(){
 }
 
 void class_worker::set_initial_local_bins(){
+    random_walk.clear();
     switch(constants::rw_dims){
         case 1:
             E_bins << E_set;
@@ -233,6 +234,7 @@ void class_worker::set_initial_local_bins(){
             M_bins  = ArrayXd::Zero(1);
             histogram.conservativeResizeLike(ArrayXXi::Zero(E_bins.size(),M_bins.size()));
             dos.conservativeResizeLike(ArrayXXd::Zero(E_bins.size(),M_bins.size()));
+//            histogram_incr = histogram;
             break;
         case 2:
             E_bins << E_set;
@@ -241,6 +243,7 @@ void class_worker::set_initial_local_bins(){
 //            copy_set(M_bins, M_set);
             histogram.conservativeResizeLike(ArrayXXi::Zero(E_bins.size(),M_bins.size()));
             dos.conservativeResizeLike(ArrayXXd::Zero(E_bins.size(),M_bins.size()));
+//            histogram_incr = histogram;
 //            E_bins  = ArrayXd::LinSpaced(constants::bins, E_min_local, E_max_local);
 //            M_bins  = ArrayXd::LinSpaced(constants::bins, M_min_local, M_max_local);
 //            histogram.conservativeResizeLike(ArrayXXi::Zero(constants::bins,constants::bins));
@@ -251,6 +254,7 @@ void class_worker::set_initial_local_bins(){
             MPI_Finalize();
             exit(1);
     }
+
 }
 
 void class_worker::update_global_range() {
@@ -347,74 +351,6 @@ void class_worker::divide_global_range_uniformly(){
 
 }
 
-//void class_worker::resize_local_bins2() {
-//    // This function does rebinning of dos and histograms.
-//    // If E_set contains more than the default number of bins, then enlarge E_bins, otherwise shrink it!
-//    // If M_set contains more ----" " ---
-//
-//    int x, y, i, j;
-//    double dE, dM, dR, dx, dy;
-//
-//    //Check if we need more bins
-//    int E_old_size = (int) E_bins.size();
-//    int M_old_size = (int) M_bins.size();
-//    int E_new_size;
-//    int M_new_size;
-//    compute_number_of_bins(E_new_size, M_new_size);
-//
-//    ArrayXXi histogram_new  = ArrayXXi::Zero(E_new_size, M_new_size);
-//    ArrayXXd dos_new        = ArrayXXd::Zero(E_new_size, M_new_size);
-//    dE              = fabs(E_max_local - E_min_local) / E_new_size;    //New spacing in E_bins
-//    dM              = fabs(M_max_local - M_min_local) / M_new_size;    //New spacing in M_bins
-//    dR              = sqrt(dE * dE + dM * dM);                         //Diagonal distance ?
-//    ArrayXd E_old = E_bins;
-//    ArrayXd M_old = M_bins;
-//    E_bins          = ArrayXd::LinSpaced(E_new_size, E_min_local, E_max_local);
-//    M_bins          = ArrayXd::LinSpaced(M_new_size, M_min_local, M_max_local);
-//    ArrayXXd weight = ArrayXXd::Zero(E_new_size, M_new_size);
-//    ArrayXXi count  = ArrayXXi::Zero(E_new_size, M_new_size);
-//
-//    for (y = 0; y < M_old_size; y++) {
-//        for (x = 0; x < E_old_size; x++) {
-//            if (dos(x,y) == 0){continue;}
-//            for (j = 0; j < M_new_size; j++) {
-//                for (i = 0; i < E_new_size; i++) {
-//                    dx = fabs(E_bins(i) - E_old(x));   //Distance between old and new bins
-//                    dy = fabs(M_bins(j) - M_old(y));   //Distance between old and new bins
-//                    //Distance between old and new bins should not exceed dE/2
-//                    //This is so to avoid double counting
-//                    if (dx >= dE) { continue; }
-//                    if (dy >= dM) { continue; }
-//                    double w                  = fabs(1.0 - sqrt(dx * dx + dy * dy) / dR);
-////                    weight(i,j)              += fabs(1.0 - 4*dx*dy/dE/dM);
-//                    weight(i,j)              += w;
-//                    count (i,j)              += 1;
-//                    dos_new(i,j)             += w * dos(x,y);
-//                    histogram_new(i,j)       += histogram(x,y);
-//                }
-//            }
-//        }
-//    }
-//
-//    //We have now inserted all old entries to the new dos and histogram, and we only need to divide by the weight.
-//    for (j = 0; j < M_new_size; j++) {
-//        for (i = 0; i < E_new_size; i++) {
-//            dos_new(i,j)        = weight(i,j) > 0  ? dos_new(i,j)/weight(i,j) : 0;
-//            histogram_new(i,j)  = count(i,j) > 0  ? histogram_new(i,j)  / count(i,j)  : 0;
-//
-//        }
-//    }
-//    dos             = dos_new;
-//    histogram       = histogram_new;
-//    if (debug_resize_local_bins) {
-//        for (int w = 0; w < world_size; w++) {
-//            if (w == world_ID) {
-//                cout << *this << endl;
-//            }
-//            MPI_Barrier(MPI_COMM_WORLD);
-//        }
-//    }
-//}
 
 void class_worker::synchronize_sets(){
     //This function collects all known energies from all sets
@@ -469,8 +405,10 @@ void class_worker::adjust_local_bins() {
     E_bins                  = E_set_to_array.segment(E_idx_min, E_idx_max-E_idx_min+1);
     M_bins                  = M_set_to_array.segment(M_idx_min, M_idx_max-M_idx_min+1);
     histogram               = ArrayXXi::Zero(E_bins.size(), M_bins.size());
-    help.histogram_recv     = histogram;
     dos                     = ArrayXXd::Zero(E_bins.size(), M_bins.size());
+    random_walk.clear();
+
+
 //    cout << "Hej 4" << endl;
 //    int x, y, i, j;
 //    double dR, dx, dy;
@@ -610,8 +548,6 @@ void class_worker::adjust_local_bins() {
 //    }
 //}
 
-
-
 void class_worker::make_MC_trial()  {
 	t_make_MC_trial.tic();
     model.make_new_state(E,M, E_trial, M_trial);
@@ -725,52 +661,6 @@ void class_worker::acceptance_criterion(){
 
 }
 
-//void class_worker::acceptance_criterion2(){
-//    //Scenarios:
-//    //  1) state_in_window = true, E_trial is state_in_window ->  Find idx -> MC-test
-//    //  2) state_in_window = true, E_trial not state_in_window->  Reject
-//    //  3) state_in_window = false,E_trial is state_in_window ->  Accept -> Find idx -> set state_in_window true
-//    //  4) state_in_window = false,E_trial not state_in_window->  Accept (without updating dos)
-//
-//    //  4a)state_in_window = false, E_trial not state_in_window, E_trial towards window = accept, otherwise accept 50% chance?
-//    //  5) need_to_resize_global = true (because E_trial out of global bounds) -> accept with 50% chance?
-//    t_acceptance_criterion.tic();
-//    if (!need_to_resize_global) {
-//        if (state_in_window) {
-//            insert_state();
-//            if (check_in_window(E_trial)) {
-//                find_next_state(state_in_window);
-//                accept = rn::uniform_double_1() < fmin(1,exp(dos(E_idx, M_idx) - dos(E_idx_trial, M_idx_trial)));
-//            } else {
-//                accept = false;
-//            }
-//        } else {
-//            if (check_in_window(E_trial)) {
-//                //Reentering the window
-//                accept    = true;
-//                state_in_window = true;
-//                find_next_state();
-//            } else {
-//                //Still out of window... prefer to move towards window.
-//                state_in_window = false;
-//                walk_towards_window();
-//            }
-//        }
-//    }else{
-//        //Broke through global limits. Might as well explore
-//        //The current state will probably be out of window, so E_idx points to either the first
-//        //or last element in E_bins if we try to find it. Even so, let's insert it anyway.
-//        state_in_window = false;
-//        E_idx = math::binary_search_nearest(E_bins, E);
-//        M_idx = math::binary_search_nearest(M_bins, M);
-//        insert_state();
-//        walk_away_from_window();
-//    }
-//    t_acceptance_criterion.toc();
-//
-//
-//}
-
 void class_worker::accept_MC_trial() {
     E                           = E_trial;
     M                           = M_trial;
@@ -778,29 +668,26 @@ void class_worker::accept_MC_trial() {
     if (state_in_window && state_is_valid) {
         E_idx                       = E_idx_trial;
         M_idx                       = M_idx_trial;
-        if (rn::uniform_double_1() < P_increment) {
-//        if (true){
-            dos(E_idx, M_idx) += lnf;
-            if(!flag_one_over_t || help.giving_help){
-                histogram(E_idx, M_idx) += 1;
-            }
+
+        if (++timer::increment >= rate_increment) {
+            timer::increment = 0;
+            random_walk.push_back({E_idx,M_idx});
+
+
         }
     }
 }
 
 void class_worker::reject_MC_trial() {
     if (state_in_window && state_is_valid) {
-        if (rn::uniform_double_1() < P_increment) {
-//        if (true) {
-            dos(E_idx, M_idx)       += lnf;
-            if(!flag_one_over_t || help.giving_help){
-                histogram(E_idx, M_idx) += 1;
-            }
+        if (++timer::increment >= rate_increment) {
+            timer::increment = 0;
+            random_walk.push_back({E_idx,M_idx});
         }
     }
 }
 
-void class_worker::set_P_increment(){
+void class_worker::set_rate_increment(){
     double dos_width = 0;
     double dos_height = 0;
 
@@ -814,13 +701,13 @@ void class_worker::set_P_increment(){
             dos_width += 1;
         }
     }
-    P_increment = 1 / fmax(1, std::sqrt( fmax(dos_width, dos_height)  ));
+    rate_increment = max(1, (int)std::sqrt(fmax(dos_width,dos_height)));
 }
 
 void class_worker::next_WL_iteration() {
     lnf = fmax(1e-12, lnf*constants::reduce_factor_lnf);
-    histogram.fill(0);
-    help.histogram_recv = histogram;
+    histogram.setZero();
+    random_walk.clear();
     saturation.clear();
     counter::walks++;
 }
@@ -831,9 +718,10 @@ void class_worker::rewind_to_lowest_walk(){
     counter::walks = min_walks;
     lnf = pow(constants::reduce_factor_lnf, min_walks);
     finish_line = 0;
+    random_walk.clear();
     saturation.clear();
     counter::MCS            = (int) (1.0/lnf);
-    rewind_timers();
+//    rewind_timers();
     help.reset();
 }
 
@@ -844,9 +732,9 @@ void class_worker::rewind_to_zero(){
     start_counters();
     counter::vol_merges  = save_vol_merges;
     finish_line = 0;
-    dos.fill(0);
-    histogram = ArrayXXi::Zero(dos.rows(), dos.cols());
-    help.histogram_recv = histogram;
+    dos.setZero();
+    histogram.setZero();
+    random_walk.clear();
     saturation.clear();
     rewind_timers();
     help.reset();
@@ -860,24 +748,25 @@ void class_worker::prev_WL_iteration() {
     }
     counter::MCS            = counter::walks == 0 ? 0 : (int) (1.0 / lnf);
     flag_one_over_t         = 0;
-    histogram.fill(0);
-    help.histogram_recv = histogram;
+    histogram.setZero();
+    random_walk.clear();
     saturation.clear();
 }
 
-void class_worker::add_hist_volume() {
-    if (help.MPI_COMM_HELP == MPI_COMM_NULL) {
-        timer::add_hist_volume = 0;
-        if (flag_one_over_t == 0) {
-            t_check_convergence.tic();
-            math::subtract_min_nonzero_one(histogram);
-            saturation.push_back(histogram.sum());
-            t_check_convergence.toc();
-        }
-    }
+
+void class_worker::add_dos() {
+   if (help.MPI_COMM_HELP == MPI_COMM_NULL) {
+       timer::add_dos = 0;
+       for (int i = 0; i < random_walk.size(); i++) {
+           histogram(random_walk[i].E_idx, random_walk[i].M_idx) += 1;
+           dos      (random_walk[i].E_idx, random_walk[i].M_idx) += lnf;
+       }
+       random_walk.clear();
+   }
 }
 
-void class_worker::add_hist_volume_help() {
+
+void class_worker::add_hist_volume() {
     timer::add_hist_volume = 0;
     if (flag_one_over_t == 0) {
         t_check_convergence.tic();
@@ -893,7 +782,6 @@ void class_worker::add_hist_volume_help() {
 void class_worker::check_saturation() {
     timer::check_saturation = 0;
     if (flag_one_over_t == 0) {
-//            t_check_convergence.tic();
         int idx_to = (int) saturation.size() - 1;
         int idx_from = (int) (constants::check_saturation_from * idx_to);
         if (saturation.empty() || idx_to == idx_from || need_to_resize_global) {
@@ -909,9 +797,8 @@ void class_worker::check_saturation() {
         }
         if (lnf < 1.0 / counter::MCS) {
             lnf = 1.0 / counter::MCS;
-            flag_one_over_t = 1;         //Change to 1/t algorithm
+            flag_one_over_t = 1;
         }
-//            t_check_convergence.toc();
     } else {
         counter::walks = (int) (-log(lnf) / log(2));
     }

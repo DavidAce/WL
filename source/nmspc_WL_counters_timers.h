@@ -19,6 +19,8 @@ namespace counter {
 };
 
 namespace timer {
+    extern int increment;
+    extern int add_dos;
     extern int add_hist_volume;
     extern int check_finish_line;
     extern int check_saturation;

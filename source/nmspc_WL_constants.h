@@ -26,20 +26,21 @@ namespace constants{
     static const int rw_dims    = 2;       //Dimension of random walks (1D or 2D WL)
     static const int bins       = 10;      //No lower than 10! (per worker)
     //Rates for checking and printing (MCS units)
-    static const int    rate_add_hist_volume   = 250;       //How often to append reduced volume to an array called "saturation", which indicates if the current walk has converged when it flattens out.
-    static const int    rate_check_finish_line = 5000;      //Check if everybodies modification factor is below minimum_lnf
+    static const int    rate_add_dos           = 1;       //How often to increment dos according to  the accumulated histogram.
+    static const int    rate_add_hist_volume   = 500;     //How often to append reduced volume to an array called "saturation", which indicates if the current walk has converged when it flattens out.
+    static const int    rate_check_finish_line = 5000;    //Check if everybodies modification factor is below minimum_lnf
     static const int    rate_check_help        = 5000;
     static const int    rate_take_help         = 1;
     static const int    rate_setup_help        = 5000;
-    static const int    rate_check_saturation  = 5000;      //How often to check if saturation has flattened out
+    static const int    rate_check_saturation  = 5000;     //How often to check if saturation has flattened out
     static const int    rate_divide_range      = 5000;     //How often to check if we can merge all dos and split energy subwindows in a smarter way.
-    static const int    rate_swap              = 500;       //How often to swap walkers in adjacent windows
-    static const int    rate_backup_data       = 500000;    //How often to backup progress
-    static const int    rate_print_status      = 25000;     //How often to print in terminal
+    static const int    rate_swap              = 10;       //How often to swap walkers in adjacent windows
+    static const int    rate_backup_data       = 500000;   //How often to backup progress
+    static const int    rate_print_status      = 25000;    //How often to print in terminal
 
     //Wang-Landau convergence criteria
     static const double minimum_lnf            = 1e-4;
-    static const double check_saturation_from  = 0.8;
+    static const double check_saturation_from  = 0.75;
     static const double reduce_factor_lnf      = 0.5;           // 131 s (check from 0.9
     static const double overlap_factor_energy  = 0.5;
     static const double overlap_factor_dos_vol = 1.0;

@@ -22,6 +22,13 @@
 
 using namespace Eigen;
 
+struct state{
+    int E_idx;
+    int M_idx;
+};
+
+
+
 template <typename T>
 std::ostream& operator<< (std::ostream& out, const std::vector<T>& v) {
     if ( !v.empty() ) {
@@ -59,8 +66,6 @@ typename Derived::PlainObject operator<< (ArrayBase<Derived> &in , const std::se
 
 
 
-
-
 class class_worker {
 private:
 
@@ -68,11 +73,12 @@ public:
     class_worker(int &, int &);                 //Constructor
     //Main data structures of the WL algorithm. Needed very often.
     double   lnf;       //Modification factor of WL-algorithm
-    double P_increment;    //Increment probability should be proportional to number of bins
+    int rate_increment;    //Increment rate should be proportional to number of bins
 
     //WL DOS and Histograms
     ArrayXXd dos;
     ArrayXXi histogram;
+    vector<state> random_walk;
     ArrayXd E_bins, M_bins;
 
     //MPI Communicator
@@ -91,6 +97,7 @@ public:
     double E_max_global, M_max_global;    //Global maximum
     double E_min_local , M_min_local ;    //Local minimum
     double E_max_local , M_max_local ;    //Local maximum
+
     //Sets containing discrete spectrums
     std::set<double> E_set;              //Set of found energies, used in discrete do_simulations.
     std::set<double> M_set;              //Set of found energies, used in discrete do_simulations.
@@ -140,7 +147,7 @@ public:
             help_walks = 0;
             MPI_COMM_HELP = MPI_COMM_NULL;
         }
-        ArrayXXi histogram_recv; //Receive histogram from helpers
+//        ArrayXXi histogram_recv; //Receive histogram from helpers
         bool giving_help;
         bool getting_help;
         int  helping_id;
@@ -183,11 +190,13 @@ public:
     void acceptance_criterion2();
     void accept_MC_trial()  __attribute__((hot));
     void reject_MC_trial() __attribute__((hot));
-    void set_P_increment();
+    void set_rate_increment();
     void next_WL_iteration();
     void prev_WL_iteration();
     void rewind_to_lowest_walk();
     void rewind_to_zero();
+    void add_dos()              __attribute__((hot));
+    void add_dos_help()         __attribute__((hot));
     void add_hist_volume()      __attribute__((hot));
     void add_hist_volume_help() __attribute__((hot));
     void check_saturation();
@@ -205,7 +214,7 @@ public:
     void backup_state(class_worker &worker){
         if (!backed_up) {
             lnf             = worker.lnf;
-            P_increment     = worker.P_increment;
+            P_increment     = worker.rate_increment;
             dos             = worker.dos;
             histogram       = worker.histogram;
             E_bins          = worker.E_bins;
@@ -233,7 +242,7 @@ public:
     void restore_state(class_worker &worker){
         if (backed_up) {
             worker.lnf          = lnf;
-            worker.P_increment  = P_increment;
+            worker.rate_increment  = P_increment;
             worker.dos          = dos;
             worker.histogram    = histogram;
             worker.E_bins       = E_bins;
