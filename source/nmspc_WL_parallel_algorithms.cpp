@@ -358,11 +358,10 @@ namespace mpi {
         worker.dos                  = worker.dos_total.middleRows(from, rows);
         worker.E_bins               = worker.E_bins_total.segment(from, rows);
         worker.histogram            = ArrayXXi::Zero(worker.dos.rows(), worker.dos.cols());
-//        worker.histogram_incr       = worker.histogram;
-//        worker.help.histogram_recv  = worker.histogram;
-
+        worker.random_walk.clear();
+        worker.state_in_window      = worker.check_in_window(worker.E);
+        worker.saturation.clear();
         worker.find_current_state();
-
         if (worker.model.discrete_model) {
             worker.E_set.clear();
             for (int i = 0; i < worker.E_bins.size(); i++) {
@@ -439,6 +438,8 @@ namespace mpi {
         worker.E_bins               = worker.E_bins_total.segment(from, rows);
         worker.histogram            = ArrayXXi::Zero(worker.dos.rows(), worker.dos.cols());
         worker.state_in_window      = worker.check_in_window(worker.E);
+        worker.random_walk.clear();
+        worker.saturation.clear();
         worker.find_current_state();
 
         if (worker.model.discrete_model) {
@@ -640,6 +641,8 @@ namespace mpi {
         //If you are not getting and not giving help, just leave
         if (worker.help.MPI_COMM_HELP == MPI_COMM_NULL) {
             backup.restore_state(worker);
+            worker.random_walk.clear();
+            worker.saturation.clear();
             worker.t_help_setup.toc();
             return;
         }
