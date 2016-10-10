@@ -142,7 +142,7 @@ void divide_range(class_worker &worker, class_backup &backup, outdata &out) {
                 out.write_data_master(worker);
                 MPI_Barrier(MPI_COMM_WORLD);
                 worker.rewind_to_zero();
-                exit(0);
+//                exit(0);
             }
             print_status(worker, true);
         }
