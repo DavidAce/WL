@@ -507,6 +507,7 @@ namespace mpi {
                 }
                 worker.histogram.setZero();
                 worker.saturation.clear();
+                worker.random_walk.clear();
             }
         }
     }
@@ -644,6 +645,14 @@ namespace mpi {
             worker.random_walk.clear();
             worker.saturation.clear();
             worker.t_help_setup.toc();
+            if (worker.E != worker.model.get_E()){
+                cout << "state mismatch E!" << endl;
+                exit(1);
+            }
+            if (worker.M != worker.model.get_M()){
+                cout << "state mismatch M!" << endl;
+                exit(1);
+            }
             return;
         }
         MPI_Comm_rank(worker.help.MPI_COMM_HELP, &worker.help.help_rank);
@@ -684,6 +693,14 @@ namespace mpi {
         timer::check_saturation     = 0;
         timer::take_help            = 0;
         timer::check_help           = 0;
+        if (worker.E != worker.model.get_E()){
+            cout << "state mismatch E!" << endl;
+            exit(1);
+        }
+        if (worker.M != worker.model.get_M()){
+            cout << "state mismatch M!" << endl;
+            exit(1);
+        }
         worker.t_help_setup.toc();
     }
 }
