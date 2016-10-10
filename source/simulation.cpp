@@ -124,9 +124,9 @@ void divide_range(class_worker &worker, class_backup &backup, outdata &out) {
         return;
     }
     if (counter::vol_merges < constants::max_vol_merges) {
-        int all_in_window,min_walks, in_window = worker.state_in_window;
+        int all_in_window,min_walks;
         MPI_Allreduce(&counter::walks, &min_walks, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
-        MPI_Allreduce(&in_window, &all_in_window, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+        MPI_Allreduce(&worker.state_in_window, &all_in_window, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
         if (all_in_window && min_walks >= counter::vol_merges) {
             //divide dos vol
             if (worker.world_ID == 0) { cout << "Dividing according to dos VOLUME" << endl; }
