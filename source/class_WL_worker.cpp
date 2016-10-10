@@ -647,7 +647,10 @@ void class_worker::acceptance_criterion(){
                 accept          = true;
                 state_in_window = true;
                 random_walk.clear();
-                cout << "ID: " << world_ID << " Reentering ("<< counter::MCS << "): " << random_walk <<endl;
+                cout << "ID: " << world_ID << " Reentering ("
+                     << counter::MCS << "): "
+                     << " State: " << setw(5)<<E << " "  << setw(5) << M
+                     << " RW : " << random_walk << endl;
                 find_next_state_exact();
                 if (!state_is_valid){
                     //New energy has been found, insert
@@ -656,7 +659,10 @@ void class_worker::acceptance_criterion(){
                 }
             }else{
                 //Still out of window... prefer to move towards window.
-                cout << "ID: " << world_ID << " Walking towards window("<< counter::MCS << "): " << random_walk << endl;
+                cout << "ID: " << world_ID << " Walking towards window("
+                     << counter::MCS << "): "
+                     << " State: " << setw(5)<<E << " "  << setw(5) << M
+                     << " RW : " << random_walk << endl;
                 state_in_window = false;
                 walk_towards_window();
                 random_walk.clear();
