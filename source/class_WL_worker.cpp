@@ -646,13 +646,7 @@ void class_worker::acceptance_criterion(){
                 //Has been outside, now reentering the window
                 accept          = true;
                 state_in_window = true;
-//                cout << "ID: " << world_ID << " Reentering ("<< counter::MCS << "): " << random_walk <<endl;
-                if (E != model.get_E()){
-                    cout << "state mismatch E!" << endl;
-                }
-                if (M != model.get_M()){
-                    cout << "state mismatch M!" << endl;
-                }
+                cout << "ID: " << world_ID << " Reentering ("<< counter::MCS << "): " << random_walk <<endl;
                 find_next_state_exact();
                 if (!state_is_valid){
                     //New energy has been found, insert
@@ -661,8 +655,7 @@ void class_worker::acceptance_criterion(){
                 }
             }else{
                 //Still out of window... prefer to move towards window.
-//                cout << "ID: " << world_ID << " Walking towards window("<< counter::MCS << "): " << random_walk << endl;
-
+                cout << "ID: " << world_ID << " Walking towards window("<< counter::MCS << "): " << random_walk << endl;
                 state_in_window = false;
                 walk_towards_window();
             }
