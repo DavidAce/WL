@@ -517,15 +517,19 @@ namespace mpi {
         timer::take_help = 0;
         if (worker.help.MPI_COMM_HELP != MPI_COMM_NULL) {
             worker.t_help.tic();
-            int  size = (int)worker.random_walk.size();
-            ArrayXi sizes(worker.help.help_size);
-            ArrayXi displ(worker.help.help_size);
-            MPI_Allgather(&size,1,MPI_INT, sizes.data(),1,MPI_INT, worker.help.MPI_COMM_HELP);
-            displ(0) = 0;
-            for (int i = 1; i < worker.help.help_size; i++){
-                displ(i) = displ(i-1) + sizes(i-1);
-            }
-            vector<state> random_walk_recv((unsigned long)(sizes.sum()));
+            int all_in_window;
+            MPI_Allreduce(&worker.state_in_window, &all_in_window, 1, MPI_INT, MPI_MIN, worker.help.MPI_COMM_HELP);
+            if (all_in_window) {
+                int size = (int) worker.random_walk.size();
+                ArrayXi sizes(worker.help.help_size);
+                ArrayXi displ(worker.help.help_size);
+
+                MPI_Allgather(&size, 1, MPI_INT, sizes.data(), 1, MPI_INT, worker.help.MPI_COMM_HELP);
+                displ(0) = 0;
+                for (int i = 1; i < worker.help.help_size; i++) {
+                    displ(i) = displ(i - 1) + sizes(i - 1);
+                }
+                vector<state> random_walk_recv((unsigned long) (sizes.sum()));
 //            if (debug_take_help){
 //                ArrayXi sizes(worker.help.help_size);
 //                MPI_Allgather(&size,1,MPI_INT, sizes.data(),1,MPI_INT, worker.help.MPI_COMM_HELP);
@@ -546,21 +550,22 @@ namespace mpi {
 //            cout << "ID: " << worker.world_ID
 //                 << " Old: " << worker.random_walk << endl;
 
-            MPI_Allgatherv(worker.random_walk.data(), size, MPI_2INT,  random_walk_recv.data(), sizes.data(), displ.data(), MPI_2INT, worker.help.MPI_COMM_HELP);
+                MPI_Allgatherv(worker.random_walk.data(), size, MPI_2INT, random_walk_recv.data(), sizes.data(),
+                               displ.data(), MPI_2INT, worker.help.MPI_COMM_HELP);
 //            MPI_Allgather(worker.random_walk.data(), size, MPI_2INT,  random_walk_recv.data(), size, MPI_2INT, worker.help.MPI_COMM_HELP);
 //            cout << "ID: " << worker.world_ID
 //                 << " New: " <<random_walk_recv << endl;
 //            MPI_Barrier(worker.help.MPI_COMM_HELP);
 //            exit(1);
-            for(int i = 0; i < random_walk_recv.size(); i++){
-                worker.histogram(random_walk_recv[i].E_idx,random_walk_recv[i].M_idx) += 1;
-                worker.dos      (random_walk_recv[i].E_idx,random_walk_recv[i].M_idx) += worker.lnf;
+                for (int i = 0; i < random_walk_recv.size(); i++) {
+                    worker.histogram(random_walk_recv[i].E_idx, random_walk_recv[i].M_idx) += 1;
+                    worker.dos(random_walk_recv[i].E_idx, random_walk_recv[i].M_idx) += worker.lnf;
+                }
+                counter::MCS += constants::rate_take_help * (worker.help.help_size - 1);
+                timer::add_hist_volume += constants::rate_take_help * (worker.help.help_size - 1);
+                timer::check_saturation += constants::rate_take_help * (worker.help.help_size - 1);
             }
             worker.random_walk.clear();
-            random_walk_recv.clear();
-            counter::MCS                += constants::rate_take_help * (worker.help.help_size - 1);
-            timer::add_hist_volume      += constants::rate_take_help * (worker.help.help_size - 1);
-            timer::check_saturation     += constants::rate_take_help * (worker.help.help_size - 1);
             worker.t_help.toc();
         }
 
