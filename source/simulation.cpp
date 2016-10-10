@@ -138,9 +138,9 @@ void divide_range(class_worker &worker, class_backup &backup, outdata &out) {
             worker.set_rate_increment();
             counter::vol_merges++;
             if (counter::vol_merges == constants::max_vol_merges){
-                out.write_data_worker(worker);
-                out.write_data_master(worker);
-                MPI_Barrier(MPI_COMM_WORLD);
+//                out.write_data_worker(worker);
+//                out.write_data_master(worker);
+//                MPI_Barrier(MPI_COMM_WORLD);
                 worker.rewind_to_zero();
 //                exit(0);
             }
