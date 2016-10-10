@@ -667,25 +667,21 @@ namespace mpi {
         mpi::bcast_dynamic(worker.histogram, MPI_INT   , 0, worker.help.MPI_COMM_HELP);
         mpi::bcast_dynamic(worker.E_bins,    MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
         mpi::bcast_dynamic(worker.M_bins,    MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
-        MPI_Bcast(&worker.lnf,     1, MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
-//        MPI_Bcast(&worker.E,       1, MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
-//        MPI_Bcast(&worker.M,       1, MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
-        MPI_Bcast(&counter::MCS,   1, MPI_INT, 0, worker.help.MPI_COMM_HELP);
-        MPI_Bcast(&counter::walks, 1, MPI_INT, 0, worker.help.MPI_COMM_HELP);
-//        MPI_Bcast(worker.model.lattice.data(), (int) worker.model.lattice.size(), MPI_INT, 0, worker.help.MPI_COMM_HELP);
+        MPI_Bcast(&worker.lnf,     1,        MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
+        MPI_Bcast(&counter::MCS,   1,        MPI_INT,    0, worker.help.MPI_COMM_HELP);
+        MPI_Bcast(&counter::walks, 1,        MPI_INT,    0, worker.help.MPI_COMM_HELP);
         ArrayXi saturation_map = Map<ArrayXi>(worker.saturation.data(), (int)worker.saturation.size());
-        mpi::bcast_dynamic(saturation_map, MPI_INT   , 0, worker.help.MPI_COMM_HELP);
+        mpi::bcast_dynamic(saturation_map,   MPI_INT   , 0, worker.help.MPI_COMM_HELP);
         worker.help.help_walks      = counter::walks;
         if (worker.help.giving_help) {
             worker.E_min_local      = worker.E_bins.minCoeff();
             worker.E_max_local      = worker.E_bins.maxCoeff();
             worker.M_min_local      = worker.M_bins.minCoeff();
             worker.M_max_local      = worker.M_bins.maxCoeff();
-            worker.state_in_window  = worker.check_in_window(worker.E);
-//            worker.find_current_state();
         }
         worker.set_rate_increment();
         worker.random_walk.clear();
+        worker.state_in_window  = worker.check_in_window(worker.E);
 
         timer::increment            = 0;
         timer::add_dos              = 0;
