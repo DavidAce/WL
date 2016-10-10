@@ -52,7 +52,7 @@ namespace constants{
     //Parameters for sub-window splitting
     static const int     min_walks_for_vol_merge = 2;
     static const int     max_area_merges         = 5;
-    static const int     max_vol_merges          = 3;
+    static const int     max_vol_merges          = 4;
 }
 
 
