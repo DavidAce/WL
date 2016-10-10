@@ -646,6 +646,7 @@ void class_worker::acceptance_criterion(){
                 //Has been outside, now reentering the window
                 accept          = true;
                 state_in_window = true;
+                random_walk.clear();
                 cout << "ID: " << world_ID << " Reentering ("<< counter::MCS << "): " << random_walk <<endl;
                 find_next_state_exact();
                 if (!state_is_valid){
@@ -658,6 +659,7 @@ void class_worker::acceptance_criterion(){
                 cout << "ID: " << world_ID << " Walking towards window("<< counter::MCS << "): " << random_walk << endl;
                 state_in_window = false;
                 walk_towards_window();
+                random_walk.clear();
             }
         }
     }else{
@@ -668,6 +670,7 @@ void class_worker::acceptance_criterion(){
         state_is_valid  = false;
         insert_state(E_trial, M_trial);
         walk_away_from_window();
+        random_walk.clear();
     }
     t_acceptance_criterion.toc();
 
@@ -771,9 +774,11 @@ void class_worker::prev_WL_iteration() {
 void class_worker::add_dos() {
    if (help.MPI_COMM_HELP == MPI_COMM_NULL) {
        timer::add_dos = 0;
-       for (int i = 0; i < random_walk.size(); i++) {
-           histogram(random_walk[i].E_idx, random_walk[i].M_idx) += 1;
-           dos      (random_walk[i].E_idx, random_walk[i].M_idx) += lnf;
+       if (state_in_window && state_is_valid) {
+           for (int i = 0; i < random_walk.size(); i++) {
+               histogram(random_walk[i].E_idx, random_walk[i].M_idx) += 1;
+               dos(random_walk[i].E_idx, random_walk[i].M_idx) += lnf;
+           }
        }
        random_walk.clear();
    }
