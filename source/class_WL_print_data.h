@@ -41,7 +41,7 @@ public:
     void write_final_data(class_stats &stats, const int &id);
 
     template<typename Derived>
-    void write_to_file(const MatrixBase<Derived> &data, string &filename){
+    void write_to_file(const MatrixBase<Derived> &data, string filename){
         ofstream file(filename,ios::out | ios::trunc);
         file << fixed << showpoint << setprecision(precision);
         string      _coeffSeparator = "	";
@@ -50,7 +50,7 @@ public:
         file.close();
     }
     template<typename Derived>
-    void write_to_file(const ArrayBase<Derived> &data, string &filename){
+    void write_to_file(const ArrayBase<Derived> &data, string filename){
         ofstream file(filename,ios::out | ios::trunc);
         file << fixed << showpoint << setprecision(precision);
         string      _coeffSeparator = "	";

@@ -647,6 +647,12 @@ void class_worker::acceptance_criterion(){
                 accept          = true;
                 state_in_window = true;
 //                cout << "ID: " << world_ID << " Reentering ("<< counter::MCS << "): " << random_walk <<endl;
+                if (E != model.get_E()){
+                    cout << "state mismatch E!" << endl;
+                }
+                if (M != model.get_M()){
+                    cout << "state mismatch M!" << endl;
+                }
                 find_next_state_exact();
                 if (!state_is_valid){
                     //New energy has been found, insert
