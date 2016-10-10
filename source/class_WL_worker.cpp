@@ -721,7 +721,8 @@ void class_worker::set_rate_increment(){
         }
     }
 //    rate_increment = max(1, (int)std::sqrt(fmax(dos_width,dos_height)));
-    rate_increment = constants::N;
+//    rate_increment = constants::N;
+    rate_increment = 1;
 }
 
 void class_worker::next_WL_iteration() {
@@ -738,10 +739,9 @@ void class_worker::rewind_to_lowest_walk(){
     counter::walks = min_walks;
     lnf = pow(constants::reduce_factor_lnf, min_walks);
     finish_line = 0;
-    saturation.clear();
     counter::MCS            = (int) (1.0/lnf);
-//    rewind_timers();
     random_walk.clear();
+    saturation.clear();
     help.reset();
 }
 
