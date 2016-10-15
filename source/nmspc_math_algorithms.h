@@ -301,7 +301,7 @@ namespace math{
 
 //Finds the element exactly x in an Eigen array
     template <typename Derived, typename T>
-    inline int binary_search_exact(const ArrayBase<Derived> &list , const T x){
+    int binary_search_exact(const ArrayBase<Derived> &list , const T x){
         //Now find the point in list that exactly matches x.
         //If none is found, return -1;
         //CPP REFERENCE lower_bound: Iterator pointing to the first element that is not less than value,
@@ -311,8 +311,39 @@ namespace math{
         if (idx >= list.size()){return -1;}
         if (list(idx) == x)    {return idx;}else{return -1;}
     }
-}
 
+//Finds the element nearest x in an Eigen array if we already know the index of the current value
+    template <typename Derived, typename T, typename T_idx>
+    int binary_search_exact(const ArrayBase<Derived> &list, const T x, const T y, const T_idx y_idx) {
+        //Now find the point in list closest to x, from below
+
+        //CPP REFERENCE lower_bound: Iterator pointing to the first element that is not less than value,
+        // or last if no such element is found.
+        //        std::cout << "x = "<< x << " size = " << list.size() << " y = " << y <<" y_idx = " << y_idx << std::endl;
+        if (y_idx >= list.size()){return binary_search_exact(list,x);}
+        if (list(y_idx) == x)    {return y_idx;}
+        if (x > y) {
+            auto idx = std::lower_bound(list.derived().data() + y_idx, list.derived().data() + list.size(), x) - list.derived().data();
+            if (idx >= list.size()){return -1;}
+            if (list(idx) == x) {
+                return idx;
+            }
+
+
+        } else {
+            auto idx =  std::lower_bound(list.derived().data(), list.derived().data() + y_idx, x) - list.derived().data();
+            if (idx >= list.size()){return -1;}
+
+            if (list(idx) == x) {
+                return idx;
+            }
+
+        }
+//        std::cout << "Looking for " << x << " Previous y = " << y << " at " << y_idx << " List: " << list.transpose() << std::endl;
+
+        return binary_search_exact(list,x);
+    }
+}
 
 
 

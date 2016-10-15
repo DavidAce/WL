@@ -1,29 +1,32 @@
 close all
 clear all
-L = 6;
+L = 16;
 N = L^2;
-j = 0;
-for i = 0:7
-    dos = load(['../outdata/' num2str(j) '/dos' num2str(i) '.dat']);
-    E   = load(['../outdata/' num2str(j) '/E'   num2str(i) '.dat']);
-    M = load(  ['../outdata/' num2str(j) '/M' num2str(i) '.dat']);
-    [c,u,T, dosE] = thermo2d(dos,E,M,N);
-    figure(1);
-    subplot(1,2,1);
-    h = mesh(M,E, dos); 
-    hold on;
-    
- 	set(h, 'zdata', dos);
-	ylabel('E');
-	xlabel('M');
-	zlabel('log(g(E,M))');
-    %axis([-100 100 -200 200])
+for j = 0:1
+    for i = 0:2
+        dos = load(['../outdata/' num2str(j) '/dos' num2str(i) '.dat']);
+        E   = load(['../outdata/' num2str(j) '/E'   num2str(i) '.dat']);
+        M = load(  ['../outdata/' num2str(j) '/M' num2str(i) '.dat']);
+        [c,u,T, dosE] = thermo2d(dos,E,M,N);
+        figure(10+j);
+        subplot(1,2,1);
+        dos(dos==0) = nan;
+        dos = dos - min(min(dos));
+        h = mesh(M,E, dos); 
+        hold on;
 
-    
-%     surf(E,M,dos),hold on;
+        set(h, 'zdata', dos);
+        ylabel('E');
+        xlabel('M');
+        zlabel('log(g(E,M))');
+        %axis([-100 100 -200 200])
 
-    subplot(1,2,2)
-    plot(T,c),hold on;
+
+    %     surf(E,M,dos),hold on;
+
+        subplot(1,2,2)
+        plot(T,c),hold on;
+    end
 end
 %%
     figure(2);
