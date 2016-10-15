@@ -7,8 +7,8 @@
 #define debug_merge     0
 #define debug_bcast     0
 #define debug_divide    0
-#define debug_take_help 1
-#define debug_setup_help 1
+#define debug_take_help 0
+#define debug_setup_help 0
 using namespace std;
 
 namespace mpi {
