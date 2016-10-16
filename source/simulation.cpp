@@ -8,7 +8,7 @@
 #define debug_sweep                     0
 #define debug_convergence               0
 #define debug_divide_range              0
-#define debug_status                    0
+#define debug_status                    1
 
 
 using namespace std;

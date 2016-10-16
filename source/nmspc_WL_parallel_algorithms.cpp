@@ -19,13 +19,11 @@ namespace mpi {
 
         int abort;
         MPI_Allreduce(&worker.need_to_resize_global, &abort, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-
         if (abort || counter::vol_merges < 1) {
             worker.t_swap.toc();
             return;
         }
         MPI_Allreduce(&worker.state_in_window, &abort, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
-
         if (abort || counter::vol_merges < 1) {
             worker.t_swap.toc();
             return;
@@ -472,7 +470,6 @@ namespace mpi {
 
     }
 
-
     void take_help(class_worker &worker) {
         //Check if anybody was able to do a walk
         if (worker.help.active) {
@@ -483,21 +480,26 @@ namespace mpi {
             ArrayXi sizes(worker.help.help_size);
             ArrayXi displ(worker.help.help_size);
             MPI_Allgather(&size, 1, MPI_INT, sizes.data(), 1, MPI_INT, worker.help.MPI_COMM_HELP);
-            if ((sizes != sizes(0)).any() ) {
-                if(debug_take_help) {
-                    if (worker.help.help_rank == 0) {
-                        cout << "Random walk size mismatch! "
-                             << sizes.transpose()
-                             << endl;
-                    }
-                }
-                worker.random_walk.clear();
-                worker.t_help.toc();
-                return;
+            displ(0) = 0;
+            for (int i = 1; i < worker.help.help_size; i++) {
+                displ(i) = displ(i - 1) + sizes(i - 1);
             }
+//            if ((sizes != sizes(0)).any() ) {
+//                if(debug_take_help) {
+//                    if (worker.help.help_rank == 0) {
+//                        cout << "Random walk size mismatch! "
+//                             << sizes.transpose()
+//                             << endl;
+//                    }
+//                }
+//                worker.random_walk.clear();
+//                worker.t_help.toc();
+//                return;
+//            }
 
             vector<state> random_walk_recv((unsigned long) (sizes.sum()));
-            MPI_Allgather(worker.random_walk.data(), size, MPI_2INT,  random_walk_recv.data(), size, MPI_2INT, worker.help.MPI_COMM_HELP);
+//            MPI_Allgather(worker.random_walk.data(), size, MPI_2INT,  random_walk_recv.data(), size, MPI_2INT, worker.help.MPI_COMM_HELP);
+            MPI_Allgatherv(worker.random_walk.data(), size, MPI_2INT,  random_walk_recv.data(), sizes.data(),displ.data(), MPI_2INT, worker.help.MPI_COMM_HELP);
 
             for (int i = 0; i < random_walk_recv.size(); i++) {
                 worker.histogram(random_walk_recv[i].E_idx, random_walk_recv[i].M_idx) += 1;
