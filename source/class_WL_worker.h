@@ -9,6 +9,7 @@
 #include <fstream>
 #include <thread>
 #include <chrono>
+#include <exception>
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <set>
@@ -106,8 +107,7 @@ public:
 
     //WL acceptance criterion
     bool accept;
-    bool state_in_window;
-    bool state_is_valid;
+    bool state_in_window, trial_in_window, state_is_valid,trial_is_valid;
     int  need_to_resize_global;
     //WL convergence parameters
     int     flag_one_over_t;             //turns to 1 when 1/t algorithm starts
@@ -136,37 +136,31 @@ public:
     //Used when finished and helping others out
     class helper{
     private:
+        int world_ID;
     public:
-        helper(){
+        helper(int id):world_ID(id){
             reset();
         }
         void reset(){
-            giving_help = false;
+            giving_help  = false;
             getting_help = false;
-            helping_id = -1;
-            available  = 0;
-            help_walks = 0;
+            active       = false;
+            helping_id   = world_ID; //Helping itself
             MPI_COMM_HELP = MPI_COMM_NULL;
+
         }
 //        ArrayXXi histogram_recv; //Receive histogram from helpers
         bool giving_help;
         bool getting_help;
+        bool active;
         int  helping_id;
-        int available;
-        int color;
-        int key;
         int help_rank;
         int help_size;
-        int help_walks;
         MPI_Comm MPI_COMM_HELP;
     };
     helper help;
 
     //Functions
-    void find_current_state();           //Compute current E and M (and their indices)
-    void find_next_state_exact() __attribute__((hot));
-    void find_next_state() __attribute__((hot));
-    void find_next_state(bool) __attribute__((hot));
     void find_initial_limits();
     void start_counters();
     void rewind_timers();
@@ -177,18 +171,13 @@ public:
     void divide_global_range_uniformly();
     void adjust_local_bins();
     void synchronize_sets();
-    void resize_local_bins2();
-    void compute_number_of_bins(int &, int &);
-//    bool check_in_window(const double) __attribute__((always_inline));
     bool __attribute__((always_inline)) check_in_window(const double x) {
         return x >= E_min_local && x <= E_max_local;
     }
     void make_MC_trial() __attribute__((hot));
-    void insert_state(double new_E,double new_M) __attribute__((hot));
     void walk_away_from_window();
     void walk_towards_window();
     void acceptance_criterion() __attribute__((hot));
-    void acceptance_criterion2();
     void accept_MC_trial()  __attribute__((hot));
     void reject_MC_trial() __attribute__((hot));
     void set_rate_increment();
@@ -197,9 +186,7 @@ public:
     void rewind_to_lowest_walk();
     void rewind_to_zero();
     void add_dos()              __attribute__((hot));
-    void add_dos_help()         __attribute__((hot));
     void add_hist_volume()      __attribute__((hot));
-    void add_hist_volume_help() __attribute__((hot));
     void check_saturation();
     friend std::ostream &operator<<(std::ostream &, const class_worker &);
 };
@@ -209,7 +196,7 @@ class class_backup{
 private:
     bool backed_up;
 public:
-    class_backup(): model(constants::L){
+    class_backup(){
         backed_up = false;
     }
     void backup_state(class_worker &worker){
@@ -217,22 +204,14 @@ public:
             lnf             = worker.lnf;
             rate_increment  = worker.rate_increment;
             dos             = worker.dos;
-            histogram       = worker.histogram;
             E_bins          = worker.E_bins;
             M_bins          = worker.M_bins;
-            model.lattice   = worker.model.lattice;
-            E               = worker.E;
-            M               = worker.M;
-            E_idx           = worker.E_idx;
-            M_idx           = worker.M_idx;
             E_min_local     = worker.E_min_local;
             E_max_local     = worker.E_max_local;
             M_min_local     = worker.M_min_local;
             M_max_local     = worker.M_max_local;
             E_set           = worker.E_set;
             M_set           = worker.M_set;
-            in_window       = worker.state_in_window;
-            slope           = worker.slope;
             MCS             = counter::MCS;
             walks           = counter::walks;
             backed_up       = true;
@@ -245,24 +224,20 @@ public:
             worker.lnf          = lnf;
             worker.rate_increment = rate_increment;
             worker.dos          = dos;
-            worker.histogram    = histogram;
             worker.E_bins       = E_bins;
             worker.M_bins       = M_bins;
-            worker.model.lattice= model.lattice;
-            worker.E            = E;
-            worker.M            = M;
-            worker.E_idx        = E_idx;
-            worker.M_idx        = M_idx;
             worker.E_min_local  = E_min_local;
             worker.E_max_local  = E_max_local;
             worker.M_min_local  = M_min_local;
             worker.M_max_local  = M_max_local;
             worker.E_set        = E_set;
             worker.M_set        = M_set;
-            worker.state_in_window    = in_window;
-            worker.slope        = slope;
             counter::MCS        = MCS;
             counter::walks      = walks;
+            worker.histogram    = ArrayXXi::Zero(dos.rows(),dos.cols());
+            worker.saturation.clear();
+            worker.random_walk.clear();
+            worker.state_is_valid = false;
             backed_up = false;
             cout << "ID: " << worker.world_ID << " Is now restored" << endl;
         }
@@ -274,22 +249,16 @@ public:
 
     //WL DOS and Histograms
     ArrayXXd dos;
-    ArrayXXi histogram;
     ArrayXd E_bins, M_bins;
 
     //Lattice
-    class_model model;
+//    class_model model;
     //WL Energy and Order parameter and their limits
-    double E,M;                         //Current Energy and Order parameter
-    int E_idx, M_idx;
     double E_min_local , M_min_local ;    //Local minimum
     double E_max_local , M_max_local ;    //Local maximum
     //Sets containing discrete spectrums
     std::set<double> E_set;              //Set of found energies, used in discrete do_simulations.
     std::set<double> M_set;              //Set of found energies, used in discrete do_simulations.
-
-    bool in_window;
-    double slope;
     int MCS;
     int walks;
 

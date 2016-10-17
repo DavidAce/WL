@@ -19,7 +19,11 @@ namespace mpi {
 
         int abort;
         MPI_Allreduce(&worker.need_to_resize_global, &abort, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-
+        if (abort || counter::vol_merges < 1) {
+            worker.t_swap.toc();
+            return;
+        }
+        MPI_Allreduce(&worker.state_in_window, &abort, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
         if (abort || counter::vol_merges < 1) {
             worker.t_swap.toc();
             return;
@@ -109,7 +113,7 @@ namespace mpi {
                                      111, up, 111, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                 worker.E = E_Y;
                 worker.M = M_Y;
-                worker.find_current_state();
+                worker.state_is_valid = false;
             }
         } else {
             if (swap == 1) {
@@ -117,7 +121,7 @@ namespace mpi {
                                      111, dn, 111, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                 worker.E = E_X;
                 worker.M = M_X;
-                worker.find_current_state();
+                worker.state_is_valid = false;
             }
         }
 
@@ -359,9 +363,9 @@ namespace mpi {
         worker.E_bins               = worker.E_bins_total.segment(from, rows);
         worker.histogram            = ArrayXXi::Zero(worker.dos.rows(), worker.dos.cols());
         worker.random_walk.clear();
-        worker.state_in_window      = worker.check_in_window(worker.E);
         worker.saturation.clear();
-        worker.find_current_state();
+        worker.state_is_valid = false;
+
         if (worker.model.discrete_model) {
             worker.E_set.clear();
             for (int i = 0; i < worker.E_bins.size(); i++) {
@@ -437,10 +441,9 @@ namespace mpi {
         worker.dos                  = worker.dos_total.middleRows(from, rows);
         worker.E_bins               = worker.E_bins_total.segment(from, rows);
         worker.histogram            = ArrayXXi::Zero(worker.dos.rows(), worker.dos.cols());
-        worker.state_in_window      = worker.check_in_window(worker.E);
         worker.random_walk.clear();
         worker.saturation.clear();
-        worker.find_current_state();
+        worker.state_is_valid = false;
 
         if (worker.model.discrete_model) {
             worker.E_set.clear();
@@ -467,110 +470,48 @@ namespace mpi {
 
     }
 
-    void check_help(class_worker &worker) {
-        //Check if anybody was able to do a walk
-        timer::check_help = 0;
-        if (worker.help.MPI_COMM_HELP != MPI_COMM_NULL) {
-            struct {
-                int highest_walk;
-                int highest_idx;
-            } in, out;
-            in.highest_walk = counter::walks;
-            in.highest_idx  = worker.help.help_rank;
-            MPI_Allreduce(&in, &out, 1, MPI_2INT, MPI_MAXLOC, worker.help.MPI_COMM_HELP);
-            if (out.highest_walk > worker.help.help_walks) {
-                //Somebody made progress, then get everybody up to speed
-                //Also, broadcast an updated dos
-                if (debug_take_help) {
-                    if (out.highest_idx == worker.help.help_rank) {
-                        cout << "ID: " << worker.world_ID
-                             << " Broadcast from " << out.highest_idx
-                             << " (helping: " << worker.help.helping_id << ")"
-                             << " MCS: " << counter::MCS
-                             << " Slope: " << worker.slope
-                             << " Size: " << worker.help.help_size
-                             << " Walks: " << counter::walks
-                             << " Highest walks: " << out.highest_walk
-                             << " Current walks: " << worker.help.help_walks
-                             << endl;
-                    }
-                }
-                MPI_Bcast(worker.dos.data(), (int) worker.dos.size(), MPI_DOUBLE, out.highest_idx, worker.help.MPI_COMM_HELP);
-                worker.help.help_walks = out.highest_walk;
-                for (int i = 0; i < out.highest_walk - counter::walks; i++) {
-                    worker.next_WL_iteration();
-                    if (debug_take_help) {
-                        cout << "ID: " << worker.world_ID
-                             << " moved to " << counter::walks
-                             << endl;
-                    }
-                }
-                worker.histogram.setZero();
-                worker.saturation.clear();
-                worker.random_walk.clear();
-            }
-        }
-    }
-
     void take_help(class_worker &worker) {
         //Check if anybody was able to do a walk
-        timer::take_help = 0;
-        if (worker.help.MPI_COMM_HELP != MPI_COMM_NULL) {
+        if (worker.help.active) {
+            timer::take_help = 0;
+            timer::add_dos   = 0;
             worker.t_help.tic();
-            int all_in_window;
-            MPI_Allreduce(&worker.state_in_window, &all_in_window, 1, MPI_INT, MPI_MIN, worker.help.MPI_COMM_HELP);
-            if (all_in_window) {
-                int size = (int) worker.random_walk.size();
-                ArrayXi sizes(worker.help.help_size);
-                ArrayXi displ(worker.help.help_size);
-
-                MPI_Allgather(&size, 1, MPI_INT, sizes.data(), 1, MPI_INT, worker.help.MPI_COMM_HELP);
-                displ(0) = 0;
-                for (int i = 1; i < worker.help.help_size; i++) {
-                    displ(i) = displ(i - 1) + sizes(i - 1);
-                }
-                vector<state> random_walk_recv((unsigned long) (sizes.sum()));
-//            if (debug_take_help){
-//                ArrayXi sizes(worker.help.help_size);
-//                MPI_Allgather(&size,1,MPI_INT, sizes.data(),1,MPI_INT, worker.help.MPI_COMM_HELP);
-//                if ((sizes != sizes(0)).any() ){
-//                    if (worker.help.help_rank == 0){cout << "Random walk size mismatch!" << endl;}
-//                    for (int w = 0 ; w < worker.help.help_size; w++) {
-//                        if (w == worker.help.help_rank) {
-//                            cout << "ID: " << worker.world_ID << " Help size: " << worker.help.help_size << endl << " rw size: " << size << endl;
-//                            cout << random_walk_recv << endl;
-//                            cout << worker.random_walk << endl;
-//
-//                        }
+            int size = (int) worker.random_walk.size();
+            ArrayXi sizes(worker.help.help_size);
+            ArrayXi displ(worker.help.help_size);
+            MPI_Allgather(&size, 1, MPI_INT, sizes.data(), 1, MPI_INT, worker.help.MPI_COMM_HELP);
+            displ(0) = 0;
+            for (int i = 1; i < worker.help.help_size; i++) {
+                displ(i) = displ(i - 1) + sizes(i - 1);
+            }
+//            if ((sizes != sizes(0)).any() ) {
+//                if(debug_take_help) {
+//                    if (worker.help.help_rank == 0) {
+//                        cout << "Random walk size mismatch! "
+//                             << sizes.transpose()
+//                             << endl;
 //                    }
 //                }
+//                worker.random_walk.clear();
+//                worker.t_help.toc();
+//                return;
 //            }
-//            cout << "ID: " << worker.world_ID << " current state E: " << worker.E <<  "  " << worker.M  << " MCS: "<< counter::MCS << endl;
-//
-//            cout << "ID: " << worker.world_ID
-//                 << " Old: " << worker.random_walk << endl;
 
-                MPI_Allgatherv(worker.random_walk.data(), size, MPI_2INT, random_walk_recv.data(), sizes.data(),
-                               displ.data(), MPI_2INT, worker.help.MPI_COMM_HELP);
+            vector<state> random_walk_recv((unsigned long) (sizes.sum()));
 //            MPI_Allgather(worker.random_walk.data(), size, MPI_2INT,  random_walk_recv.data(), size, MPI_2INT, worker.help.MPI_COMM_HELP);
-//            cout << "ID: " << worker.world_ID
-//                 << " New: " <<random_walk_recv << endl;
-//            MPI_Barrier(worker.help.MPI_COMM_HELP);
-//            exit(1);
-                for (int i = 0; i < random_walk_recv.size(); i++) {
-                    worker.histogram(random_walk_recv[i].E_idx, random_walk_recv[i].M_idx) += 1;
-                    worker.dos(random_walk_recv[i].E_idx, random_walk_recv[i].M_idx) += worker.lnf;
-                }
-                counter::MCS += constants::rate_take_help * (worker.help.help_size - 1);
-                timer::add_hist_volume += constants::rate_take_help * (worker.help.help_size - 1);
-                timer::check_saturation += constants::rate_take_help * (worker.help.help_size - 1);
+            MPI_Allgatherv(worker.random_walk.data(), size, MPI_2INT,  random_walk_recv.data(), sizes.data(),displ.data(), MPI_2INT, worker.help.MPI_COMM_HELP);
+
+            for (int i = 0; i < random_walk_recv.size(); i++) {
+                worker.histogram(random_walk_recv[i].E_idx, random_walk_recv[i].M_idx) += 1;
+                worker.dos(random_walk_recv[i].E_idx, random_walk_recv[i].M_idx) += worker.lnf;
             }
+            counter::MCS            += constants::rate_take_help * (worker.help.help_size - 1);
+            timer::add_hist_volume  += constants::rate_take_help * (worker.help.help_size - 1);
+            timer::check_saturation += constants::rate_take_help * (worker.help.help_size - 1);
             worker.random_walk.clear();
             worker.t_help.toc();
         }
-
     }
-
 
     void setup_help(class_worker &worker, class_backup &backup) {
         timer::setup_help = 0;
@@ -590,15 +531,13 @@ namespace mpi {
         //or they've (2) never helped.
         //If (1), just take_help() and return.
         //If (2), setup from scratch.
+
         ArrayXi whos_helping_who_old = ArrayXi::Constant(worker.world_size, -1);  //For comparison!
         ArrayXi whos_helping_who_new = ArrayXi::Constant(worker.world_size, -1);  //For comparison!
         MPI_Allgather(&worker.help.helping_id, 1, MPI_INT, whos_helping_who_old.data(), 1, MPI_INT, MPI_COMM_WORLD);
-        worker.help.available       = worker.finish_line;
-        worker.help.giving_help     = false;
-        worker.help.getting_help    = false;
-        worker.help.helping_id      = -1;
+        worker.help.reset();
         ArrayXi all_available(worker.world_size);
-        MPI_Allgather(&worker.help.available, 1, MPI_INT, all_available.data(), 1, MPI_INT, MPI_COMM_WORLD);
+        MPI_Allgather(&worker.finish_line, 1, MPI_INT, all_available.data(), 1, MPI_INT, MPI_COMM_WORLD);
 
         //Now find out who to help next. compute max amount of helpers per worker.
         int max_helpers = (int) ceil((double) all_available.sum() / (worker.world_size - all_available.sum()));
@@ -610,7 +549,6 @@ namespace mpi {
                     for (int i = 0; i < worker.world_size; i++) {
                         if (all_available(i) == 0 && given_help(i) < max_helpers) {
                             given_help(i)++;
-                            worker.help.available   = 0;
                             worker.help.giving_help = true;
                             worker.help.helping_id  = i;
                             break;
@@ -625,17 +563,21 @@ namespace mpi {
         //Otherwise, if you are giving help you join color = helping_id, and pass key = color+1?
 
         worker.help.getting_help = given_help(worker.world_ID) > 0;
+        int color, key;
         if (worker.help.getting_help) {
-            worker.help.color   = worker.world_ID;
-            worker.help.key     = 0;
+            color               = worker.world_ID;
+            key                 = 0;
+            worker.help.active  = true;
         } else if (worker.help.giving_help) {
-            worker.help.color   = worker.help.helping_id;
-            worker.help.key     = worker.help.color + 1;
+            color               = worker.help.helping_id;
+            key                 = color + 1;
+            worker.help.active  = true;
         } else {
-            worker.help.color   = MPI_UNDEFINED;
-            worker.help.key     = 0;
+            color               = MPI_UNDEFINED;
+            key                 = 0;
+            worker.help.active  = false;
         }
-        MPI_Comm_split(MPI_COMM_WORLD, worker.help.color, worker.help.key, &worker.help.MPI_COMM_HELP);
+        MPI_Comm_split(MPI_COMM_WORLD, color, key, &worker.help.MPI_COMM_HELP);
         MPI_Allgather(&worker.help.helping_id, 1, MPI_INT, whos_helping_who_new.data(), 1, MPI_INT, MPI_COMM_WORLD);
 
 
@@ -647,19 +589,10 @@ namespace mpi {
         //If you are not getting and not giving help, just leave
         if (worker.help.MPI_COMM_HELP == MPI_COMM_NULL) {
             backup.restore_state(worker);
-            worker.random_walk.clear();
-            worker.saturation.clear();
             worker.t_help_setup.toc();
-            if (worker.E != worker.model.get_E()){
-                cout << "state mismatch E!" << endl;
-                exit(1);
-            }
-            if (worker.M != worker.model.get_M()){
-                cout << "state mismatch M!" << endl;
-                exit(1);
-            }
             return;
         }
+        cout <<"ID: " << worker.world_ID << ": New help!" << endl;
         MPI_Comm_rank(worker.help.MPI_COMM_HELP, &worker.help.help_rank);
         MPI_Comm_size(worker.help.MPI_COMM_HELP, &worker.help.help_size);
 
@@ -677,7 +610,6 @@ namespace mpi {
         MPI_Bcast(&counter::walks, 1,        MPI_INT,    0, worker.help.MPI_COMM_HELP);
         ArrayXi saturation_map = Map<ArrayXi>(worker.saturation.data(), (int)worker.saturation.size());
         mpi::bcast_dynamic(saturation_map,   MPI_INT   , 0, worker.help.MPI_COMM_HELP);
-        worker.help.help_walks      = counter::walks;
         if (worker.help.giving_help) {
             worker.E_min_local      = worker.E_bins.minCoeff();
             worker.E_max_local      = worker.E_bins.maxCoeff();
@@ -685,665 +617,45 @@ namespace mpi {
             worker.M_max_local      = worker.M_bins.maxCoeff();
         }
         worker.set_rate_increment();
+        worker.saturation.clear();
         worker.random_walk.clear();
-        worker.state_in_window  = worker.check_in_window(worker.E);
+        worker.state_is_valid = false;
 
         timer::increment            = 0;
-        timer::add_dos              = 0;
-        timer::add_hist_volume      = 0;
-        timer::check_saturation     = 0;
-        timer::take_help            = 0;
-        timer::check_help           = 0;
-        if (worker.E != worker.model.get_E()){
-            cout << "state mismatch E!" << endl;
-            exit(1);
-        }
-        if (worker.M != worker.model.get_M()){
-            cout << "state mismatch M!" << endl;
-            exit(1);
-        }
         worker.t_help_setup.toc();
     }
 }
 
-//
-//    void merge2(class_worker &worker, bool broadcast, bool trim, bool setNaN) {
-//        if(debug_merge){debug_print(worker,"\nMerging. ");}
-//        ArrayXXd dos_total;
-//        ArrayXd  E_total;
-//        ArrayXd  M_total;
-//        //Start by trimming
-//
-//
-//        if (worker.world_ID == 0) {
-//            dos_total = worker.dos;
-//            E_total = worker.E_bins;
-//            M_total = worker.M_bins;
-//        }
-//
-//
-//        for (int w = 1; w < worker.world_size; w++) {
-//            if (worker.world_ID == 0) {
-//                if (debug_merge) {
-//                    cout << "Receiving from " << w << endl;
-//                    cout.flush();
-//                    std::this_thread::sleep_for(std::chrono::microseconds(1000));
-//                }
-//                ArrayXXd dos_recv;
-//                ArrayXd E_recv, M_recv;
-//                recv_dynamic(dos_recv,MPI_DOUBLE,w);
-//                recv_dynamic(E_recv  ,MPI_DOUBLE,w);
-//                recv_dynamic(M_recv  ,MPI_DOUBLE,w);
-//                //Find average height of shared sections
-//                int E_shared_low_idx    = math::binary_search_nearest(E_total, fmax(E_recv.minCoeff(), E_total.minCoeff()));
-//                int E_shared_high_idx   = math::binary_search_nearest(E_total, fmin(E_recv.maxCoeff(), E_total.maxCoeff()));
-//                int E_shared_low_up_idx = math::binary_search_nearest(E_recv , fmax(E_recv.minCoeff(), E_total.minCoeff()));
-//                int E_shared_high_up_idx= math::binary_search_nearest(E_recv , fmin(E_recv.maxCoeff(), E_total.maxCoeff()));
-//
-//                double diff = math::dos_distance(dos_total.middleRows(E_shared_low_idx   , E_shared_high_idx    - E_shared_low_idx),
-//                                                 dos_recv .middleRows(E_shared_low_up_idx, E_shared_high_up_idx - E_shared_low_up_idx) );
-//
-//                //Add that difference to the next
-//                if (std::isnan(diff)) {
-//                    cout << setprecision(2) << std::fixed << std::showpoint;
-//                    cout << "Tried to concatenate " << w - 1 << " and " << w << ". Diff between two DOS is NaN, exiting" << endl;
-//                    cout << "dos_tot" << endl << dos_total << endl;
-//                    cout << "dos_rec" << endl << dos_recv << endl;
-//                    exit(1);
-//                }
-//
-//                math::add_to_nonzero_nonnan(dos_recv, diff);
-//                //Now now all doses should be the same height
-//
-//                if (debug_merge) {
-//                    int zero_rows = 0;
-//                    int rows_total      = E_shared_high_idx     -  E_shared_low_idx;
-//                    int rows_total_up   = E_shared_high_up_idx  -  E_shared_low_up_idx;
-//                    for (int i = 0; i <dos_recv.rows(); i++){
-//                        if((dos_recv.row(i) == 0).all()){
-//                            zero_rows += 1;
-//                        }
-//                    }
-//                    cout << setprecision(2) << fixed;
-//                    if (rows_total  != rows_total_up){
-//                        cout << "Rows mismatch!!" << endl;
-//                    }
-//                    cout << "Concatenating " << w - 1 << " and " << w << endl;
-//                    cout << "Zero rows recv = " << zero_rows << endl;
-//                    cout << "E_total = " << E_total.size()
-//                         << " dos_total =  " << dos_total.rows()
-//                         << " Shared Rows_total = " << rows_total
-//                         << " E_idx_low = " << E_shared_low_idx
-//                         << " E_idx_high = " << E_shared_high_idx
-//                         << endl;
-//                    cout << "E_recv  = " << E_recv.size()
-//                         << " dos_recv  =  " << dos_recv.rows()
-//                         << " Shared Rows_up    = " << rows_total_up
-//                         << " E_idx_low = " << E_shared_low_up_idx
-//                         << " E_idx_high = " << E_shared_high_up_idx
-//                         << endl;
-////                    cout << "dos_total:" << endl << dos_total << endl << endl;
-////                    cout << "dos_recv:" << endl << dos_recv<< endl << endl;
-//                    cout.flush();
-//                    std::this_thread::sleep_for(std::chrono::microseconds(1000));
-//                }
-//
-//
-//                double weight;
-//                double E_span = fmax(E_total(E_shared_high_idx) - E_total(E_shared_low_idx), E_recv(E_shared_high_up_idx) - E_recv(E_shared_low_up_idx));
-//                vector<ArrayXd> dos_merge;
-//                vector<double>  E_merge;
-//                double E_shared_min = fmin(E_total(E_shared_low_idx) , E_recv(E_shared_low_up_idx));
-//                double E_shared_max = fmax(E_total(E_shared_high_idx), E_recv(E_shared_high_up_idx));
-//                std::set<int>E_recv_used;
-//                if(debug_merge){cout << "Merging " << w-1 << " and " << w<< endl;}
-//                for(int i = 0; i < E_total.size(); i++) {
-//                    if (E_total(i) < E_shared_min) {
-//                        //Take E_total(i)
-//                        dos_merge.push_back(dos_total.row(i));
-//                        E_merge.push_back(E_total(i));
-//                        if(debug_merge) {
-//                            cout << " Inserted " << "i: " << i << endl
-//                                 << " E_total(i): " << E_total(i) << endl
-//                                 << " E_total   : " << E_total.transpose() << endl
-//                                 << " E_recv    : " << E_recv.transpose() << endl
-//                                 << " E_merge   : " << E_merge << endl
-//                                 << endl;
-//                        }
-//                        continue;
-//                    } else if (E_total(i) <= E_total(E_shared_high_idx)) {
-//                        int j = math::binary_search_exact(E_recv, E_total(i));
-//
-//                        //Scenarios:
-//                        //1) E_total(i) == E_recv(j): Continue with merge
-//                        //2) E_total(i) != E_recv(j):  j == -1
-//                        // In case 2 you have to compare backwards and forwards. There will be several new scenarios
-//                        // First find the closest j by doing regular binary search.
-//                        //2a) E_total(i+1) == E_recv(j):  //Reason: E_total has an extra, probably needless row close to E_total(i+1). Just continue;
-//                        //2b) E_total(i+1) != E_recv(j):  //Let's see
-//                        //2ba)E_total(i-1) == E_recv(j):  //Reason: E_total has an extra, probably needless row close to E_total(i-1). Just continue;
-//                        //2bb)E_total(i-1) != E_recv(j):  //Reason: Probably a very unvisited area, merge i and j and keep E_total(i)
-//
-//                        if (j == -1) {
-//                            j = math::binary_search_nearest(E_recv, E_total(i));
-//                            if(debug_merge){printf(" Could not find E_total(%d) = %f. Closest match: E_recv(%d) = %f \n", i, E_total(i), j, E_recv(j));}
-//
-//                            if (i + 1 < E_total.size() && i - 1 >= 0 && j + 1 < E_recv.size() && j - 1 >= 0) {
-//                                if (E_total(i + 1) == E_recv(j)) {
-//                                    if(debug_merge){cout << " Continuing due to 2a" << endl;}
-//                                    continue;
-//                                }
-//                                if (E_total(i - 1) == E_recv(j)) {
-//                                    if(debug_merge){cout << " Continuing due to 2ba" << endl;}
-//                                    continue;
-//                                }
-//                                if (E_total(i - 1) == E_recv(j - 1) && E_total(i + 1) == E_recv(j + 1)) {
-//                                    if (E_recv_used.find(j) != E_recv_used.end()) {
-//                                        //Merge taking average, keep E_total(i)
-//                                        weight = (E_total(i) - E_total(E_shared_low_idx)) / E_span;
-//                                        dos_merge.push_back((1 - weight) * dos_total.row(i) + weight * dos_recv.row(j));
-//                                        E_merge.push_back(E_total(i));
-//                                        E_recv_used.insert(j);
-//                                        if(debug_merge) {
-//                                            cout << " Merged as 2bb: " << endl
-//                                                 << " E_total(i): " << E_total(i) << endl
-//                                                 << " E_total   : " << E_total.transpose() << endl
-//                                                 << " E_recv    : " << E_recv.transpose() << endl
-//                                                 << " E_merge   : " << E_merge << endl
-//                                                 << endl;
-//                                        }
-//                                    } else {
-//                                        //Before and after match, but not i and j, and for some reason j has been used already.
-//                                        //If E_total(i) <= E_recv(j), throw an error and exit. Otherwise simply copy E_total(i)
-//                                        if (E_total(i) <= E_recv(j)) {
-//                                            if(debug_merge) {
-//                                                cout << " Wrong order!"
-//                                                     << " E_total(i): " << E_total(i) << endl
-//                                                     << " E_recv(j) : " << E_recv(j) << endl
-//                                                     << " E_total   : " << E_total.transpose() << endl
-//                                                     << " E_recv    : " << E_recv.transpose() << endl
-//                                                     << " E_merge   : " << E_merge << endl;
-//                                            }
-//                                        } else {
-//                                            dos_merge.push_back(dos_total.row(i));
-//                                            E_merge.push_back(E_total(i));
-//                                            if(debug_merge) {
-//                                                cout << " j: " << j << " Was already used. Inserted " << "i: " << i << endl
-//                                                     << " E_total(i): " << E_total(i) << endl
-//                                                     << " E_total   : " << E_total.transpose() << endl
-//                                                     << " E_recv    : " << E_recv.transpose() << endl
-//                                                     << " E_merge   : " << E_merge << endl
-//                                                     << endl;
-//                                            }
-//                                        }
-//                                    }
-//                                }
-//                            } else {
-//                                //Boundary case
-//                                if(debug_merge){cout << "Boundary case. i: " << i << " and j: "<< j<< endl;}
-//                                if (i == E_total.size()) {
-//                                    if (E_total(i - 1) == E_recv(j)) {
-//                                        if(debug_merge){cout << " Continuing due to 2a" << endl;}
-//                                        continue;
-//                                    }
-//                                }
-//                                if(i == 0) {
-//                                    if (E_total(i + 1) == E_recv(j)) {
-//                                        if(debug_merge){cout << " Continuing due to 2ba" << endl;}
-//                                        continue;
-//                                    }
-//                                }
-//                                //No good solution, simply copy i
-//                                dos_merge.push_back(dos_total.row(i));
-//                                E_merge.push_back(E_total(i));
-//                                if(debug_merge) {
-//                                    cout << " No other option. Inserted " << "i: " << i << endl
-//                                         << " E_total(i): " << E_total(i) << endl
-//                                         << " E_total   : " << E_total.transpose() << endl
-//                                         << " E_merge   : " << E_merge << endl
-//                                         << endl;
-//                                }
-//
-//                            }
-//                        } else{
-//                            if (E_recv_used.empty() || E_recv_used.find(j) == E_recv_used.end()) {     //E_recv(j) hasn't been used yet
-//
-//                                //Merge taking Average
-//                                weight = (E_total(i) - E_total(E_shared_low_idx)) / E_span;
-//                                dos_merge.push_back((1 - weight) * dos_total.row(i) + weight * dos_recv.row(j));
-//                                E_merge.push_back(E_total(i));
-//                                E_recv_used.insert(j);
-//                                if(debug_merge) {
-//                                    cout << " Merged  i : " << i << " and j: " << j << endl
-//                                         << " E_total(i): " << E_total(i) << endl
-//                                         << " E_total   : " << E_total.transpose() << endl
-//                                         << " E_recv    : " << E_recv.transpose() << endl
-//                                         << " E_merge   : " << E_merge << endl
-//                                         << endl;
-//                                }
-//                            }else{
-//                                //Damn.. it had been used already. If
-//                                dos_merge.push_back(dos_total.row(i));
-//                                E_merge.push_back(E_total(i));
-//                                if(debug_merge) {
-//                                    cout << " j: " << j << " Was already used. Inserted " << "i: " << i << endl
-//                                         << " E_total(i): " << E_total(i) << endl
-//                                         << " E_total   : " << E_total.transpose() << endl
-//                                         << " E_merge   : " << E_merge << endl
-//                                         << endl;
-//                                }
-//                            }
-//                        }
-//                    }
-//                }
-//
-//                for (int j = 0; j < E_recv.size(); j++){
-//                    //Check that it hasn't been used already
-//                    if (E_recv(j) < E_shared_max || E_recv_used.find(j) != E_recv_used.end()){continue;}
-//                    //Take E_recv(j)
-//                    dos_merge.push_back(dos_recv.row(j));
-//                    E_merge.push_back(E_recv(j));
-//                    E_recv_used.insert(j);
-//
-//                }
-//
-//                dos_total.resize(dos_merge.size(), M_recv.size());
-//                E_total.resize(E_merge.size());
-//                for (unsigned int i = 0; i < dos_merge.size(); i++){
-//                    dos_total.row(i)    = dos_merge[i];
-//                    E_total(i)          = E_merge[i];
-//                }
-//                dos_merge.clear();
-//                E_merge.clear();
-//                E_recv_used.clear();
-//                if (debug_merge) {
-//                    cout << "OK ";
-//                    cout.flush();
-//                    std::this_thread::sleep_for(std::chrono::microseconds(1000));
-//                }
-//            } else if (w == worker.world_ID) {
-//                send_dynamic(worker.dos   ,MPI_DOUBLE,0);
-//                send_dynamic(worker.E_bins,MPI_DOUBLE,0);
-//                send_dynamic(worker.M_bins,MPI_DOUBLE,0);
-//            }
-//            MPI_Barrier(MPI_COMM_WORLD);
-//        }
-//        if (trim){
-//            if (worker.world_ID == 0) {
-//                //Trim away nan rows
-//                dos_total = math::Zero_to_NaN(dos_total);
-//                math::remove_nan_rows(dos_total, E_total);
-//                dos_total = math::NaN_to_Zero(dos_total);
-//            }
-//        }
-//        if (setNaN){
-//            if (worker.world_ID == 0) {
-//                math::subtract_min_nonzero_nan(dos_total);
-//            }
-//        }
-//        if (worker.world_ID == 0) {
-//            //Let the master worker have the results
-//            worker.dos_total    = dos_total;
-//            worker.E_bins_total = E_total;
-//            worker.M_bins_total = M_total;
-//        }
-//        if (broadcast){
-//            broadcast_merger(worker);
-//        }
-//    }
-//
-//    void merge3(class_worker &worker, bool broadcast, bool trim, bool setNaN) {
-//        if(debug_merge){debug_print(worker,"\nMerging. ");}
-//        ArrayXXd dos_total;
-//        ArrayXd  E_total;
-//        ArrayXd  M_total;
-//        //Start by trimming
-//
-//
-//        if (worker.world_ID == 0) {
-//            dos_total = worker.dos;
-//            E_total = worker.E_bins;
-//            M_total = worker.M_bins;
-//        }
-//
-//
-//        for (int w = 1; w < worker.world_size; w++) {
-//            if (worker.world_ID == 0) {
-//                if (debug_merge) {
-//                    cout << "Receiving from " << w << endl;
-//                    cout.flush();
-//                    std::this_thread::sleep_for(std::chrono::microseconds(1000));
-//                }
-//                ArrayXXd dos_recv;
-//                ArrayXd E_recv, M_recv;
-//                recv_dynamic(dos_recv,MPI_DOUBLE,w);
-//                recv_dynamic(E_recv  ,MPI_DOUBLE,w);
-//                recv_dynamic(M_recv  ,MPI_DOUBLE,w);
-//                //Find average height of shared sections
-//                int E_shared_low_idx    = math::binary_search_nearest(E_total, fmax(E_recv.minCoeff(), E_total.minCoeff()));
-//                int E_shared_high_idx   = math::binary_search_nearest(E_total, fmin(E_recv.maxCoeff(), E_total.maxCoeff()));
-//                int E_shared_low_up_idx = math::binary_search_nearest(E_recv , fmax(E_recv.minCoeff(), E_total.minCoeff()));
-//                int E_shared_high_up_idx= math::binary_search_nearest(E_recv , fmin(E_recv.maxCoeff(), E_total.maxCoeff()));
-//
-//                double diff = math::dos_distance(dos_total.middleRows(E_shared_low_idx   , E_shared_high_idx    - E_shared_low_idx),
-//                                          dos_recv .middleRows(E_shared_low_up_idx, E_shared_high_up_idx - E_shared_low_up_idx) );
-//
-//                //Add that difference to the next
-//                if (std::isnan(diff)) {
-//                    cout << setprecision(2) << std::fixed << std::showpoint;
-//                    cout << "Tried to concatenate " << w - 1 << " and " << w << ". Diff between two DOS is NaN, exiting" << endl;
-//                    cout << "dos_tot" << endl << dos_total << endl;
-//                    cout << "dos_rec" << endl << dos_recv << endl;
-//                    exit(1);
-//                }
-//
-//                math::add_to_nonzero_nonnan(dos_recv, diff);
-//                //Now now all doses should be the same height
-//
-//                if (debug_merge) {
-//                    int zero_rows = 0;
-//                    int rows_total      = E_shared_high_idx     -  E_shared_low_idx;
-//                    int rows_total_up   = E_shared_high_up_idx  -  E_shared_low_up_idx;
-//                    for (int i = 0; i <dos_recv.rows(); i++){
-//                        if((dos_recv.row(i) == 0).all()){
-//                            zero_rows += 1;
-//                        }
-//                    }
-//                    cout << setprecision(2) << fixed;
-//                    if (rows_total  != rows_total_up){
-//                        cout << "Rows mismatch!!" << endl;
-//                    }
-//                    cout << "Concatenating " << w - 1 << " and " << w << endl;
-//                    cout << "Zero rows recv = " << zero_rows << endl;
-//                    cout << "E_total = " << E_total.size()
-//                         << " dos_total =  " << dos_total.rows()
-//                         << " Shared Rows_total = " << rows_total
-//                         << " E_idx_low = " << E_shared_low_idx
-//                         << " E_idx_high = " << E_shared_high_idx
-//                         << endl;
-//                    cout << "E_recv  = " << E_recv.size()
-//                         << " dos_recv  =  " << dos_recv.rows()
-//                         << " Shared Rows_up    = " << rows_total_up
-//                         << " E_idx_low = " << E_shared_low_up_idx
-//                         << " E_idx_high = " << E_shared_high_up_idx
-//                         << endl;
-////                    cout << "dos_total:" << endl << dos_total << endl << endl;
-////                    cout << "dos_recv:" << endl << dos_recv<< endl << endl;
-//                    cout.flush();
-//                    std::this_thread::sleep_for(std::chrono::microseconds(1000));
-//                }
-//
-//
-//                double weight;
-//                double E_span = fmax(E_total(E_shared_high_idx) - E_total(E_shared_low_idx), E_recv(E_shared_high_up_idx) - E_recv(E_shared_low_up_idx));
-//                vector<ArrayXd> dos_merge;
-//                vector<double>  E_merge;
-//                double E_shared_min = fmin(E_total(E_shared_low_idx) , E_recv(E_shared_low_up_idx));
-//                double E_shared_max = fmax(E_total(E_shared_high_idx), E_recv(E_shared_high_up_idx));
-//                int i = 0, j = 0;
-//                bool E_total_finished = false;
-//                while(j < E_recv.size() ){
-//                    if (i >= E_total.size()){i--; E_total_finished = true;}
-//                    if (E_total(i) < E_shared_min && !E_total_finished){
-//                        //Take E_total(i)
-//                        dos_merge.push_back(dos_total.row(i));
-//                        E_merge.push_back(E_total(i));
-//                        i++;
-//                    }else if (E_total(i) <= E_total(E_shared_high_idx) && !E_total_finished){
-//                        if(E_total(i) == E_recv(j)){
-//                            //Take Average
-//                            weight = (E_total(i) - E_total(E_shared_low_idx)) / E_span;
-//                            dos_merge.push_back((1 - weight) * dos_total.row(i) + weight * dos_recv.row(j));
-//                            E_merge.push_back(E_total(i));
-//                            i++;
-//                            j++;
-//                        }
-//                        else if (E_total(i) < E_recv(j)){
-//                            //Take E_total(i)
-//                            dos_merge.push_back(dos_total.row(i));
-//                            E_merge.push_back(E_total(i));
-//                            i++;
-//                        }
-//                        else if (E_total(i) > E_recv(j)){
-//                            //Take E_recv(j)
-//                            dos_merge.push_back(dos_recv.row(j));
-//                            E_merge.push_back(E_recv(j));
-//                            j++;
-//                        }
-//                    }else{
-//                        //Take E_recv(j)
-//                        dos_merge.push_back(dos_recv.row(j));
-//                        E_merge.push_back(E_recv(j));
-//                        j++;
-//                    }
-//                }
-//
-//
-//                dos_total.resize(dos_merge.size(), M_recv.size());
-//                E_total.resize(E_merge.size());
-//                for (unsigned int i = 0; i < dos_merge.size(); i++){
-//                    dos_total.row(i)    = dos_merge[i];
-//                    E_total(i)          = E_merge[i];
-//                }
-//                dos_merge.clear();
-//                E_merge.clear();
-//
-//                if (debug_merge) {
-//                    cout << "OK ";
-//                    cout.flush();
-//                    std::this_thread::sleep_for(std::chrono::microseconds(1000));
-//                }
-//            } else if (w == worker.world_ID) {
-//                send_dynamic(worker.dos   ,MPI_DOUBLE,0);
-//                send_dynamic(worker.E_bins,MPI_DOUBLE,0);
-//                send_dynamic(worker.M_bins,MPI_DOUBLE,0);
-//            }
-//            MPI_Barrier(MPI_COMM_WORLD);
-//        }
-//        if (trim){
-//            if (worker.world_ID == 0) {
-//                //Trim away nan rows
-//                dos_total = math::Zero_to_NaN(dos_total);
-//                math::remove_nan_rows(dos_total, E_total);
-//                dos_total = math::NaN_to_Zero(dos_total);
-//            }
-//        }
-//        if (setNaN){
-//            if (worker.world_ID == 0) {
-//                math::subtract_min_nonzero_nan(dos_total);
-//            }
-//        }
-//        if (worker.world_ID == 0) {
-//            //Let the master worker have the results
-//            worker.dos_total    = dos_total;
-//            worker.E_bins_total = E_total;
-//            worker.M_bins_total = M_total;
-//        }
-//        if (broadcast){
-//            broadcast_merger(worker);
-//        }
-//    }
-//
-//    void merge4(class_worker &worker, bool broadcast, bool trim) {
-//        if(debug_merge){debug_print(worker,"\nMerging. ");}
-//
-//        ArrayXXd dos_total, dos_temp, dos_recv;
-//        ArrayXd E_total, M_total, E_temp, M_temp, E_recv, M_recv;
-//        int E_sizes[worker.world_size];
-//        int M_sizes[worker.world_size];
-//        int E_size = (int) worker.E_bins.size();
-//        int M_size = (int) worker.M_bins.size();
-//
-//        double diff;
-//
-//        MPI_Gather(&E_size, 1, MPI_INT, E_sizes, 1, MPI_INT, 0, MPI_COMM_WORLD);
-//        MPI_Gather(&M_size, 1, MPI_INT, M_sizes, 1, MPI_INT, 0, MPI_COMM_WORLD);
-//        if(debug_merge){debug_print(worker," Gathering dos ");}
-//
-//        if (worker.world_ID == 0) {
-//            dos_total = worker.dos;
-//            E_total = worker.E_bins;
-//            M_total = worker.M_bins;
-//        }
-//        int from_total, from_up, rows_total, rows_up;
-//        int E_merge_idx, E_merge_idx_up;
-//        int M_merge_idx, M_merge_idx_up;
-//        for (int w = 1; w < worker.world_size; w++) {
-//            if (worker.world_ID == 0) {
-//                if (debug_merge) {
-//                    cout << "Receiving from " << w << endl;
-//                    cout.flush();
-//                    std::this_thread::sleep_for(std::chrono::microseconds(1000));
-//                }
-//                dos_recv.resize(E_sizes[w], M_sizes[w]);
-//                E_recv.resize(E_sizes[w]);
-//                M_recv.resize(M_sizes[w]);
-//                MPI_Recv(dos_recv.data(), E_sizes[w] * M_sizes[w], MPI_DOUBLE, w, 60, MPI_COMM_WORLD,
-//                         MPI_STATUS_IGNORE);
-//                MPI_Recv(E_recv.data(), E_sizes[w], MPI_DOUBLE, w, 61, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-//                MPI_Recv(M_recv.data(), M_sizes[w], MPI_DOUBLE, w, 62, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-//
-//                //Find coordinates on dos_total
-//                E_merge_idx = math::find_matching_slope(dos_total, dos_recv, E_total, E_recv, M_total, M_recv);
-//                M_merge_idx = math::nanmaxCoeff_idx(dos_total.row(E_merge_idx));
-//
-////                dos_total.row(E_merge_idx).maxCoeff(&M_merge_idx);
-//                //Find coordinates on received dos;
-//                E_merge_idx_up = math::binary_search_nearest(E_recv, E_total(E_merge_idx));
-//                M_merge_idx_up = math::nanmaxCoeff_idx(dos_recv.row(E_merge_idx_up));
-////                dos_recv.row(E_merge_idx_up).maxCoeff(&M_merge_idx_up);
-//                //Find difference between heights at these points
-//                diff = dos_total(E_merge_idx, M_merge_idx) - dos_recv(E_merge_idx_up, M_merge_idx_up);
-//                //Add that difference to the next
-//                if (std::isnan(diff)) {
-//                    cout << "Tried to concatenate " << w - 1 << " and " << w << ". Diff between two DOS is NaN, exiting"
-//                         << endl;
-//                    cout << "Merge_idx    = [" << E_merge_idx << ", " << M_merge_idx << "]" << endl;
-//                    cout << "Merge_idx_up = [" << E_merge_idx_up << ", " << M_merge_idx_up << "]" << endl;
-//
-//                    cout << "E_bins_total   " << E_total(E_merge_idx) << " [" << E_merge_idx << "]" << "    = "
-//                         << E_total.transpose() << endl;
-//                    cout << "E_bins_up      " << E_recv(E_merge_idx_up) << " [" << E_merge_idx_up << "]" << "    = "
-//                         << E_recv.transpose() << endl;
-//                    cout << "dos_tot" << endl << dos_total << endl;
-//                    cout << "dos_rec" << endl << dos_recv << endl;
-//                    MPI_Finalize();
-//                    exit(1);
-//                }
-//                math::add_to_nonzero_nonnan(dos_recv, diff);
-//                //Now now all doses should be the same height
-//                if (debug_merge) {
-//                    cout << "Concatenating " << w - 1 << " and " << w << endl;
-//                    cout << "Merge_idx    = [" << E_merge_idx << ", " << M_merge_idx << "]" << endl;
-//                    cout << "Merge_idx_up = [" << E_merge_idx_up << ", " << M_merge_idx_up << "]" << endl;
-//
-//                    cout << "E_bins_total   " << E_total(E_merge_idx) << " [" << E_merge_idx << "]" << "    = "
-//                         << E_total.transpose() << endl;
-//                    cout << "E_bins_up      " << E_recv(E_merge_idx_up) << " [" << E_merge_idx_up << "]" << "    = "
-//                         << E_recv.transpose() << endl;
-//                    cout << "dos_tot" << endl << dos_total << endl;
-//                    cout << "dos_rec" << endl << dos_recv << endl;
-//
-//                    cout.flush();
-//                    std::this_thread::sleep_for(std::chrono::microseconds(1000));
-//                }
-//
-//                //Compute the starting points and number of rows for concatenation
-//                from_total = 0;
-//                from_up = E_merge_idx_up + 1;
-//
-//                rows_total = E_merge_idx + 1;
-//                rows_up = E_sizes[w] - E_merge_idx_up - 1;
-//
-//                E_temp.resize(E_total.segment(from_total, rows_total).size() + E_recv.segment(from_up, rows_up).size());
-//                dos_temp.resize(dos_total.middleRows(from_total, rows_total).rows() +
-//                                dos_recv.middleRows(from_up, rows_up).rows(), M_size);
-//
-//                dos_temp << dos_total.middleRows(from_total, rows_total),
-//                        dos_recv.middleRows(from_up, rows_up);
-//                E_temp << E_total.segment(from_total, rows_total),
-//                        E_recv.segment(from_up, rows_up);
-//                dos_total = dos_temp;
-//                E_total = E_temp;
-//
-//
-//                if (debug_merge) {
-//                    cout << "OK ";
-//                    cout.flush();
-//                    std::this_thread::sleep_for(std::chrono::microseconds(1000));
-//                }
-//            } else if (w == worker.world_ID) {
-//                MPI_Send(worker.dos.data(), E_size * M_size, MPI_DOUBLE, 0, 60, MPI_COMM_WORLD);
-//                MPI_Send(worker.E_bins.data(), E_size, MPI_DOUBLE, 0, 61, MPI_COMM_WORLD);
-//                MPI_Send(worker.M_bins.data(), M_size, MPI_DOUBLE, 0, 62, MPI_COMM_WORLD);
-//            }
-//            MPI_Barrier(MPI_COMM_WORLD);
-//        }
-//        if (worker.world_ID == 0) {
-//            //Let the master worker have the results
-//            worker.dos_total    = dos_total;
-//            worker.E_bins_total = E_total;
-//            worker.M_bins_total = M_total;
-//        }
-//        if (trim){
-//            if (worker.world_ID == 0) {
-//                //Trim away nan rows
-//                math::subtract_min_nonzero_nan(worker.dos_total);
-//                math::remove_nan_rows(worker.dos_total, worker.E_bins_total);
-//            }
-//        }
-//        if (broadcast){
-//            broadcast_merger(worker);
-//        }
-//    }
 
-
-//    void take_help2(class_worker &worker) {
-//        //Offload help
-//        if (worker.help.help_rank == 0 && debug_take_help) { cout << "ID: " << worker.world_ID << " Taking help" << endl; }
-//        if (worker.help.getting_help) {
-//            for (int i = 1; i < worker.help.help_size; i++) {
-//                MPI_Status status;
-//                MPI_Recv(worker.help.histogram_recv.data(), (int) worker.help.histogram_recv.size(), MPI_INT, MPI_ANY_SOURCE, worker.world_ID, worker.help.MPI_COMM_HELP, &status);
-//                if (counter::walks == worker.help.help_walks) {
-//                    worker.histogram += worker.help.histogram_recv;
-//                    cout << "Adding " << endl << setprecision(6) << worker.help.histogram_recv.cast<double>() * worker.lnf << endl;
-//                    std::this_thread::sleep_for(std::chrono::microseconds(10000));
-//
-//                    worker.dos += worker.help.histogram_recv.cast<double>() * worker.lnf;
-//                    counter::MCS += constants::rate_take_help;
-//                    timer::add_hist_volume += constants::rate_take_help;
-//                    timer::check_saturation += constants::rate_take_help;
-//                    worker.add_hist_volume();
-//                    worker.check_saturation();
-//                }
-//            }
-//        } else {
-//            MPI_Send(worker.histogram.data(), (int) worker.histogram.size(), MPI_INT, 0, worker.help.helping_id, worker.help.MPI_COMM_HELP);
-//
-//        }
-//        //Check who has made the most walks
+//void check_help(class_worker &worker) {
+//    //Check if anybody was able to do a walk
+//    timer::check_help = 0;
+//    if (worker.help.MPI_COMM_HELP != MPI_COMM_NULL) {
 //        struct {
 //            int highest_walk;
 //            int highest_idx;
 //        } in, out;
 //        in.highest_walk = counter::walks;
-//        in.highest_idx = worker.help.help_rank;
+//        in.highest_idx  = worker.help.help_rank;
 //        MPI_Allreduce(&in, &out, 1, MPI_2INT, MPI_MAXLOC, worker.help.MPI_COMM_HELP);
 //        if (out.highest_walk > worker.help.help_walks) {
-//            //Now broadcast an updated dos:
+//            //Somebody made progress, then get everybody up to speed
+//            //Also, broadcast an updated dos
 //            if (debug_take_help) {
-//                cout << "ID: " << worker.world_ID
-//                     << " Broadcast from " << out.highest_idx
-//                     << " (world_ID = " << worker.world_ID << ")"
-//                     << " Size: " << worker.help.help_size
-//                     << " Walks: " << counter::walks
-//                     << " Highest walks: " << out.highest_walk
-//                     << " Current walks: " << worker.help.help_walks
-//                     << endl;
+//                if (out.highest_idx == worker.help.help_rank) {
+//                    cout << "ID: " << worker.world_ID
+//                         << " Broadcast from " << out.highest_idx
+//                         << " (helping: " << worker.help.helping_id << ")"
+//                         << " MCS: " << counter::MCS
+//                         << " Slope: " << worker.slope
+//                         << " Size: " << worker.help.help_size
+//                         << " Walks: " << counter::walks
+//                         << " Highest walks: " << out.highest_walk
+//                         << " Current walks: " << worker.help.help_walks
+//                         << endl;
+//                }
 //            }
 //            MPI_Bcast(worker.dos.data(), (int) worker.dos.size(), MPI_DOUBLE, out.highest_idx, worker.help.MPI_COMM_HELP);
-//            MPI_Bcast(&counter::MCS, 1, MPI_INT, out.highest_idx, worker.help.MPI_COMM_HELP);
 //            worker.help.help_walks = out.highest_walk;
 //            for (int i = 0; i < out.highest_walk - counter::walks; i++) {
 //                worker.next_WL_iteration();
@@ -1353,473 +665,54 @@ namespace mpi {
 //                         << endl;
 //                }
 //            }
+//            worker.histogram.setZero();
+//            worker.saturation.clear();
+//            worker.random_walk.clear();
 //        }
-//        worker.flag_one_over_t = worker.lnf < 1.0 / max(1, counter::MCS) ? 1 : 0;
 //    }
-//
-//    void take_help3(class_worker &worker) {
-//        //Offload help
-//        if (worker.help.help_rank == 0 && debug_take_help) { cout << "ID: " << worker.world_ID << " Taking help" << endl; }
-//        if (worker.help.getting_help) {
-//            for (int i = 1; i < worker.help.help_size; i++) {
-//                MPI_Status status;
-//                MPI_Recv(worker.help.histogram_recv.data(), (int) worker.help.histogram_recv.size(), MPI_INT, MPI_ANY_SOURCE, worker.world_ID, worker.help.MPI_COMM_HELP, &status);
-//                if (counter::walks == worker.help.help_walks) {
-//                    worker.histogram += worker.help.histogram_recv;
-//                    cout << "Adding " << endl << setprecision(6) << worker.help.histogram_recv.cast<double>() * worker.lnf << endl;
-//                    std::this_thread::sleep_for(std::chrono::microseconds(10000));
-//
-//                    worker.dos += worker.help.histogram_recv.cast<double>() * worker.lnf;
-//                    counter::MCS += constants::rate_take_help;
-//                    timer::add_hist_volume += constants::rate_take_help;
-//                    timer::check_saturation += constants::rate_take_help;
-//                    worker.add_hist_volume();
-//                    worker.check_saturation();
-//                }
-//            }
-//        } else {
-//            MPI_Send(worker.histogram.data(), (int) worker.histogram.size(), MPI_INT, 0, worker.help.helping_id, worker.help.MPI_COMM_HELP);
-//            worker.histogram.fill(0);
-//        }
-//        //Now broadcast an updated dos:
-//        MPI_Bcast(worker.dos.data(), (int) worker.dos.size(), MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
-//        MPI_Bcast(&worker.lnf, 1, MPI_DOUBLE, 0, worker.help.MPI_COMM_HELP);
-//        MPI_Bcast(&counter::MCS, 1, MPI_INT, 0, worker.help.MPI_COMM_HELP);
-//        worker.flag_one_over_t = worker.lnf < 1.0 / max(1, counter::MCS) ? 1 : 0;
-//    }
-//
+//}
 
-
-//        if (timer::sync_help >= constants::rate_sync_help) {
-//            timer::sync_help = 0;
-////            if (worker.help.MPI_COMM_HELP != MPI_COMM_NULL) {
-////                worker.t_help.tic();
-////                sync_help(worker);
-////                worker.t_help.toc();
-////            }
-//        }
-
-
-
-
-//    void setup_help2(class_worker &worker, class_backup &backup) {
-//        //Find out who's finished
-//        int any_finished = worker.finish_line;
-//        MPI_Allreduce(MPI_IN_PLACE, &any_finished, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-//        //if nobody is finished, return.
-//        if (any_finished == 0) { return; }
-//        //If some are finished, start by offloading any help that may be had already
-//        if(debug_setup_help){debug_print(worker,"Setting up help. ");}
-//
-//        //Now all the help.available workers need to be set up again. Two scenarios, either they've (1) helped before,
-//        //or they've (2) never helped.
-//        //If (1), just take_help() and return.
-//        //If (2), setup from scratch.
-//
-//        worker.help.available = worker.finish_line;
-//        worker.help.giving_help = false;
-//        worker.help.getting_help = false;
-//        worker.help.helping_id = -1;
-//        ArrayXi all_available(worker.world_size);
-//        MPI_Allgather(&worker.help.available, 1, MPI_INT, all_available.data(), 1, MPI_INT, MPI_COMM_WORLD);
-//
-//        //Now find out who to help next. compute max amount of helpers per worker.
-//        int max_helpers = (int) ceil((double) all_available.sum() / (worker.world_size - all_available.sum()));
-//        ArrayXi given_help(worker.world_size);
-//        ArrayXi whos_helping_who_old = worker.help.whos_helping_who; //For comparison!
-//        given_help.fill(0);
-//        worker.help.whos_helping_who.fill(-1);
-//        for (int w = 0; w < worker.world_size; w++) {
-//            if (w == worker.world_ID) {
-//                if (worker.finish_line) {
-//                    for (int i = 0; i < worker.world_size; i++) {
-//                        if (all_available(i) == 0 && given_help(i) < max_helpers) {
-//                            given_help(i)++;
-//                            worker.help.available = 0;
-//                            worker.help.giving_help = true;
-//                            worker.help.helping_id = i;
-//                            break;
-//                        }
+//    void check_help(class_worker &worker) {
+//        //Check if anybody was able to do a walk
+//        timer::check_help = 0;
+//        if (worker.help.MPI_COMM_HELP != MPI_COMM_NULL) {
+//            struct {
+//                int highest_walk;
+//                int highest_idx;
+//            } in, out;
+//            in.highest_walk = counter::walks;
+//            in.highest_idx  = worker.help.help_rank;
+//            MPI_Allreduce(&in, &out, 1, MPI_2INT, MPI_MAXLOC, worker.help.MPI_COMM_HELP);
+//            if (out.highest_walk > worker.help.help_walks) {
+//                //Somebody made progress, then get everybody up to speed
+//                //Also, broadcast an updated dos
+//                if (debug_take_help) {
+//                    if (out.highest_idx == worker.help.help_rank) {
+//                        cout << "ID: " << worker.world_ID
+//                             << " Broadcast from " << out.highest_idx
+//                             << " (helping: " << worker.help.helping_id << ")"
+//                             << " MCS: " << counter::MCS
+//                             << " Slope: " << worker.slope
+//                             << " Size: " << worker.help.help_size
+//                             << " Walks: " << counter::walks
+//                             << " Highest walks: " << out.highest_walk
+//                             << " Current walks: " << worker.help.help_walks
+//                             << endl;
 //                    }
 //                }
-//            }
-//            MPI_Barrier(MPI_COMM_WORLD);
-//            MPI_Bcast(given_help.data(), worker.world_size, MPI_INT, w, MPI_COMM_WORLD);
-//        }
-//        worker.help.getting_help = given_help(worker.world_ID) > 0;
-//        MPI_Allgather(&worker.help.helping_id, 1, MPI_INT, worker.help.whos_helping_who.data(), 1, MPI_INT,
-//                      MPI_COMM_WORLD);
-//        //Now every available guy knows who to help, and the helpees know who to send their info to.
-//
-//        //If there has been no change since last time, simply return;
-//        if (worker.help.whos_helping_who.cwiseEqual(whos_helping_who_old).all()) {
-//            if(debug_setup_help){debug_print(worker,"Same help settings\n");}
-////            if(debug_setup_help){debug_print(worker,worker.help.whos_helping_who.transpose().eval());}
-//            return;
-//        }
-//
-//        //Otherwise send out the details for help to begin.
-//        for (int w = 0; w < worker.world_size; w++) {
-//            if (worker.world_ID == worker.help.whos_helping_who(w)) {
-//                //You should send
-//                mpi::send_dynamic(worker.dos   , MPI_DOUBLE, w);
-//                mpi::send_dynamic(worker.E_bins, MPI_DOUBLE, w);
-//                mpi::send_dynamic(worker.M_bins, MPI_DOUBLE, w);
-//                MPI_Send(&worker.lnf, 1        , MPI_DOUBLE, w, 4, MPI_COMM_WORLD);
-//                MPI_Send(&worker.E, 1          , MPI_DOUBLE, w, 5, MPI_COMM_WORLD);
-//                MPI_Send(&worker.M, 1          , MPI_DOUBLE, w, 6, MPI_COMM_WORLD);
-//                MPI_Send(worker.model.lattice.data(), (int) worker.model.lattice.size(), MPI_INT, w,7, MPI_COMM_WORLD);
-//                MPI_Send(&counter::MCS, 1      , MPI_INT, w, 8000, MPI_COMM_WORLD);
-//
-//                worker.help.histogram_recv.resizeLike(worker.histogram);
-//                worker.help.histogram_recv.fill(0);
-//
-//            } else if (worker.world_ID == w && worker.help.whos_helping_who(w) >= 0) {
-//                //You should receive
-//                //Backup first
-//                backup.backup_state(worker);
-//                mpi::recv_dynamic(worker.dos   , MPI_DOUBLE, worker.help.whos_helping_who(w));
-//                mpi::recv_dynamic(worker.E_bins, MPI_DOUBLE, worker.help.whos_helping_who(w));
-//                mpi::recv_dynamic(worker.M_bins, MPI_DOUBLE, worker.help.whos_helping_who(w));
-//                MPI_Recv(&worker.lnf, 1        , MPI_DOUBLE, worker.help.whos_helping_who(w), 4, MPI_COMM_WORLD,  MPI_STATUS_IGNORE);
-//                MPI_Recv(&worker.E, 1          , MPI_DOUBLE, worker.help.whos_helping_who(w), 5, MPI_COMM_WORLD,  MPI_STATUS_IGNORE);
-//                MPI_Recv(&worker.M, 1          , MPI_DOUBLE, worker.help.whos_helping_who(w), 6, MPI_COMM_WORLD,  MPI_STATUS_IGNORE);
-//                MPI_Recv(worker.model.lattice.data() , (int) worker.model.lattice.size(), MPI_INT, worker.help.whos_helping_who(w),7, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-//                MPI_Recv(&counter::MCS, 1         , MPI_INT, worker.help.whos_helping_who(w), 8000, MPI_COMM_WORLD,  MPI_STATUS_IGNORE);
-//                worker.flag_one_over_t = worker.lnf < 1.0 / max(1, counter::MCS) ? 1 : 0;
-//                //Set all values needed to sweep
-//                worker.E_min_local = worker.E_bins.minCoeff();
-//                worker.E_max_local = worker.E_bins.maxCoeff();
-//                worker.M_min_local = worker.M_bins.minCoeff();
-//                worker.M_max_local = worker.M_bins.maxCoeff();
-//                worker.state_in_window = worker.check_in_window(worker.E);
-//                worker.find_current_state();
-////                worker.P_increment = 1.0 / sqrt(math::count_num_elements(worker.dos));
-//                worker.P_increment = 1.0 / sqrt(worker.E_bins.size());
-//
-//                worker.histogram.resizeLike(worker.dos);
-//                worker.histogram.fill(0);
-//            }
-//            MPI_Barrier(MPI_COMM_WORLD);
-//            //Now if you didn't get to help anybody out you might as well restore your own dos.
-//        }
-//        if (!worker.help.giving_help) {
-//            backup.restore_state(worker);
-//        }
-//        if(debug_setup_help){debug_print(worker,"New help settings\n");}
-//        if(debug_setup_help){debug_print(worker,worker.help.whos_helping_who.transpose().eval());}
-////        cout << endl <<"ID: " << worker.world_ID << " In_window = " << worker.in_window << " [" << worker.E_min_local << " " << worker.E << " " << worker.E_max_local <<"]" <<endl;
-//    }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-//
-//
-//
-//
-//
-//
-//
-//    void help_out(class_worker &worker, class_backup &backup){
-//        //With some time interval
-//        timer::help_out++;
-//        if (timer::help_out > constants::rate_help_out) {
-//            timer::help_out = 0;
-//            //Find out who's finished
-//            int any_finished = worker.finish_line;
-//            MPI_Allreduce(MPI_IN_PLACE, &any_finished,1, MPI_INT, MPI_MAX,MPI_COMM_WORLD );
-//            //if nobody is finished, return.
-//            if (any_finished == 0){return;}
-//            if (debug_help_out){debug_print(worker,"Help has arrived!\n");}
-//            //If some are finished, start by offloading any help that may be had already
-//
-//            for (int w = 0; w < worker.world_size; w++) {
-//                if(worker.world_ID == worker.help.whos_helping_who(w)){
-//                    //You should receive help
-////                cout << "ID: " << worker.world_ID << " Receiving help from ID: "<< w <<endl;
-//                    ArrayXXi histogram_temp(worker.histogram.rows(), worker.histogram.cols());
-//                    mpi::recv_dynamic(histogram_temp, MPI_INT, w);
-//                    if (histogram_temp.size() != worker.histogram.size() ){
-//                        cout << "Size mismatch!!!!" << endl;
-//                        exit(1);
-//                    }
-//                    worker.histogram += histogram_temp;
-//
-//                    for (int j = 0; j < worker.histogram.cols(); j++){
-//                        for (int i = 0; i < worker.histogram.rows(); i++){
-//                            worker.dos(i,j) += histogram_temp(i,j)*worker.lnf;
-//                        }
-//                    }
-//                    counter::MCS += constants::rate_help_out;
-//
-//                }else if(worker.world_ID == w && worker.help.helping_out && worker.help.whos_helping_who(w) >= 0){
-//                    //You should send help
-////                cout << "ID: " << worker.world_ID << " Sending help to ID: "<< worker.help.whos_helping_who(w) << endl;
-//                    math::subtract_min_nonzero_one(worker.histogram);
-//                    mpi::send_dynamic(worker.histogram, MPI_INT, worker.help.whos_helping_who(w));
-//                    //Relieve this hero of his duties
-//                }
-//                MPI_Barrier(MPI_COMM_WORLD);
-//            }
-//            if (debug_help_out){debug_print(worker,"Offloaded help \n");}
-//
-//
-//            //Now all the help.available workers need to be set up again. Two scenarios, either they've (1) helped before,
-//            //or they've (2) never helped.
-//            //If (1), just take over the new updated dos.
-//            //If (2), setup from scratch. (default)
-//            worker.help.available = worker.finish_line;
-//            worker.help.helping_out = false;
-//            worker.help.helping_id = -1;
-//            ArrayXi all_available(worker.world_size);
-//            MPI_Allgather(&worker.help.available,1,MPI_INT, all_available.data(),1, MPI_INT,MPI_COMM_WORLD );
-//
-//            if (debug_help_out){debug_print(worker," New helpers available!\n");}
-//
-//            //Now find out who to help next. compute max amount of helpers per worker.
-//            int max_helpers = (int)ceil((double)all_available.sum()/(worker.world_size - all_available.sum()));
-//            ArrayXi given_help(worker.world_size);
-//            ArrayXi whos_helping_who_old = worker.help.whos_helping_who;
-//            given_help.fill(0);
-//
-//            worker.help.whos_helping_who.fill(-1);
-//            for (int w = 0; w < worker.world_size; w++){
-//                if (w == worker.world_ID){
-//                    if (worker.finish_line){
-//                        for(int i = 0; i < worker.world_size; i++){
-//                            if (all_available(i) == 0 && given_help(i) < max_helpers){
-//                                given_help(i)++;
-//                                worker.help.available   = 0;
-//                                worker.help.helping_out = true;
-//                                worker.help.helping_id  = i;
-//                                backup.backup_state(worker);
-//                                break;
-//                            }
-//                        }
+//                MPI_Bcast(worker.dos.data(), (int) worker.dos.size(), MPI_DOUBLE, out.highest_idx, worker.help.MPI_COMM_HELP);
+//                worker.help.help_walks = out.highest_walk;
+//                for (int i = 0; i < out.highest_walk - counter::walks; i++) {
+//                    worker.next_WL_iteration();
+//                    if (debug_take_help) {
+//                        cout << "ID: " << worker.world_ID
+//                             << " moved to " << counter::walks
+//                             << endl;
 //                    }
 //                }
-//                MPI_Barrier(MPI_COMM_WORLD);
-//                MPI_Bcast(given_help.data(),worker.world_size,MPI_INT, w, MPI_COMM_WORLD );
-//            }
-//            MPI_Allgather(&worker.help.helping_id, 1, MPI_INT, worker.help.whos_helping_who.data(),1, MPI_INT,MPI_COMM_WORLD);
-//            //Now every available guy knows who to help, and the helpees know who to send their info to.
-//
-//            //If there has been no change since last time, simply share the dos and lnf and return;
-//            if (worker.help.whos_helping_who.cwiseEqual(whos_helping_who_old).all()){
-//                for (int w = 0; w < worker.world_size; w++) {
-//                    if (worker.world_ID == worker.help.whos_helping_who(w)) {
-//                        //You should send
-////                    mpi::send_dynamic(worker.dos, MPI_DOUBLE, w);
-//                        MPI_Send(worker.dos.data(), (int)worker.dos.size(), MPI_DOUBLE, w, 0, MPI_COMM_WORLD);
-//                        MPI_Send(&worker.lnf, 1, MPI_DOUBLE, w, 1, MPI_COMM_WORLD);
-//                    } else if (worker.world_ID == w && worker.help.whos_helping_who(w) >= 0) {
-//                        //You should receive
-//                        MPI_Recv(worker.dos.data(), (int)worker.dos.size(), MPI_DOUBLE, worker.help.whos_helping_who(w), 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-////                    mpi::recv_dynamic(worker.dos, MPI_DOUBLE, worker.help.whos_helping_who(w));
-//                        MPI_Recv(&worker.lnf, 1, MPI_DOUBLE, worker.help.whos_helping_who(w), 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-//                        //Set all values needed to sweep
-//                        worker.histogram.fill(0);
-////                cout << "ID: " << worker.world_ID << " Received Size "<< worker.histogram.size() << " from " << worker.help.whos_helping_who(w) << endl;
-//                    }
-//                }
-//                return;
-//            }
-//            //Start sending out.
-//            for (int w = 0; w < worker.world_size; w++) {
-//                if(worker.world_ID == worker.help.whos_helping_who(w)){
-//                    //You should send
-//                    mpi::send_dynamic(worker.dos   , MPI_DOUBLE,w);
-//                    mpi::send_dynamic(worker.E_bins, MPI_DOUBLE,w);
-//                    mpi::send_dynamic(worker.M_bins, MPI_DOUBLE,w);
-//                    MPI_Send(&worker.lnf, 1, MPI_DOUBLE, w, 4,MPI_COMM_WORLD);
-////                cout << "ID: " << worker.world_ID << " Sent Size "<< worker.histogram.size() << " to " << worker.help.whos_helping_who(w) << endl;
-//
-//                }else if(worker.world_ID == w && worker.help.whos_helping_who(w) >= 0){
-//                    //You should receive
-//                    mpi::recv_dynamic(worker.dos   ,MPI_DOUBLE,worker.help.whos_helping_who(w));
-//                    mpi::recv_dynamic(worker.E_bins,MPI_DOUBLE,worker.help.whos_helping_who(w));
-//                    mpi::recv_dynamic(worker.M_bins,MPI_DOUBLE,worker.help.whos_helping_who(w));
-//                    MPI_Recv(&worker.lnf, 1 , MPI_DOUBLE, worker.help.whos_helping_who(w), 4,MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-//                    //Set all values needed to sweep
-//                    worker.E_min_local = worker.E_bins.minCoeff();
-//                    worker.E_max_local = worker.E_bins.maxCoeff();
-//                    worker.M_min_local = worker.M_bins.minCoeff();
-//                    worker.M_max_local = worker.M_bins.maxCoeff();
-//                    worker.state_in_window   = worker.check_in_window(worker.E);
-//                    worker.P_increment = 1.0/sqrt(math::count_num_elements(worker.dos));
-//                    worker.histogram.resizeLike(worker.dos);
-//                    worker.histogram.fill(0);
-////                cout << "ID: " << worker.world_ID << " Received Size "<< worker.histogram.size() << " from " << worker.help.whos_helping_who(w) << endl;
-//                }
-//                MPI_Barrier(MPI_COMM_WORLD);
-//                //Now if you didn't get to help anybody out you might as well restore your own dos.
-//                if (!worker.help.helping_out) {
-//                    backup.restore_state(worker);
-//                }
+//                worker.histogram.setZero();
+//                worker.saturation.clear();
+//                worker.random_walk.clear();
 //            }
 //        }
 //    }
-
-
-
-
-
-
-
-
-
-//    void divide_global_range_dos_volume(class_worker &worker) {
-//        //Update limits
-//        if (worker.world_ID == 0 && debug_divide) {
-//            cout << "Dividing. ";
-//            cout.flush();
-//            std::this_thread::sleep_for(std::chrono::microseconds(10000));
-//        }
-//
-//        MPI_Barrier(MPI_COMM_WORLD);
-//        math::subtract_min_nonnan(worker.dos_total);
-//        if (worker.world_ID == 0){
-//            cout << "dos size " << worker.dos_total.rows()    << " x " << worker.dos_total.cols() << endl;
-//            cout << "E   size " << worker.E_bins_total.rows() << " x " << worker.E_bins_total.cols() << endl;
-//        }
-//        if (worker.world_ID == 0 && debug_divide) {
-//            cout << "Computing Volume ";
-//            cout.flush();
-//            std::this_thread::sleep_for(std::chrono::microseconds(10000));
-//        }
-//
-//        MPI_Barrier(MPI_COMM_WORLD);
-//        double global_volume = math::volume(worker.dos_total, worker.E_bins_total, worker.M_bins_total);
-//        double local_volume = global_volume / worker.world_size;
-//        double x = constants::overlap_factor_dos_vol / (1 - constants::overlap_factor_dos_vol / 2)  ;
-//        //Add a little bit if there are too many workers (Add nothing if world_size == 2, and up to local_volume if world_size == inf)
-//        double overlap_range = local_volume * x ;//2.0*(worker.world_size - 2.0 + x)/worker.world_size;
-////        cout << local_volume / global_volume << overlap_range << " " << local_volume*x << endl << endl;
-//        //Find the boundaries of the DOS domain that gives every worker the  same DOS volume to work on
-//        int E_min_local_idx, E_max_local_idx;
-////        if (worker.world_ID == 0){
-////            cout << "dos volume " << global_volume << endl;
-////        }
-//        int min_width = 10;
-//        if (worker.world_ID == 0) {
-//            E_min_local_idx = 0;
-//            E_max_local_idx = math::volume_idx(worker.dos_total, worker.E_bins_total, worker.M_bins_total,
-//                                               (worker.world_ID + 1) * local_volume + overlap_range / 2);
-//            while (E_max_local_idx - E_min_local_idx < min_width) { E_max_local_idx++; }
-//
-//        } else if (worker.world_ID == worker.world_size - 1) {
-//            E_min_local_idx = math::volume_idx(worker.dos_total, worker.E_bins_total, worker.M_bins_total,
-//                                               worker.world_ID * local_volume - overlap_range / 2);
-//            E_max_local_idx = (int) worker.E_bins_total.size() - 1;
-//            while (E_max_local_idx - E_min_local_idx < min_width) { E_min_local_idx--; }
-//
-//        } else {
-//            E_min_local_idx = math::volume_idx(worker.dos_total, worker.E_bins_total, worker.M_bins_total,
-//                                               worker.world_ID * local_volume - overlap_range / 4);
-//            E_max_local_idx = math::volume_idx(worker.dos_total, worker.E_bins_total, worker.M_bins_total,
-//                                               (worker.world_ID + 1) * local_volume + overlap_range / 4);
-//            while (E_max_local_idx - E_min_local_idx < min_width) {
-//                E_min_local_idx--;
-//                E_max_local_idx++;
-//            }
-//        }
-//        E_min_local_idx = max(E_min_local_idx, 0);
-//        E_max_local_idx = min(E_max_local_idx, (int)worker.E_bins_total.size()-1);
-//
-//        worker.E_min_local = worker.E_bins_total(E_min_local_idx);
-//        worker.E_max_local = worker.E_bins_total(E_max_local_idx);
-//        worker.M_min_local = worker.M_min_global;
-//        worker.M_max_local = worker.M_max_global;
-//        MPI_Barrier(MPI_COMM_WORLD);
-//        if (worker.world_ID == 0 && debug_divide) {
-//            cout << "...OK. Inherit from dos_total ";
-//            cout.flush();
-//            std::this_thread::sleep_for(std::chrono::microseconds(10000));
-//        }
-//        MPI_Barrier(MPI_COMM_WORLD);
-//
-//
-//        //Inherit the corresponding part of the dos
-//        int from = E_min_local_idx;
-//        int rows = E_max_local_idx - E_min_local_idx + 1;
-//
-//        if (from + rows > worker.E_bins_total.size()) {
-//            cout << "TOO MANY ROWS   |  from + rows = " << from+rows << " E_bins_total.size() = " << worker.E_bins_total.size() << endl;
-//            cout << worker << endl;
-//            cout.flush();
-//            std::this_thread::sleep_for(std::chrono::seconds(1));
-//            MPI_Finalize();
-//            exit(15);
-//        }
-//
-//        MPI_Barrier(MPI_COMM_WORLD);
-//
-//        if (E_max_local_idx <= E_min_local_idx) {
-//            cout << "Local range backwards! " << endl;
-//            cout << worker << endl;
-//            cout.flush();
-//            std::this_thread::sleep_for(std::chrono::seconds(1));
-//            MPI_Finalize();
-//            exit(16);
-//        }
-//        MPI_Barrier(MPI_COMM_WORLD);
-//
-//        worker.dos = worker.dos_total.middleRows(from, rows);
-//        worker.E_bins = worker.E_bins_total.segment(from, rows);
-//        worker.state_in_window = worker.check_in_window(worker.E);
-//        worker.histogram = ArrayXXi::Zero(worker.dos.rows(), worker.dos.cols());
-//
-//        if (worker.state_in_window) {
-//            worker.E_idx = math::binary_search_nearest(worker.E_bins, worker.E);
-//            worker.M_idx = math::binary_search_nearest(worker.M_bins, worker.M);
-//        }
-//        if (worker.model.discrete_model) {
-//            worker.E_set.clear();
-//            for (int i = 0; i < worker.E_bins.size(); i++) {
-//                worker.E_set.insert(worker.E_bins(i));
-//            }
-//        }
-//        MPI_Barrier(MPI_COMM_WORLD);
-//
-//        if (worker.world_ID == 0 && debug_divide) {
-//            cout << "...OK " << endl;
-//            cout.flush();
-//            std::this_thread::sleep_for(std::chrono::microseconds(1000));
-//        }
-//        MPI_Barrier(MPI_COMM_WORLD);
-//        if (debug_divide) {
-//            for (int w = 0; w < worker.world_size; w++) {
-//                if (w == worker.world_ID) {
-//                    cout << setprecision(2);
-//                    cout << "ID: " << w << " Bounds : " << worker.E_min_local << " " << worker.E_max_local << endl;
-//                    cout << worker.E_bins.transpose() << endl;
-//                    cout.flush();
-//                    std::this_thread::sleep_for(std::chrono::microseconds(1000));
-//                }
-//                MPI_Barrier(MPI_COMM_WORLD);
-//            }
-//            cout.flush();
-//            std::this_thread::sleep_for(std::chrono::microseconds(1000));
-//        }
-//        worker.dos_total.resize(1, 1);
-//        worker.E_bins_total.resize(1);
-//        worker.M_bins_total.resize(1);
-//
-//
-//    }
-

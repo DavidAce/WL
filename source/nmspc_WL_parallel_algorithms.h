@@ -19,7 +19,7 @@ namespace mpi {
     extern void broadcast_merger               (class_worker &) ;
     extern void divide_global_range_dos_area   (class_worker &) ;
     extern void divide_global_range_dos_volume (class_worker &) ;
-    extern void check_help                     (class_worker &)__attribute__((hot)) ;
+//    extern void check_help                     (class_worker &)__attribute__((hot)) ;
     extern void take_help                      (class_worker &)__attribute__((hot)) ;
     extern void take_help2                      (class_worker &)__attribute__((hot)) ;
     extern void setup_help                     (class_worker &,class_backup &) ;
