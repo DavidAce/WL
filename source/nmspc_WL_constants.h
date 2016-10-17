@@ -42,8 +42,8 @@ namespace constants{
     static const double minimum_lnf            = 1e-4;
     static const double check_saturation_from  = 0.75;
     static const double reduce_factor_lnf      = 0.5;           // 131 s (check from 0.9
-    static const double overlap_factor_energy  = 0.5;
-    static const double overlap_factor_dos_vol = 1.0;
+    static const double overlap_factor_energy  = 0.75;
+    static const double overlap_factor_dos_vol = 1.2;
     static const double overlap_factor_dos_area= 1.0;
 
     //Parameter for initial finding global range
