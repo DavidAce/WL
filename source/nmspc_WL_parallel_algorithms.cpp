@@ -23,11 +23,7 @@ namespace mpi {
             worker.t_swap.toc();
             return;
         }
-        MPI_Allreduce(&worker.state_in_window, &abort, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
-        if (abort || counter::vol_merges < 1) {
-            worker.t_swap.toc();
-            return;
-        }
+
         int swap;
         double dos_X, dos_Y;
         double E_X, E_Y, M_X, M_Y;
