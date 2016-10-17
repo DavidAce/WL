@@ -235,7 +235,13 @@ namespace mpi {
                     } else if (i <= E_shared_high_idx) {
                         int j = math::binary_search_exact(E_recv, E_total(i));
                         if (j == -1) {
+                            j = math::binary_search_nearest(E_recv, E_total(i));
                             printf(" Could not find E_total(%d) = %f. Closest match: E_recv(%d) = %f \n", i, E_total(i), j, E_recv(j));
+                            cout << " E_total(i): " << E_total(i) << endl
+                                 << " E_total   : " << E_total.transpose() << endl
+                                 << " E_recv    : " << E_recv.transpose() << endl
+                                 << " E_merge   : " << E_merge << endl
+                                 << endl;
                             exit(1);
                         } else {
                             //Merge taking Average
@@ -586,13 +592,14 @@ namespace mpi {
             worker.t_help_setup.toc();
             return;
         }
+
         //If you are not getting and not giving help, just leave
         if (worker.help.MPI_COMM_HELP == MPI_COMM_NULL) {
             backup.restore_state(worker);
             worker.t_help_setup.toc();
             return;
         }
-        cout <<"ID: " << worker.world_ID << ": New help!" << endl;
+
         MPI_Comm_rank(worker.help.MPI_COMM_HELP, &worker.help.help_rank);
         MPI_Comm_size(worker.help.MPI_COMM_HELP, &worker.help.help_size);
 

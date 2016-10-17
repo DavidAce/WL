@@ -755,7 +755,6 @@ void class_worker::rewind_to_zero(){
     saturation.clear();
     rewind_timers();
     help.reset();
-
     flag_one_over_t = 0;
 }
 
