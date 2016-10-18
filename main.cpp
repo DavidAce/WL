@@ -15,7 +15,7 @@ int main() {
     MPI_Comm_size(MPI_COMM_WORLD, &world_size);         //Get total number of threads
     class_worker worker(world_ID, world_size);
 
-    constants::team_size =  min(world_size, 4);
+    constants::team_size =  min(world_size, 8);
     do_simulations(worker);
     do_bootstrap  (worker);
     if(world_ID == 0){cout << "Finished successfully" << endl;}

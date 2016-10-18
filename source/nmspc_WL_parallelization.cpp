@@ -54,8 +54,8 @@ namespace parallel {
             //Receive relevant info
             MPI_Sendrecv(&worker.E, 1, MPI_DOUBLE,up,100, &E_Y, 1,MPI_DOUBLE,up, 100,MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             MPI_Sendrecv(&worker.M, 1, MPI_DOUBLE,up,101, &M_Y, 1,MPI_DOUBLE,up, 101,MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            E_Y_idx = math::binary_search_nearest(worker.E_bins, E_Y);
-            M_Y_idx = math::binary_search_nearest(worker.M_bins, M_Y);
+            E_Y_idx = math::binary_search_exact(worker.E_bins, E_Y);
+            M_Y_idx = math::binary_search_exact(worker.M_bins, M_Y);
             MPI_Irecv(&E_min_up ,1, MPI_DOUBLE, up, 102, MPI_COMM_WORLD, &reqs[0]);
             MPI_Irecv(&E_max_up ,1, MPI_DOUBLE, up, 103, MPI_COMM_WORLD, &reqs[1]);
             MPI_Irecv(&dos_Y,    1, MPI_DOUBLE, up, 104, MPI_COMM_WORLD, &reqs[2]);
@@ -67,7 +67,9 @@ namespace parallel {
             swap = swap && worker.E >= E_min_up && E_Y <= worker.E_max_local;
             swap = swap && worker.E <= E_max_up && E_Y >= worker.E_min_local;
             swap = swap && worker.check_in_window(worker.E);
-            swap = swap && E_Y <= E_max_up && E_Y >= E_min_up;
+            swap = swap && E_Y     <= E_max_up && E_Y     >= E_min_up;
+            swap = swap && E_Y_idx != -1       && M_Y_idx != -1 && dos_X != -1;
+
             //Swap with probability P_swap
             if (swap) {
                 P_swap = exp(worker.dos(worker.E_idx, worker.M_idx)
@@ -82,12 +84,17 @@ namespace parallel {
         } else {
             MPI_Sendrecv(&worker.E,1,MPI_DOUBLE,dn,100, &E_X, 1,MPI_DOUBLE,dn, 100,MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             MPI_Sendrecv(&worker.M,1,MPI_DOUBLE,dn,101, &M_X, 1,MPI_DOUBLE,dn, 101,MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            E_X_idx = math::binary_search_nearest(worker.E_bins, E_X);
-            M_X_idx = math::binary_search_nearest(worker.M_bins, M_X);
+            E_X_idx = math::binary_search_exact(worker.E_bins, E_X);
+            M_X_idx = math::binary_search_exact(worker.M_bins, M_X);
             MPI_Isend(&worker.E_min_local,                     1, MPI_DOUBLE, dn, 102, MPI_COMM_WORLD, &reqs[0]);
             MPI_Isend(&worker.E_max_local,                     1, MPI_DOUBLE, dn, 103, MPI_COMM_WORLD, &reqs[1]);
             MPI_Isend(&worker.dos(worker.E_idx, worker.M_idx), 1, MPI_DOUBLE, dn, 104, MPI_COMM_WORLD, &reqs[2]);
-            MPI_Isend(&worker.dos(E_X_idx     , M_X_idx     ), 1, MPI_DOUBLE, dn, 105, MPI_COMM_WORLD, &reqs[3]);
+            if (E_X_idx == -1 || M_X_idx == -1){
+                double dummy = -1;
+                MPI_Isend(&dummy                                 , 1, MPI_DOUBLE, dn, 105, MPI_COMM_WORLD, &reqs[3]);
+            }else{
+                MPI_Isend(&worker.dos(E_X_idx     , M_X_idx     ), 1, MPI_DOUBLE, dn, 105, MPI_COMM_WORLD, &reqs[3]);
+            }
             MPI_Waitall(4,reqs,stats);
             MPI_Recv(&swap, 1, MPI_INT, dn, 106, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         }
@@ -630,8 +637,6 @@ namespace parallel {
             MPI_Bcast(team_filling.data(),num_teams, MPI_INT, w, MPI_COMM_WORLD);
         }
 
-//        if(worker.world_ID == 0) {cout << "Finished : " << whos_finished.transpose() << endl;}
-//        if(worker.world_ID == 0) {cout << "Teams (" << new_team_size << ") : " << team_filling.transpose() << endl<<endl;}
         ArrayXi old_team_config(worker.world_size), new_team_config(worker.world_size);
         MPI_Allgather(&worker.team.team_id, 1, MPI_INT, old_team_config.data(), 1, MPI_INT, MPI_COMM_WORLD);
         MPI_Allgather(&team_id            , 1, MPI_INT, new_team_config.data(), 1, MPI_INT, MPI_COMM_WORLD);
@@ -644,7 +649,8 @@ namespace parallel {
         //Create Team communicators
         worker.team.team_id = team_id;
         setup_comm(worker);
-
+        if(worker.world_ID == 0) {cout << "Finished : " << whos_finished.transpose() << endl;}
+        if(worker.world_ID == 0) {cout << "Teams (" << new_team_size << ") : " << team_filling.transpose() << endl<<endl;}
         //Now every available guy knows who to help (rank 0 in MPI_COMM_TEAM) and the helpees know who to send their info to (Bcast).
         //Share details with the new team to begin.
         mpi::bcast_dynamic(worker.dos,       MPI_DOUBLE, 0, worker.team.MPI_COMM_TEAM);
@@ -652,8 +658,8 @@ namespace parallel {
         mpi::bcast_dynamic(worker.E_bins,    MPI_DOUBLE, 0, worker.team.MPI_COMM_TEAM);
         mpi::bcast_dynamic(worker.M_bins,    MPI_DOUBLE, 0, worker.team.MPI_COMM_TEAM);
         MPI_Bcast(&worker.lnf,     1,        MPI_DOUBLE, 0, worker.team.MPI_COMM_TEAM);
-        MPI_Bcast(&counter::MCS,   1,        MPI_INT,    0, worker.team.MPI_COMM_TEAM);
-        MPI_Bcast(&counter::walks, 1,        MPI_INT,    0, worker.team.MPI_COMM_TEAM);
+        MPI_Bcast(&counter::MCS,   1,        MPI_INT   , 0, worker.team.MPI_COMM_TEAM);
+        MPI_Bcast(&counter::walks, 1,        MPI_INT   , 0, worker.team.MPI_COMM_TEAM);
         ArrayXi saturation_map = Map<ArrayXi>(worker.saturation.data(), (int)worker.saturation.size());
         mpi::bcast_dynamic(saturation_map,   MPI_INT   , 0, worker.team.MPI_COMM_TEAM);
         if (!worker.team.team_leader) {
@@ -666,9 +672,7 @@ namespace parallel {
         worker.saturation.clear();
         worker.random_walk.clear();
         worker.state_is_valid       = false;
-
-        worker.flag_one_over_t = worker.lnf < 1.0 / max(1, counter::MCS) ? 1 : 0;
-        timer::increment            = 0;
+        worker.flag_one_over_t      = worker.lnf < 1.0 / max(1, counter::MCS) ? 1 : 0;
         worker.t_setup_team.toc();
     }
 
