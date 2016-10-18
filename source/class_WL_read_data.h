@@ -11,7 +11,7 @@
 #include <string>
 #include "nmspc_random_numbers.h"
 #include "nmspc_WL_constants.h"
-#include "nmspc_WL_parallel_algorithms.h"
+#include "nmspc_WL_parallelization.h"
 #include "class_WL_worker.h"
 #include "class_WL_statistics.h"
 

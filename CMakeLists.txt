@@ -77,5 +77,5 @@ endforeach()
 list(REMOVE_DUPLICATES WL_INCLUDE_DIRS)
 
 include_directories(${WL_INCLUDE_DIRS})
-add_executable (WL main.cpp ${WL_SOURCES} ${EMC_SOURCES})
+add_executable (WL main.cpp ${WL_SOURCES} ${EMC_SOURCES} source/nmspc_mpi_extensions.h)
 

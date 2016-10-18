@@ -9,7 +9,7 @@
 #include "class_WL_print_data.h"
 #include "class_WL_read_data.h"
 #include "nmspc_math_algorithms.h"
-#include "nmspc_WL_parallel_algorithms.h"
+#include "nmspc_WL_parallelization.h"
 #include "class_WL_thermo.h"
 
 void do_bootstrap(class_worker &worker);

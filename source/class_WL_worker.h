@@ -66,6 +66,35 @@ typename Derived::PlainObject operator<< (ArrayBase<Derived> &in , const std::se
     return in;
 }
 
+class class_team{
+private:
+    int world_ID;
+public:
+    class_team(int id):world_ID(id){
+        reset();
+    }
+    void reset(){
+        team_commander = false;
+        team_leader  = false;
+        team_finished= false;
+        active       = false;
+        team_id      = -1; //Begin without team
+        team_rank    = -1;
+        team_size    = -1;
+        MPI_COMM_TEAM = MPI_COMM_NULL;
+        MPI_COMM_LEAD = MPI_COMM_NULL;
+    }
+//        ArrayXXi histogram_recv; //Receive histogram from helpers
+    bool team_commander;
+    bool team_leader;
+    bool active;
+    bool team_finished;
+    int  team_id;
+    int  team_rank;
+    int  team_size;
+    MPI_Comm MPI_COMM_TEAM; //Communicator among team members
+    MPI_Comm MPI_COMM_LEAD; //Communicator among team leaders
+};
 
 
 class class_worker {
@@ -126,67 +155,40 @@ public:
                     t_sweep 				,
                     t_swap 					,
                     t_merge 				,
-                    t_help_setup            ,
-                    t_help                  ,
+                    t_setup_team            ,
+                    t_sync_team             ,
 					t_divide_range          ,
 					t_check_convergence 	,
-					t_make_MC_trial 		,
 					t_acceptance_criterion 	;
 
-    //Used when finished and helping others out
-    class helper{
-    private:
-        int world_ID;
-    public:
-        helper(int id):world_ID(id){
-            reset();
-        }
-        void reset(){
-            giving_help  = false;
-            getting_help = false;
-            active       = false;
-            helping_id   = world_ID; //Helping itself
-            MPI_COMM_HELP = MPI_COMM_NULL;
 
-        }
-//        ArrayXXi histogram_recv; //Receive histogram from helpers
-        bool giving_help;
-        bool getting_help;
-        bool active;
-        int  helping_id;
-        int help_rank;
-        int help_size;
-        MPI_Comm MPI_COMM_HELP;
-    };
-    helper help;
+    //Used to keep track of your team
+    class_team team;
 
     //Functions
+
+    //Startup
     void find_initial_limits();
     void start_counters();
     void rewind_timers();
-
     void set_initial_local_bins();
-    void update_global_range();
-    void resize_global_range();
-    void divide_global_range_uniformly();
-    void adjust_local_bins();
-    void synchronize_sets();
     bool __attribute__((always_inline)) check_in_window(const double x) {
         return x >= E_min_local && x <= E_max_local;
     }
-    void make_MC_trial() __attribute__((hot));
+
+    //Monte Carlo Sweep
+    void sweep()                        __attribute__((hot));
+    inline void acceptance_criterion()  __attribute__((always_inline));
+    inline void update_global_range()   __attribute__((always_inline));
     void walk_away_from_window();
     void walk_towards_window();
-    void acceptance_criterion() __attribute__((hot));
-    void accept_MC_trial()  __attribute__((hot));
-    void reject_MC_trial() __attribute__((hot));
-    void set_rate_increment();
+    //Convergence
     void next_WL_iteration();
     void prev_WL_iteration();
     void rewind_to_lowest_walk();
     void rewind_to_zero();
-    void add_dos()              __attribute__((hot));
-    void add_hist_volume()      __attribute__((hot));
+    void set_rate_increment();
+    void add_hist_volume();
     void check_saturation();
     friend std::ostream &operator<<(std::ostream &, const class_worker &);
 };
