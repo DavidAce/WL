@@ -18,7 +18,7 @@
 void do_simulations     (class_worker &);
 void wanglandau         (class_worker &);
 void check_finish_line  (class_worker &, class_backup &, int &);
-void divide_range       (class_worker &);
+void divide_range       (class_worker &, class_backup &);
 void print_status       (class_worker &, bool force);
 
 template <typename T>

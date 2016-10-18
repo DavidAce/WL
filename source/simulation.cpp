@@ -31,9 +31,9 @@ void wanglandau(class_worker &worker){
         if (timer::add_hist_volume      >= constants::rate_add_hist_volume  ){worker.add_hist_volume ()                           ;}
         if (timer::check_saturation     >= constants::rate_check_saturation ){worker.check_saturation()                           ;}
         if (timer::check_finish_line    >= constants::rate_check_finish_line){check_finish_line      (worker,backup, finish_line) ;}
-        if (timer::divide_range         >= constants::rate_divide_range     ){divide_range           (worker)                     ;}
-        if (timer::sync_team            >= constants::rate_sync_team        ){ parallel::sync_team   (worker)                     ;}
-        if (timer::setup_team           >= constants::rate_setup_team       ){ parallel::setup_team  (worker)                     ;}
+        if (timer::divide_range         >= constants::rate_divide_range     ){divide_range           (worker,backup)              ;}
+        if (timer::sync_team            >= constants::rate_sync_team        ){parallel::sync_team    (worker)                     ;}
+        if (timer::setup_team           >= constants::rate_setup_team       ){parallel::setup_team   (worker)                     ;}
         if (timer::print                >= constants::rate_print_status     ){print_status           (worker,false)               ;}
 
         counter::MCS++;
@@ -64,7 +64,7 @@ void check_finish_line(class_worker &worker, class_backup &backup, int &finish_l
         MPI_Allreduce(&worker.finish_line, &finish_line, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
 }
 
-void divide_range(class_worker &worker) {
+void divide_range(class_worker &worker, class_backup &backup) {
     //Three situations, and they can only happen IF nobody is helping out or is finished.
     //1) We need to resize global range.
     //2) We have done far too few walks to do a dos_volume resize. Then we do a dos_area instead, only if everybody is in window!!
@@ -95,19 +95,18 @@ void divide_range(class_worker &worker) {
         MPI_Allreduce(&worker.state_in_window, &all_in_window, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
         if (all_in_window && min_walks >= counter::merges) {
             if (worker.world_ID == 0) { cout << "Dividing according to dos" << endl; }
+            backup.restore_state(worker);
             parallel::merge(worker, true, false);
             counter::merges++;
             if (counter::merges < constants::max_merges){
                 parallel::divide_global_range_dos_area(worker);
                 worker.set_rate_increment();
                 worker.rewind_to_zero();
-
             }else{
                 parallel::divide_global_range_dos_volume(worker);
                 worker.set_rate_increment();
                 worker.rewind_to_lowest_walk();
             }
-
             worker.state_is_valid = false;
             print_status(worker, true);
             worker.t_divide_range.toc();
