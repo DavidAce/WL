@@ -18,13 +18,14 @@ namespace constants{
     static const double T_max = 6;               //Maximum temperature for thermodynamic quantities
 
     //Lattice Properties
-    static const int d = 2;                //Dimension
-    static const int L = 32;               //Linear size
-    static const int N = (int) std::pow(L,d);  //Number of spins/particles
+    static const int d = 2;                     //Dimension
+    static const int L = 32;                    //Linear size
+    static const int N = (int) std::pow(L,d);   //Number of spins/particles
 
     //DOS and Histogram properties
-    static const int rw_dims    = 2;       //Dimension of random walks (1D or 2D WL)
-    static const int bins       = 10;      //No lower than 10! (per worker)
+    static const int rw_dims                   = 2;        //Dimension of random walks (1D or 2D WL)
+    static const int bins                      = 10;       //No lower than 10! (per worker)
+
     //Rates for checking and printing (MCS units)
     static const int    rate_swap              = 10;       //How often to swap walkers in adjacent windows
     static const int    rate_add_hist_volume   = 500;      //How often to append reduced volume to an array called "saturation", which indicates if the current walk has converged when it flattens out.
@@ -49,8 +50,7 @@ namespace constants{
     //Parameters for parallelization
     extern int           team_size; //See main.cpp!
     //Parameters for sub-window splitting
-    static const int     max_area_merges         = 5;
-    static const int     max_vol_merges          = 4;
+    static const int     max_merges          = 4;
 }
 
 

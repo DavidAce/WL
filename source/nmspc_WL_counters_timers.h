@@ -11,8 +11,7 @@ namespace counter {
     extern int walks;
     extern int swaps;
     extern int swap_accepts;
-    extern int area_merges;
-    extern int vol_merges;
+    extern int merges;
 };
 
 namespace timer {

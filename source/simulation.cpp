@@ -81,28 +81,33 @@ void divide_range(class_worker &worker) {
         parallel::adjust_local_bins(worker);
         worker.need_to_resize_global = 0;
         worker.state_is_valid = false;
-        counter::vol_merges = 0;
+        counter::merges = 0;
         worker.set_rate_increment();
         worker.prev_WL_iteration();
         worker.t_divide_range.tic();
         print_status(worker, true);
         return;
     }
-    if (counter::vol_merges < constants::max_vol_merges) {
+    if (counter::merges < constants::max_merges) {
         int all_in_window;
         int min_walks;
         MPI_Allreduce(&counter::walks, &min_walks, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
         MPI_Allreduce(&worker.state_in_window, &all_in_window, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
-        if (all_in_window && min_walks >= counter::vol_merges) {
-            if (worker.world_ID == 0) { cout << "Dividing according to dos VOLUME" << endl; }
+        if (all_in_window && min_walks >= counter::merges) {
+            if (worker.world_ID == 0) { cout << "Dividing according to dos" << endl; }
             parallel::merge(worker, true, false);
-            parallel::divide_global_range_dos_volume(worker);
-            worker.rewind_to_lowest_walk();
-            worker.set_rate_increment();
-            counter::vol_merges++;
-            if (counter::vol_merges == constants::max_vol_merges){
+            counter::merges++;
+            if (counter::merges < constants::max_merges){
+                parallel::divide_global_range_dos_area(worker);
+                worker.set_rate_increment();
                 worker.rewind_to_zero();
+
+            }else{
+                parallel::divide_global_range_dos_volume(worker);
+                worker.set_rate_increment();
+                worker.rewind_to_lowest_walk();
             }
+
             worker.state_is_valid = false;
             print_status(worker, true);
             worker.t_divide_range.toc();
@@ -167,7 +172,7 @@ void print_status(class_worker &worker, bool force) {
     if (worker.world_ID == 0){
         cout    << "-----"
                 << " MaxWalks: "    << fixed << setprecision(0) << (int) ceil(log(constants::minimum_lnf)/log(constants::reduce_factor_lnf))
-                << " Merges: "      << fixed << setprecision(0) << counter::vol_merges  << "("<< constants::max_vol_merges  << ")"
+                << " Merges: "      << fixed << setprecision(0) << counter::merges  << "("<< constants::max_merges  << ")"
                 << " Iteration: "   << fixed << setprecision(0) << worker.iteration+1   << "("<< constants::simulation_reps << ")";
                 worker.t_total.print_total<double>(); cout << " s";
                 if(true){

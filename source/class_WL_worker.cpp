@@ -24,7 +24,7 @@ int counter::MCS;
 int counter::walks;
 int counter::swaps;
 int counter::swap_accepts;
-int counter::vol_merges;
+int counter::merges;
 int timer::increment;
 int timer::add_hist_volume;
 int timer::check_saturation;
@@ -130,7 +130,7 @@ void class_worker::start_counters(){
     counter::walks              = 0;
     counter::swaps              = 0;
     counter::swap_accepts       = 0;
-    counter::vol_merges         = 0;
+    counter::merges         = 0;
     timer::increment            = 0;
     timer::add_hist_volume      = 0;
     timer::check_saturation     = 0;
@@ -362,9 +362,9 @@ void class_worker::rewind_to_lowest_walk(){
 void class_worker::rewind_to_zero(){
     counter::walks = 0;
     lnf = 1;
-    int save_vol_merges  = counter::vol_merges;
+    int save_vol_merges  = counter::merges;
     start_counters();
-    counter::vol_merges  = save_vol_merges;
+    counter::merges  = save_vol_merges;
     finish_line = 0;
     dos.setZero();
     histogram.setZero();
@@ -388,9 +388,11 @@ void class_worker::set_rate_increment(){
             dos_width += 1;
         }
     }
-    rate_increment = max(1, (int)std::sqrt(fmax(dos_width,dos_height)));
-//    rate_increment = constants::N;
-//    rate_increment = 1;
+    if (counter::merges == constants::max_merges){
+        rate_increment = max(1, (int)std::sqrt(fmax(dos_width,dos_height)));
+    }else{
+        rate_increment = 1;
+    }
 }
 
 void class_worker::add_hist_volume(){
