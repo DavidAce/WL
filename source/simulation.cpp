@@ -101,11 +101,11 @@ void divide_range(class_worker &worker, class_backup &backup) {
             if (counter::merges < constants::max_merges){
                 parallel::divide_global_range_dos_area(worker);
                 worker.set_rate_increment();
-                worker.rewind_to_zero();
+                worker.rewind_to_lowest_walk();
             }else{
                 parallel::divide_global_range_dos_volume(worker);
                 worker.set_rate_increment();
-                worker.rewind_to_lowest_walk();
+                worker.rewind_to_zero();
             }
             worker.state_is_valid = false;
             print_status(worker, true);
