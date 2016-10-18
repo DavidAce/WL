@@ -622,7 +622,15 @@ namespace parallel {
             if (w == worker.world_ID){
                 if (!worker.finish_line) {
                     team_filling(team_id)++;
-                }else{
+                }
+            }
+            MPI_Barrier(MPI_COMM_WORLD);
+            MPI_Bcast(team_filling.data(),num_teams, MPI_INT, w, MPI_COMM_WORLD);
+        }
+
+        for (int w = 0; w < worker.world_size; w++) {
+            if (w == worker.world_ID){
+                if (worker.finish_line){
                     for (int i = 0; i < num_teams; i++) {
                         if (whos_finished(i * team_size) == 1){continue;}
                         if (team_filling(i) < new_team_size) {
