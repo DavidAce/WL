@@ -9,7 +9,7 @@
 namespace constants{
 
     //WL boostrap properties
-    static const int simulation_reps = 4;      //Number of independent do_simulations
+    static const int simulation_reps = 2;      //Number of independent do_simulations
     static const int bootstrap_reps  = 8;
 
     //WL thermodynamics properties
@@ -19,7 +19,7 @@ namespace constants{
 
     //Lattice Properties
     static const int d = 2;                     //Dimension
-    static const int L = 32;                    //Linear size
+    static const int L = 12;                    //Linear size
     static const int N = (int) std::pow(L,d);   //Number of spins/particles
 
     //DOS and Histogram properties

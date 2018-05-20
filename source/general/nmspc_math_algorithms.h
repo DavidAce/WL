@@ -14,7 +14,9 @@ using namespace Eigen;
 namespace math{
     //Find index of maximum element in an Eigen-type array
     inline int __attribute__((always_inline)) mod (const int x, const int y){
-        return x >= 0 ? x%y : x%y + y;
+//        return x >= 0 ? x%y : x%y + y;
+        return (x % y + y) % y;
+
     }
     extern double   volume(const ArrayXXd &dos,const ArrayXd &E,const ArrayXd &M);
     int             volume_idx(const ArrayXXd &dos,const ArrayXd &E,const ArrayXd &M, const double &vol_limit);

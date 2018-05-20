@@ -4,15 +4,15 @@
 
 #include "bootstrap.h"
 #define debug_boot      1
-#define debug_thermo    0
-#define debug_stats     0
+#define debug_thermo    1
+#define debug_stats     1
 void do_bootstrap(class_worker &worker){
     //Each worker loads its segment from random iteration
     //Then merge, then write out new bootstrapped DOS.
     outdata out;
     indata  in;
     if(debug_boot){parallel::debug_print(worker,"Bootstrap: Starting\n");}
-    worker.team.team_id = worker.world_ID /constants::team_size;
+    worker.team.team_id = worker.world_ID / constants::team_size;
     parallel::setup_comm(worker);
     if (worker.team.team_leader) {
         for (int i = 0; i < constants::bootstrap_reps; i++) {
@@ -39,6 +39,7 @@ void do_thermodynamics(class_worker &worker){
     class_thermodynamics thermo;
     worker.iteration = worker.world_ID;
     if(debug_thermo){parallel::debug_print_team_commander(worker," Computing thermodynamic quantities...\n");}
+    std::cout << "ID: " << worker.world_ID << " step 1" << std::endl;
     while (worker.iteration < (constants::bootstrap_reps + constants::simulation_reps)){
         if(debug_thermo){cout << "ID: " << worker.world_ID << "  Thermo: Loading data..." << endl;}
         in.load_full(worker);

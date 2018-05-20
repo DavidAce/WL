@@ -50,13 +50,13 @@ namespace parallel {
 
     template <typename T>
     void debug_print_team_commander (class_worker &worker, T input){
-        MPI_Barrier(worker.team.MPI_COMM_LEAD);
+        MPI_Barrier(worker.team.MPI_COMM_TEAM);
         if (worker.team.team_commander == 0) {
             cout << input;
             cout.flush();
             std::this_thread::sleep_for(std::chrono::microseconds(100));
         }
-        MPI_Barrier(worker.team.MPI_COMM_LEAD);
+        MPI_Barrier(worker.team.MPI_COMM_TEAM);
     }
 
 };

@@ -2,6 +2,7 @@
 // Created by david on 2016-08-11.
 //
 
+#include <assert.h>
 #include "nmspc_WL_parallelization.h"
 #include "class_WL_worker.h"
 
@@ -36,8 +37,8 @@ namespace parallel {
 //        bool myTurn  = math::mod(worker.world_ID, 2) == math::mod(counter::swaps, 2);
         int even_team = math::mod(worker.world_ID / constants::team_size , 2) == 0;
         bool myTurn   = math::mod(even_team + worker.world_ID, 2) == math::mod(counter::swaps, 2);
-        int distance  = constants::team_size; //Needs to be an odd number
-//        int distance = constants::team_size - math::mod(constants::team_size + 1, 2); //Needs to be an odd number
+//        int distance  = constants::team_size; //Needs to be an odd number
+        int distance = constants::team_size + math::mod(constants::team_size + 1, 2); //Needs to be an odd number
         int up = math::mod(worker.world_ID + distance, worker.world_size);
         int dn = math::mod(worker.world_ID - distance, worker.world_size);
         if (debug_swap) {
@@ -50,6 +51,9 @@ namespace parallel {
         }
         MPI_Request reqs[4];
         MPI_Status stats[4];
+        assert(up < worker.world_size and up >= 0 and "Neighbor up out of range");
+        assert(dn < worker.world_size and dn >= 0 and "Neighbor down out of range");
+
         if (myTurn) {
             //Receive relevant info
             MPI_Sendrecv(&worker.E, 1, MPI_DOUBLE,up,100, &E_Y, 1,MPI_DOUBLE,up, 100,MPI_COMM_WORLD, MPI_STATUS_IGNORE);
@@ -698,6 +702,7 @@ namespace parallel {
         MPI_Comm_split(MPI_COMM_WORLD, color_team, key, &worker.team.MPI_COMM_TEAM);
         MPI_Comm_rank(worker.team.MPI_COMM_TEAM, &worker.team.team_rank);
         MPI_Comm_size(worker.team.MPI_COMM_TEAM, &worker.team.team_size);
+
         worker.team.team_leader = worker.team.team_rank == 0;
         color_lead              = worker.team.team_leader ? 1 : MPI_UNDEFINED;
         MPI_Comm_split(MPI_COMM_WORLD, color_lead, key, &worker.team.MPI_COMM_LEAD);
