@@ -9,6 +9,7 @@
     <libraryRoots>
       <file path="$PROJECT_DIR$/EMC-Lib" />
       <file path="$PROJECT_DIR$/eigen3" />
+      <file path="$PROJECT_DIR$/libs" />
     </libraryRoots>
     <excludeRoots>
       <file path="$PROJECT_DIR$/.literature" />

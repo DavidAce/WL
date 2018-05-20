@@ -16,6 +16,7 @@ int main() {
     class_worker worker(world_ID, world_size);
     constants::team_size =  min(world_size, 8);
     do_simulations(worker);
+    do_sampling   (worker);
     do_bootstrap  (worker);
     if(world_ID == 0){cout << "Finished successfully" << endl;}
 

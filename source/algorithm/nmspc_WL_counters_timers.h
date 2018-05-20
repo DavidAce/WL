@@ -25,6 +25,7 @@ namespace timer {
     extern int sync_team;
     extern int setup_team;
     extern int divide_range;
+    extern int sampling;
 }
 
 

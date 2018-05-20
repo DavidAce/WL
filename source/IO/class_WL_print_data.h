@@ -24,11 +24,13 @@ using namespace Eigen;
 class outdata {
 private:
     string      folder;
-    int         iteration;
+    int         iteration = 0;
     int         precision = 12;
 public:
-    outdata();
+    outdata() = default;  //Default constructor (does not set folder! make sure to set it yourself!
+
     void create_folder(string folder_name);
+    void create_set_folder(string folder_name);
     void create_iteration_folder_master(const int &iter, const int &id);
     void create_iteration_folder_worker(const int &iter);
     void set_foldername_to_iteration(const int &iter);
@@ -39,23 +41,29 @@ public:
     void write_data_master(class_worker &);
     void write_data_thermo(class_thermodynamics &, const int &iter);
     void write_final_data(class_stats &stats, const int &id);
-
+    void write_sample(class_worker &);
+//    template<typename Derived>
+//    void write_to_file(const MatrixBase<Derived> &data, string filename){
+//        ofstream file(filename,ios::out | ios::trunc);
+//        file << fixed << showpoint << setprecision(precision);
+//        string      _coeffSeparator = "	";
+//        IOFormat fmt(StreamPrecision, 0, _coeffSeparator);
+//        file << data.format(fmt) << endl;
+//        file.close();
+//    }
     template<typename Derived>
-    void write_to_file(const MatrixBase<Derived> &data, string filename){
+    void write_to_file(const EigenBase<Derived> &data, string filename){
         ofstream file(filename,ios::out | ios::trunc);
         file << fixed << showpoint << setprecision(precision);
         string      _coeffSeparator = "	";
         IOFormat fmt(StreamPrecision, 0, _coeffSeparator);
-        file << data.format(fmt) << endl;
+        file << data.derived().format(fmt) << endl;
         file.close();
     }
-    template<typename Derived>
-    void write_to_file(const ArrayBase<Derived> &data, string filename){
+
+    void write_to_file(const double data, string filename){
         ofstream file(filename,ios::out | ios::trunc);
-        file << fixed << showpoint << setprecision(precision);
-        string      _coeffSeparator = "	";
-        IOFormat fmt(StreamPrecision, 0, _coeffSeparator);
-        file << data.format(fmt) << endl;
+        file << fixed << showpoint << setprecision(precision) << data;
         file.close();
     }
 

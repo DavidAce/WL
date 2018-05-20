@@ -16,6 +16,7 @@
 #include "nmspc_WL_counters_timers.h"
 
 void do_simulations     (class_worker &);
+void do_sampling        (class_worker &);
 void wanglandau         (class_worker &);
 void check_finish_line  (class_worker &, class_backup &, int &);
 void divide_range       (class_worker &, class_backup &);

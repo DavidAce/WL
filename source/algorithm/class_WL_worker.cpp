@@ -8,13 +8,12 @@
 #define profiling_sweep                	1
 #define profiling_swap                 	1
 #define profiling_merge                	1
-#define profiling_setup_team           	1
-#define profiling_sync_team            	1
-#define profiling_divide_range        	1
-#define profiling_check_convergence	    1
+#define profiling_setup_team           	0
+#define profiling_sync_team            	0
+#define profiling_divide_range        	0
+#define profiling_check_convergence	    0
 #define profiling_make_MC_trial 		0
 #define profiling_acceptance_criterion 	0
-
 #define debug_sweep                     0
 
 using namespace std;
@@ -35,7 +34,7 @@ int timer::swap;
 int timer::sync_team;
 int timer::setup_team;
 int timer::divide_range;
-
+int timer::sampling;
 
 std::ostream& operator<< (std::ostream& out, const std::vector<state>& v) {
     if (!v.empty()) {
@@ -130,7 +129,7 @@ void class_worker::start_counters(){
     counter::walks              = 0;
     counter::swaps              = 0;
     counter::swap_accepts       = 0;
-    counter::merges         = 0;
+    counter::merges             = 0;
     timer::increment            = 0;
     timer::add_hist_volume      = 0;
     timer::check_saturation     = 0;
@@ -141,6 +140,7 @@ void class_worker::start_counters(){
     timer::sync_team        	= 0;
     timer::setup_team			= 0;
     timer::divide_range         = 0;
+    timer::sampling             = 0;
     flag_one_over_t             = 0;
 }
 
@@ -155,6 +155,7 @@ void class_worker::rewind_timers(){
     timer::sync_team        	= 0;// math::mod(counter::MCS, constants::rate_sync_team        );
     timer::setup_team			= 0;// math::mod(counter::MCS, constants::rate_setup_team       );
     timer::divide_range         = 0;// math::mod(counter::MCS, constants::rate_divide_range     );
+    timer::sampling             = 0;
 }
 
 void class_worker::set_initial_local_bins(){

@@ -146,6 +146,16 @@ void outdata::write_final_data(class_stats &stats, const int &id){
 }
 
 
+void outdata::write_sample(class_worker &worker){
+    std::string name_sample_lattice = folder + "lattice_" + to_string(iteration) + ".dat";
+    std::string name_sample_energy  = folder + "energy_" + to_string(iteration) + ".dat";
+    std::string name_sample_magnet  = folder + "magnet_" + to_string(iteration) + ".dat";
+    write_to_file(worker.model.lattice, name_sample_lattice);
+    write_to_file(worker.model.get_E(), name_sample_energy);
+    write_to_file(worker.model.get_M(), name_sample_magnet);
+    iteration ++;
+}
+
 
 void outdata::set_foldername_to_iteration(const int &iter){
     iteration = iter;
@@ -213,6 +223,12 @@ void outdata::create_folder(string folder_name){
     }
 }
 
+void outdata::create_set_folder(string folder_name){
+    folder = folder_name;
+    create_folder(folder);
+}
+
+
 void outdata::create_iteration_folder_master(const int &iter, const int &id){
     if(id == 0){
         set_foldername_to_iteration(iter);
@@ -226,7 +242,3 @@ void outdata::create_iteration_folder_worker(const int &iter){
 }
 
 
-//Default constructor (does not set folder! make sure to set it yourself!
-outdata::outdata() {
-
-}

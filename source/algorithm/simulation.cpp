@@ -3,9 +3,9 @@
 //
 #include "simulation.h"
 
-#define debug_check_finish_line         1
-#define debug_divide_range              1
-#define debug_status                    1
+#define debug_check_finish_line         0
+#define debug_divide_range              0
+#define debug_status                    0
 
 using namespace std;
 
@@ -15,6 +15,22 @@ void do_simulations(class_worker &worker){
         worker.iteration = i;
         worker.rewind_to_zero();
         wanglandau(worker);
+    }
+}
+
+
+void do_sampling(class_worker &worker){
+    outdata out;
+    out.create_set_folder("outdata/samples/" + to_string(worker.world_ID) + "/");
+    int samples = 0;
+    while(samples < constants::samples_to_collect){
+        worker.sweep();
+        if (timer::swap                 >= constants::rate_swap             ){parallel::swap         (worker)                     ;}
+        if (timer::print                >= constants::rate_print_status     ){print_status           (worker,false)               ;}
+        if (timer::sampling             >= constants::rate_sampling         ){timer::sampling = 0; out.write_sample(worker); samples++  ;}
+        timer::print++;
+        timer::swap++;
+        timer::sampling++;
     }
 }
 
