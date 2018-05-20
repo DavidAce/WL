@@ -1,48 +1,83 @@
 #!/bin/bash
+PROGNAME=$0
 
-#rm -rf *
-buildtype="Release"
+usage() {
+  cat << EOF >&2
 
-if [[ "$@" == *"ebug"* ]]
+Usage            : $PROGNAME [-c] [-h ] [-j <num_threads>] [-l] [-m <mode>] [-t <target>]
+
+-c               : Clear CMake files before build (delete ./build)
+-h               : Help. Shows this text.
+-j <num_threads> : Number of threads used by CMake
+-l               : Clear downloaded libraries before build (i.e. delete ./libs)
+-m <mode>        : Release   | Debug | (default = Release)
+-t <target>      : DMRG++    | all   | any test target | (default = all)
+EOF
+  exit 1
+}
+
+
+target="all"
+mode="Release"
+clear_cmake=""
+clear_libs=""
+threads="2"
+
+while getopts chj:lm:t: o; do
+    case $o in
+        (c) clear_cmake="true";;
+        (h) usage ;;
+        (j) threads=$OPTARG;;
+        (l) clear_libs="true";;
+        (m) mode=$OPTARG;;
+        (t) target=$OPTARG;;
+        (:) echo "Option -$OPTARG requires an argument." >&2 ; exit 1 ;;
+        (*) usage ;;
+  esac
+done
+shift "$((OPTIND - 1))"
+
+
+if [ "$clear_cmake" = "true" ]
 then
-	buildtype="Debug"
+    echo "Clearing CMake files from build."
+	rm -rf ./build
 fi
 
-if [[ "$@" == *"lean"* ]]
+if [ "$clear_libs" = "true" ]
 then
-    echo "Cleaning build"
-	rm -rf build
-    exit 0
+    echo "Clearing downloaded libraries."
+	rm -rf ./libs
 fi
 
 
-if [[ "$HOSTNAME" == *"triolith"* ]]
-then
-    echo "We're on triolith!";
-    module add cmake/3.6.1
-    module load buildenv-intel/2016-3
-    export CC=/software/apps/gcc/5.3.0/build01/bin/gcc
-    export CXX=/software/apps/gcc/5.3.0/build01/bin/g++
-elif [[ "$HOSTNAME" == *"beskow"* ]]
-then
-    echo "We're on beskow!";
-    module ()
-    {
-    eval `/opt/modules/3.2.6.7/bin/modulecmd bash $*`
-    }
-    module swap PrgEnv-cray/5.2.56 PrgEnv-intel/5.2.56;
-    module load intel/16.0.1.150;
-    module load gcc/5.1.0;
-    export CRAYPE_LINK_TYPE=dynamic
-    module add cmake/3.0.2;
-else
-    echo "We're on my pc!"
+
+if [[ "$OSTYPE" == "linux-gnu" ]] || [[ "$OSTYPE" == "cygwin" ]]; then
+    echo "OS: Linux"
+elif [[ "$OSTYPE" == "darwin"* ]]; then
+    echo "OS: Mac OSX"
+    echo "Checking if gcc-7 compiler is available"
+    if brew ls gcc@7 | grep -q 'g++-7'; then
+        echo " gcc-7 was found!"
+        if [[ "${CC}" != *"gcc-7"* ]]; then
+            echo "Please export before running: "
+            echo "  export CC=gcc-7"
+            echo "  export CXX=g++-7"
+            echo "  export FC=gfortran-7"
+        fi
+    else
+        echo "Please install gcc (version 7 or higher) through brew."
+        echo "Command:   brew install gcc@7"
+    fi
 fi
 
-mkdir build
-cd build
-mkdir ${buildtype}
-cd ${buildtype}
+
 echo "Starting Build"
-cmake -DCMAKE_BUILD_TYPE=${buildtype}  ../../
-make
+echo "Target          :   $target"
+echo "Build threads   :   $threads"
+echo "Mode            :   $mode"
+
+cmake -E make_directory build/$mode
+cd build/$mode
+cmake -DCMAKE_BUILD_TYPE=$mode -G "CodeBlocks - Unix Makefiles" ../../
+cmake --build . --target $target -- -j $threads
