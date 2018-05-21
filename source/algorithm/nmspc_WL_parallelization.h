@@ -15,6 +15,7 @@
 
 namespace parallel {
     extern void swap                           (class_worker &) ;
+    extern void swap2                          (class_worker &) ;
     extern void merge                          (class_worker &, bool broadcast, bool setNaN) ;
     extern void broadcast_merger               (class_worker &);
     extern void divide_global_range_uniform    (class_worker &);

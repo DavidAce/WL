@@ -128,13 +128,132 @@ namespace parallel {
         worker.t_swap.toc();
     }
 
+    void swap2(class_worker &worker) {
+        //Use MPI Tag in the 100-200 range
+        timer::swap = 0;
+        worker.t_swap.tic();
+
+        int abort;
+        MPI_Allreduce(&worker.need_to_resize_global, &abort, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+        if (abort || counter::merges < 1) {
+            worker.t_swap.toc();
+            return;
+        }
+
+
+
+        int swap;
+//        double dos_X, dos_Y;
+//        double E_X, E_Y, M_X, M_Y;
+        double dos_partner, dos_myown;
+        double E_partner, M_partner;
+        int E_idx_partner, M_idx_partner;
+//        int E_X_idx, E_Y_idx, M_X_idx, M_Y_idx;
+        double   E_min_partner, E_max_partner;
+        double P_swap;      //Swap probability
+//        bool myTurn   = math::mod(worker.world_ID, 2) == math::mod(counter::swaps, 2);
+
+        // Broadcast a randomly shuffled list to all workers like {3,2,7,1,0,5...}
+        // Find myself on the list.
+        // If I'm at an even position, it's my turn. Otherwise not.
+        // If it is my turn, look at who's on my right, that's who I'm swapping with.
+        // If it is not my turn, look left, that's who I'm swapping with.
+
+        std::vector<int> swap_list((unsigned long)worker.world_size);
+        if (worker.world_ID == 0){
+            swap_list = rn::shuffled_list(0,worker.world_size - 1);
+//            std::cout << "Swap list: " << swap_list << std::endl;
+        }
+        MPI_Bcast(swap_list.data(), worker.world_size, MPI_INT, 0, MPI_COMM_WORLD);
+        int swap_partner;
+        int my_idx_on_swap_list = (int) (std::find(swap_list.begin(), swap_list.end(), worker.world_ID) - swap_list.begin());
+        int myTurn =  math::mod(my_idx_on_swap_list, 2); // It's my turn to throw dice if I'm at an even position on the swap_list
+        if (myTurn){
+            swap_partner = swap_list[math::mod(my_idx_on_swap_list + 1 , worker.world_size)];
+        }else {
+            swap_partner = swap_list[math::mod(my_idx_on_swap_list - 1 , worker.world_size)];
+        }
+
+        assert(swap_partner < worker.world_size and swap_partner >= 0 and "Neighbor swap_partner out of range");
+        if (debug_swap) {
+            for (int w = 0; w < worker.world_size; w++) {
+                if (w == worker.world_ID) {
+                    cout << "ID: " << w << " Starting Swap. Myturn = " << myTurn << " swap_partner: " << swap_partner << endl;
+                }
+                MPI_Barrier(MPI_COMM_WORLD);
+            }
+        }
+
+        //Send each others info
+        MPI_Sendrecv(&worker.E, 1, MPI_DOUBLE,swap_partner,100, &E_partner, 1,MPI_DOUBLE,swap_partner, 100,MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Sendrecv(&worker.M, 1, MPI_DOUBLE,swap_partner,101, &M_partner, 1,MPI_DOUBLE,swap_partner, 101,MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Sendrecv(&worker.E_min_local, 1, MPI_DOUBLE,swap_partner,102, &E_min_partner, 1,MPI_DOUBLE,swap_partner, 102,MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Sendrecv(&worker.E_max_local, 1, MPI_DOUBLE,swap_partner,103, &E_max_partner, 1,MPI_DOUBLE,swap_partner, 103,MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Sendrecv(&worker.dos(worker.E_idx, worker.M_idx), 1, MPI_DOUBLE,swap_partner,104, &dos_partner, 1,MPI_DOUBLE,swap_partner, 104,MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+
+        E_idx_partner = math::binary_search_exact(worker.E_bins, E_partner);
+        M_idx_partner = math::binary_search_exact(worker.M_bins, M_partner);
+        //If we are doing 1d random walks we don't really care about M_idx_partner and M_idx. Set these to 0.
+        if(constants::rw_dims == 1){M_idx_partner = 0;}
+
+        double dos_send_back;
+
+        if (E_idx_partner == -1 || M_idx_partner == -1){
+            dos_send_back = -1;
+        }else{
+            dos_send_back = worker.dos(E_idx_partner, M_idx_partner);
+        }
+        MPI_Sendrecv(&dos_send_back, 1, MPI_DOUBLE,swap_partner,105, &dos_myown, 1,MPI_DOUBLE,swap_partner, 105,MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+
+        //Decide if you want to swap
+        //Swap if your're inside each others windows, your respective windows, and not swapping with self.
+        swap = 1;
+        swap = swap && worker.E >= E_min_partner && worker.E <= E_max_partner;
+        swap = swap && worker.check_in_window(worker.E);
+        swap = swap && E_idx_partner != -1       && M_idx_partner != -1 && dos_partner != -1 && dos_myown != -1;
+        swap = swap && worker.world_ID != swap_partner;
+
+        //If it's your turn, throw a dice!. Swap with probability P_swap
+        if (myTurn) {
+            if (swap) {
+                P_swap = exp(worker.dos(worker.E_idx, worker.M_idx)
+                             - worker.dos(E_idx_partner, M_idx_partner)
+                             + dos_partner
+                             - dos_myown);
+            } else { P_swap = 0; }
+            swap = swap && rn::uniform_double_1() < fmin(1, P_swap);
+        }
+
+        int partner_wanna_swap;
+        MPI_Sendrecv(&swap, 1, MPI_INT,swap_partner,106, &partner_wanna_swap, 1,MPI_INT,swap_partner, 106,MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        swap = swap && partner_wanna_swap;
+
+        //Do swap if yo got lucky!
+        if (swap == 1) {
+            MPI_Sendrecv_replace(worker.model.lattice.data(), (int) worker.model.lattice.size(), MPI_INT, swap_partner,
+                                 107, swap_partner, 107, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            worker.E = E_partner;
+            worker.M = M_partner;
+            worker.state_is_valid = false;
+        }
+
+        if (debug_swap) { debug_print(worker, "Swap OK\n"); }
+
+        counter::swap_accepts += swap;
+        counter::swaps++;
+        worker.t_swap.toc();
+    }
+
+
     void merge(class_worker &worker, bool broadcast, bool setNaN) {
         if (debug_merge) { debug_print(worker, "\nMerging. "); }
         ArrayXXd dos_total;
         ArrayXd E_total;
         ArrayXd M_total;
         //Start by trimming
-        int num_teams = worker.world_size/constants::team_size;
+//        int num_teams = worker.world_size/constants::team_size;
 
         if (worker.team.team_leader){
             if (worker.team.team_commander) {
@@ -142,8 +261,8 @@ namespace parallel {
                 E_total = worker.E_bins;
                 M_total = worker.M_bins;
             }
-
-            for (int w = 1; w < num_teams; w++) {
+            std::cout << "ID: " << worker.world_ID << " made it here. Num tems "<<  constants::num_teams  << std::endl;
+            for (int w = 1; w < constants::num_teams; w++) {
                 if (worker.team.team_commander) {
                     if (debug_merge) {
                         cout << "Receiving from " << w << endl;
@@ -220,12 +339,12 @@ namespace parallel {
                             dos_merge.push_back(dos_total.row(i));
                             E_merge.push_back(E_total(i));
                             if (debug_merge) {
-                                cout << " Inserted " << "i: " << i << endl
-                                     << " E_total(i): " << E_total(i) << endl
-                                     << " E_total   : " << E_total.transpose() << endl
-                                     << " E_recv    : " << E_recv.transpose() << endl
-                                     << " E_merge   : " << E_merge << endl
-                                     << endl;
+//                                cout << " Inserted " << "i: " << i << endl
+//                                     << " E_total(i): " << E_total(i) << endl
+//                                     << " E_total   : " << E_total.transpose() << endl
+//                                     << " E_recv    : " << E_recv.transpose() << endl
+//                                     << " E_merge   : " << E_merge << endl
+//                                     << endl;
                             }
                             continue;
                         } else if (i <= E_shared_high_idx) {
@@ -233,11 +352,11 @@ namespace parallel {
                             if (j == -1) {
                                 j = math::binary_search_nearest(E_recv, E_total(i));
                                 printf(" Could not find E_total(%d) = %f. Closest match: E_recv(%d) = %f \n", i, E_total(i), j, E_recv(j));
-                                cout << " E_total(i): " << E_total(i) << endl
-                                     << " E_total   : " << E_total.transpose() << endl
-                                     << " E_recv    : " << E_recv.transpose() << endl
-                                     << " E_merge   : " << E_merge << endl
-                                     << endl;
+//                                cout << " E_total(i): " << E_total(i) << endl
+//                                     << " E_total   : " << E_total.transpose() << endl
+//                                     << " E_recv    : " << E_recv.transpose() << endl
+//                                     << " E_merge   : " << E_merge << endl
+//                                     << endl;
                                 exit(1);
                             } else {
                                 //Merge taking Average
@@ -245,12 +364,12 @@ namespace parallel {
                                 dos_merge.push_back((1 - weight) * dos_total.row(i) + weight * dos_recv.row(j));
                                 E_merge.push_back(E_total(i));
                                 if (debug_merge) {
-                                    cout << " Merged  i : " << i << " and j: " << j << endl
-                                         << " E_total(i): " << E_total(i) << endl
-                                         << " E_total   : " << E_total.transpose() << endl
-                                         << " E_recv    : " << E_recv.transpose() << endl
-                                         << " E_merge   : " << E_merge << endl
-                                         << endl;
+//                                    cout << " Merged  i : " << i << " and j: " << j << endl
+//                                         << " E_total(i): " << E_total(i) << endl
+//                                         << " E_total   : " << E_total.transpose() << endl
+//                                         << " E_recv    : " << E_recv.transpose() << endl
+//                                         << " E_merge   : " << E_merge << endl
+//                                         << endl;
                                 }
 
                             }
@@ -264,10 +383,10 @@ namespace parallel {
                         dos_merge.push_back(dos_recv.row(j));
                         E_merge.push_back(E_recv(j));
                         if (debug_merge) {
-                            cout << " Inserted " << "j: " << j << endl
-                                 << " E_recv    : " << E_recv.transpose() << endl
-                                 << " E_merge   : " << E_merge << endl
-                                 << endl;
+//                            cout << " Inserted " << "j: " << j << endl
+//                                 << " E_recv    : " << E_recv.transpose() << endl
+//                                 << " E_merge   : " << E_merge << endl
+//                                 << endl;
                         }
                     }
 
@@ -325,9 +444,9 @@ namespace parallel {
 
     void divide_global_range_uniform(class_worker &worker) {
         //Update limits
-        int num_teams = worker.world_size / constants::team_size;
+//        int num_teams = worker.world_size / constants::team_size;
         double global_range = fabs(worker.E_max_global - worker.E_min_global);
-        double local_range = global_range / (double) (num_teams);
+        double local_range = global_range / (double) (constants::num_teams);
         double x = constants::overlap_factor_energy;
         //Add a little bit extra if there are too many workers (Add nothing if world_size == 2, and up to local_volume if world_size == inf)
         double overlap_range = local_range * x;// * 2.0*(world_size - 2.0 + x)/world_size;
@@ -347,9 +466,9 @@ namespace parallel {
             team_id = worker.world_ID /constants::team_size;
 
         }
-        if (team_id == 0)                   { overlap_range = overlap_range / 1; }
-        else if (team_id == num_teams - 1)  { overlap_range = overlap_range / 1; }
-        else                                { overlap_range = overlap_range / 2; }
+        if (team_id == 0)                              { overlap_range = overlap_range / 1; }
+        else if (team_id == constants::num_teams - 1)  { overlap_range = overlap_range / 1; }
+        else                                           { overlap_range = overlap_range / 2; }
 
         worker.E_min_local = worker.E_min_global + (team_id * local_range) - overlap_range;
         worker.E_max_local = worker.E_min_global + (team_id + 1) * local_range + overlap_range;
@@ -383,17 +502,17 @@ namespace parallel {
     void divide_global_range_dos_area(class_worker &worker) {
         //Update limits
         if (debug_divide) { debug_print(worker, "\n Dividing Area. "); }
-        int num_teams           = worker.world_size / constants::team_size;
+//        int num_teams           = worker.world_size / constants::team_size;
         double global_range     = math::area(worker.dos_total, worker.E_bins_total, worker.M_bins_total);
-        double local_range      = global_range / num_teams;
+        double local_range      = global_range / constants::num_teams;
         double x                = constants::overlap_factor_dos_area / (1 - constants::overlap_factor_dos_area / 2);
         double overlap_range = local_range * x;
         //The overlap_range is the total range in a domain that will have overlap, either up or down.
         //Find the boundaries of the DOS domain that gives every worker the  same DOS volume to work on
         int E_min_local_idx, E_max_local_idx;
-        if      (worker.team.team_id == 0)             { overlap_range = overlap_range / 2; }
-        else if (worker.team.team_id == num_teams - 1) { overlap_range = overlap_range / 2; }
-        else                                           { overlap_range = overlap_range / 4; }
+        if      (worker.team.team_id == 0)                        { overlap_range = overlap_range / 2; }
+        else if (worker.team.team_id == constants::num_teams - 1) { overlap_range = overlap_range / 2; }
+        else                                                      { overlap_range = overlap_range / 4; }
         E_min_local_idx = math::area_idx(worker.dos_total, worker.E_bins_total, worker.M_bins_total,
                                            worker.team.team_id * local_range - overlap_range);
         E_max_local_idx = math::area_idx(worker.dos_total, worker.E_bins_total, worker.M_bins_total,
@@ -440,16 +559,16 @@ namespace parallel {
 
     void divide_global_range_dos_volume(class_worker &worker) {
         if (debug_divide) { debug_print(worker, " \nDividing dos volume "); }
-        int num_teams           = worker.world_size / constants::team_size;
+//        int num_teams           = worker.world_size / constants::team_size;
         double global_range     = math::volume(worker.dos_total, worker.E_bins_total, worker.M_bins_total);
-        double local_range      = global_range / num_teams;
+        double local_range      = global_range / constants::num_teams;
         double x                = constants::overlap_factor_dos_vol / (1 - constants::overlap_factor_dos_vol / 2);
         double overlap_range    = local_range * x;
         //The overlap_range is the total range in a domain that will have overlap, either up or down.
         //Find the boundaries of the DOS domain that gives every worker the  same DOS volume to work on
         int E_min_local_idx, E_max_local_idx;
         if      (worker.team.team_id == 0)                          { overlap_range = overlap_range / 2 ; }
-        else if (worker.team.team_id == num_teams - 1)  { overlap_range = overlap_range / 2; }
+        else if (worker.team.team_id == constants::num_teams - 1)   { overlap_range = overlap_range / 2; }
         else                                                        { overlap_range = overlap_range / 4; }
         E_min_local_idx = math::volume_idx(worker.dos_total, worker.E_bins_total, worker.M_bins_total,
                                            worker.team.team_id * local_range - overlap_range);
@@ -603,57 +722,48 @@ namespace parallel {
     void setup_team(class_worker &worker){
         timer::setup_team = 0;
         worker.t_setup_team.tic();
-        if (debug_setup_help) { debug_print(worker, "Setting up help \n"); }
-        //Store current team configuration for comparison later
-
+        if (debug_setup_help) { debug_print(worker, "Reorganizing teams. "); }
         //Get a list of workers that have finished
         ArrayXi whos_finished(worker.world_size);
         MPI_Allgather(&worker.finish_line, 1, MPI_INT, whos_finished.data(), 1, MPI_INT, MPI_COMM_WORLD);
 
-        //How many available workers?
-        int team_size           = constants::team_size;
-        int num_teams           = worker.world_size / team_size;
-        int num_finished_teams  = whos_finished.sum() / team_size;
 
-        //How many workers per team?
-        int new_team_size = team_size + (int) ceil( (double)whos_finished.sum() / (num_teams - num_finished_teams));
-
-        //Get a temporary team id. If you are not yet finished this will be your final team_id, otherwise you'll get a new team assigned to you.
-        int team_id          = worker.world_ID / constants::team_size;
-        ArrayXi team_filling = ArrayXi::Zero(num_teams);
-        //Fill teams with workers
+        int backfill_pos = 0;
+        int team_id      = worker.world_ID / constants::team_size;
+        //Note that team_id might be > constants::num_teams. In that case, simply fill them in where they're useful.
+        ArrayXi team_filling = ArrayXi::Zero(constants::num_teams);
         for (int w = 0; w < worker.world_size; w++) {
             if (w == worker.world_ID){
-                if (!worker.finish_line) {
+                if (!worker.finish_line and team_id < constants::num_teams) {
                     team_filling(team_id)++;
                 }
-            }
-            MPI_Barrier(MPI_COMM_WORLD);
-            MPI_Bcast(team_filling.data(),num_teams, MPI_INT, w, MPI_COMM_WORLD);
-        }
-
-        for (int w = 0; w < worker.world_size; w++) {
-            if (w == worker.world_ID){
-                if (worker.finish_line){
-                    for (int i = 0; i < num_teams; i++) {
-                        if (whos_finished(i * team_size) == 1){continue;}
-                        if (team_filling(i) < new_team_size) {
-                            team_filling(i)++;
-                            team_id = i;
-                            break;
+                else{
+                    int iter = 0;
+                    while(iter < worker.world_size*worker.world_size){
+                        //Advance backfill_pos until you find a slot. Wrap around if you finish the list.
+                        if(whos_finished(backfill_pos) == 1){
+                            iter++;
+                            backfill_pos = math::mod(backfill_pos+1, constants::num_teams);
                         }
+                        else{break;}
                     }
+                    //Place this guy where he is needed
+                    team_id = backfill_pos;
+                    team_filling(backfill_pos++)++;
                 }
             }
             MPI_Barrier(MPI_COMM_WORLD);
-            MPI_Bcast(team_filling.data(),num_teams, MPI_INT, w, MPI_COMM_WORLD);
+            MPI_Bcast(team_filling.data(),constants::num_teams, MPI_INT, w, MPI_COMM_WORLD);
+            MPI_Bcast(&backfill_pos,1, MPI_INT, w, MPI_COMM_WORLD);
         }
-
+        assert(team_filling.sum() == worker.world_size);
         ArrayXi old_team_config(worker.world_size), new_team_config(worker.world_size);
         MPI_Allgather(&worker.team.team_id, 1, MPI_INT, old_team_config.data(), 1, MPI_INT, MPI_COMM_WORLD);
         MPI_Allgather(&team_id            , 1, MPI_INT, new_team_config.data(), 1, MPI_INT, MPI_COMM_WORLD);
         //If there has been no change since last time, simply return;
         if (new_team_config.cwiseEqual(old_team_config).all()) {
+            if (debug_setup_help) { debug_print(worker, "No change in teams.\n"); }
+
             worker.t_setup_team.toc();
             return;
         }
@@ -661,8 +771,8 @@ namespace parallel {
         //Create Team communicators
         worker.team.team_id = team_id;
         setup_comm(worker);
-        if(worker.world_ID == 0) {cout << "Finished : " << whos_finished.transpose() << endl;}
-        if(worker.world_ID == 0) {cout << "Teams (" << new_team_size << ") : " << team_filling.transpose() << endl<<endl;}
+//        if(worker.world_ID == 0) {cout << "Finished workers: " << whos_finished.transpose() << endl;}
+//        if(worker.world_ID == 0) {cout << "Teams (" << new_team_size << ") : " << team_filling.transpose() << endl<<endl;}
         //Now every available guy knows who to help (rank 0 in MPI_COMM_TEAM) and the helpees know who to send their info to (Bcast).
         //Share details with the new team to begin.
         mpi::bcast_dynamic(worker.dos,       MPI_DOUBLE, 0, worker.team.MPI_COMM_TEAM);
@@ -686,6 +796,8 @@ namespace parallel {
         worker.state_is_valid       = false;
         worker.flag_one_over_t      = worker.lnf < 1.0 / max(1, counter::MCS) ? 1 : 0;
         worker.t_setup_team.toc();
+        if (debug_setup_help) { debug_print(worker, "Success\n"); }
+
     }
 
     void setup_comm(class_worker &worker){

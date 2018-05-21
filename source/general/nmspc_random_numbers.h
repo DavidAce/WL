@@ -6,6 +6,8 @@
 #define WL_NMSPC_RANDOM_NUMBERS_H
 #include <random>
 #include <iostream>
+#include <algorithm>
+
 using namespace std;
 namespace rn{
     //typedef std::mt19937 RNGType;
@@ -29,6 +31,14 @@ namespace rn{
     }
 
     extern double gaussian_truncated(const double lowerLimit, const double upperLimit, const double mean, const double std) ;
+
+    inline std::vector<int> __attribute((hot)) shuffled_list(const int min, const int max){
+        int num_elems = max - min + 1;
+        std::vector<int> vec(num_elems);
+        std::iota(begin(vec), end(vec), min);
+        std::shuffle(begin(vec), end(vec), rng);
+        return vec;
+    }
 
 }
 

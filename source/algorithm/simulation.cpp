@@ -25,7 +25,7 @@ void do_sampling(class_worker &worker){
     int samples = 0;
     while(samples < constants::samples_to_collect){
         worker.sweep();
-        if (timer::swap                 >= constants::rate_swap             ){parallel::swap         (worker)                     ;}
+        if (timer::swap                 >= constants::rate_swap             ){parallel::swap2         (worker)                     ;}
         if (timer::print                >= constants::rate_print_status     ){print_status           (worker,false)               ;}
         if (timer::sampling             >= constants::rate_sampling         ){timer::sampling = 0; out.write_sample(worker); samples++  ;}
         timer::print++;
@@ -43,7 +43,7 @@ void wanglandau(class_worker &worker){
     worker.t_print.tic();
     while(finish_line == 0){
         worker.sweep();
-        if (timer::swap                 >= constants::rate_swap             ){parallel::swap         (worker)                     ;}
+        if (timer::swap                 >= constants::rate_swap             ){parallel::swap2         (worker)                     ;}
         if (timer::add_hist_volume      >= constants::rate_add_hist_volume  ){worker.add_hist_volume ()                           ;}
         if (timer::check_saturation     >= constants::rate_check_saturation ){worker.check_saturation()                           ;}
         if (timer::check_finish_line    >= constants::rate_check_finish_line){check_finish_line      (worker,backup, finish_line) ;}

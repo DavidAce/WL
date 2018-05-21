@@ -19,6 +19,7 @@
 using namespace std;
 using namespace Eigen;
 int constants::team_size;
+int constants::num_teams;
 int counter::MCS;
 int counter::walks;
 int counter::swaps;
@@ -225,12 +226,12 @@ void class_worker::acceptance_criterion(){
     trial_in_window     = check_in_window(E_trial);
     if(state_is_valid){
         E_idx_trial         = math::binary_search_exact(E_bins, E_trial);
-        M_idx_trial         = math::binary_search_exact(M_bins, M_trial);
+        M_idx_trial         = constants::rw_dims == 1 ? 0 : math::binary_search_exact(M_bins, M_trial);
     }else{
         E_idx               = math::binary_search_exact(E_bins, E);
-        M_idx               = math::binary_search_exact(M_bins, M);
         E_idx_trial         = math::binary_search_exact(E_bins, E_trial);
-        M_idx_trial         = math::binary_search_exact(M_bins, M_trial);
+        M_idx               = constants::rw_dims == 1 ? 0 : math::binary_search_exact(M_bins, M);
+        M_idx_trial         = constants::rw_dims == 1 ? 0 : math::binary_search_exact(M_bins, M_trial);
     }
     state_is_valid      = E_idx       != -1 && M_idx       != -1;
     trial_is_valid      = E_idx_trial != -1 && M_idx_trial != -1;
@@ -254,9 +255,22 @@ void class_worker::acceptance_criterion(){
 
     bool go_away = need_to_resize_global == 1 || (state_in_window && trial_in_window && !trial_is_valid);
     bool go_home = !normal_step && !go_away;
-
+//    if(world_ID==0) {
+//        std::cout << " ID: " << world_ID
+//                  << " go_away: " << go_away
+//                  << " go_home: " << go_home
+//                << " need_to_resize_global " << need_to_resize_global
+//                << " state_in_window " << state_in_window
+//                << " trial_in_window " << trial_in_window
+//                << " trial_is_valid " << trial_is_valid
+//                << " E_idx " << E_idx
+//                << " M_idx " << M_idx
+//                << " E_idx_trial " << E_idx_trial
+//                << " M_idx_trial " << M_idx_trial
+//                  << std::endl;
+//    }
     if(go_away){
-        need_to_resize_global   = 1;
+//        need_to_resize_global   = 1;
         E_set.insert(E_trial);
         M_set.insert(M_trial);
         walk_away_from_window();
@@ -283,12 +297,12 @@ void class_worker::update_global_range(){
         E_max_global  = E_trial;
         need_to_resize_global = 1;
     }
-    if (M_trial < M_min_global){
+    if (M_trial < M_min_global and  constants::rw_dims == 2){
         M_min_global = M_trial;
         M_min_local = M_trial;
         need_to_resize_global = 1;
     }
-    if (M_trial > M_max_global){
+    if (M_trial > M_max_global and  constants::rw_dims == 2){
         M_max_global = M_trial;
         M_max_local  = M_trial;
         need_to_resize_global = 1;
