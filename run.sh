@@ -42,4 +42,4 @@ fi
 
 echo "Running command:  $valgrind mpirun -n $numcores $bindtocore ./build/$mode/$target $arg"
 ulimit -c unlimited
-$valgrind mpirun -n $numcores -bind-to core:overload-allowed ./build/$mode/$target $arg
+$valgrind mpirun -n $numcores $bindtocore ./build/$mode/$target $arg
