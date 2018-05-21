@@ -57,7 +57,7 @@ endif()
 ### Compiler-dependent flags ###
 ################################
 if("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU" )
-    list(APPEND COMMON_OPTIONS -Wno-implicit-fallthrough -Wno-invalid-partial-specialization -Wno-deprecated-declarations -Wno-ignored-attributes -Wno-int-in-bool-context -Wno-maybe-uninitialized -Wno-enum-compare)
+    list(APPEND COMMON_OPTIONS -Wno-implicit-fallthrough -Wno-deprecated-declarations -Wno-ignored-attributes -Wno-int-in-bool-context -Wno-maybe-uninitialized -Wno-enum-compare)
 elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
     list(APPEND COMMON_OPTIONS -stdlib=libstdc++ -Wno-deprecated-declarations -Wno-ignored-attributes -Wno-invalid-partial-specialization -Wno-missing-braces -Wno-overloaded-virtual -Wno-uninitialized)
 endif()
@@ -73,14 +73,6 @@ elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
     message(STATUS "DEBUG CXX flags: ${DEBUG_OPTIONS}")
 endif()
 
-
-
-
-# Require MPI for this project:
-find_package(MPI REQUIRED)
-include_directories(${MPI_INCLUDE_PATH})
-set(CMAKE_CXX_COMPILER mpicxx)
-add_custom_target(mpirun  ${MPIEXEC_EXECUTABLE})
 
 
 
@@ -104,6 +96,16 @@ target_compile_options (${PROJECT_NAME} PRIVATE "$<$<CONFIG:DEBUG>:${DEBUG_OPTIO
 target_compile_options (${PROJECT_NAME} PRIVATE "$<$<CONFIG:RELEASE>:${RELEASE_OPTIONS}>")           ### Release build options
 target_link_libraries  (${PROJECT_NAME} PRIVATE -flto)                                               ### Link time optimization flag
 target_link_libraries  (${PROJECT_NAME} PRIVATE -lstdc++fs)                                          ### For experimental::filesystem
+
+
+##################
+###  Link MPI  ###
+##################
+find_package(MPI REQUIRED)
+target_link_libraries(${PROJECT_NAME} PRIVATE ${MPI_LIBRARIES})
+set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
+set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS}")
+target_include_directories(${PROJECT_NAME} PRIVATE ${MPI_INCLUDE_PATH})
 
 
 ###############################
