@@ -57,7 +57,7 @@ endif()
 ### Compiler-dependent flags ###
 ################################
 if("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU" )
-    list(APPEND COMMON_OPTIONS -Wno-implicit-fallthrough -Wno-deprecated-declarations -Wno-ignored-attributes -Wno-int-in-bool-context -Wno-maybe-uninitialized -Wno-enum-compare)
+    list(APPEND COMMON_OPTIONS -Wno-implicit-fallthrough -Wno-invalid-partial-specialization -Wno-deprecated-declarations -Wno-ignored-attributes -Wno-int-in-bool-context -Wno-maybe-uninitialized -Wno-enum-compare)
 elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
     list(APPEND COMMON_OPTIONS -stdlib=libstdc++ -Wno-deprecated-declarations -Wno-ignored-attributes -Wno-invalid-partial-specialization -Wno-missing-braces -Wno-overloaded-virtual -Wno-uninitialized)
 endif()
