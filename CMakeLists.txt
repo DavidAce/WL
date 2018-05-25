@@ -180,27 +180,3 @@ message("")
 
 
 
-
-###################################
-#Change flags depending on host
-###################################
-#site_name(this_host)
-#if ("${this_host}" MATCHES "triolith")
-#    message("Host: ${this_host} (Intel) ")
-#    set(CMAKE_CXX_COMPILER mpiicpc)
-#    set(CMAKE_CXX_FLAGS_DEBUG "  ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_DEBUG} -g -funroll-loops -DNDEBUG -cxxlib=/software/apps/gcc/5.3.0/build01/ -gxx-name=g++ -Wall")
-#    set(CMAKE_CXX_FLAGS_RELEASE "  ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE} -g -O3 -cxxlib=/software/apps/gcc/5.3.0/build01/ -gxx-name=g++ -ip -xavx -funroll-loops -DNDEBUG")
-#elseif("${this_host}" MATCHES "beskow")
-#    message("Host: ${this_host} (Intel) ")
-#    set(CMAKE_CXX_COMPILER CC)
-#    set(CMAKE_CXX_FLAGS_DEBUG "  ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_DEBUG} -g -shared -ansi-alias -no-prec-div -ipo -xCORE-AVX2 -DEIGEN_NO_DEBUG -DNDEBUG  -Wall")
-#    set(CMAKE_CXX_FLAGS_RELEASE "  ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE} -g -O3 -shared -ansi-alias -no-prec-div -ipo -xCORE-AVX2 -DEIGEN_NO_DEBUG -DNDEBUG")
-#else()
-#    message("Host: ${this_host} (GNU)")
-#    set(CMAKE_CXX_COMPILER mpicxx)
-#    set(CMAKE_CXX_FLAGS_DEBUG " ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_DEBUG} -g -Wall -Wno-deprecated-declarations  -Wno-invalid-partial-specialization")
-#    set(CMAKE_CXX_FLAGS_RELEASE " ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE} -g -O3 -march=native -Wno-deprecated-declarations -Wno-invalid-partial-specialization -DNDEBUG")
-#endif()
-#message("Compiling with: ${CMAKE_CXX_COMPILER_ID}")
-
-
