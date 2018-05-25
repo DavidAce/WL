@@ -6,7 +6,7 @@
 #include "nmspc_WL_parallelization.h"
 #include "class_WL_worker.h"
 
-#define debug_swap      1
+#define debug_swap      0
 #define debug_merge     1
 #define debug_bcast     1
 #define debug_divide    1

@@ -18,7 +18,7 @@ int main() {
     constants::team_size = worker.world_size / constants::num_teams;
     do_simulations(worker);
     do_sampling   (worker);
-//    do_bootstrap  (worker);
+    do_bootstrap  (worker);
     if(world_ID == 0){cout << "Finished successfully" << endl;}
 
     MPI_Finalize();

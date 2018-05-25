@@ -9,7 +9,6 @@
 #include <Eigen/Core>
 #include "general/nmspc_math_algorithms.h"
 #include "class_WL_worker.h"
-#include "../../EMC-Lib/EMC.h"
 
 using namespace Eigen;
 using namespace std;
@@ -35,10 +34,10 @@ public:
     ArrayXXd P; //Probability distribution
     ArrayXXd F; //Free energy as a function of order parameter
     void compute(class_worker &worker);
-    void get_c_peak(class_worker &worker);
-    void get_x_peak(class_worker &worker);
-    void get_Tc_free_energy(class_worker &worker);
-    void get_Tc_canonical_distribution(class_worker &worker);
+//    void get_c_peak(class_worker &worker);
+//    void get_x_peak(class_worker &worker);
+//    void get_Tc_free_energy(class_worker &worker);
+//    void get_Tc_canonical_distribution(class_worker &worker);
 };
 
 
