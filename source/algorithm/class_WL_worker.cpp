@@ -8,13 +8,13 @@
 #define profiling_sweep                	1
 #define profiling_swap                 	1
 #define profiling_merge                	1
-#define profiling_setup_team           	0
-#define profiling_sync_team            	0
-#define profiling_divide_range        	0
-#define profiling_check_convergence	    0
-#define profiling_make_MC_trial 		0
-#define profiling_acceptance_criterion 	0
-#define debug_sweep                     0
+#define profiling_setup_team           	1
+#define profiling_sync_team            	1
+#define profiling_divide_range        	1
+#define profiling_check_convergence	    1
+#define profiling_make_MC_trial 		1
+#define profiling_acceptance_criterion 	1
+#define debug_sweep                     1
 
 using namespace std;
 using namespace Eigen;

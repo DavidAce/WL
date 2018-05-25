@@ -6,13 +6,13 @@
 #include "nmspc_WL_parallelization.h"
 #include "class_WL_worker.h"
 
-#define debug_swap      0
-#define debug_merge     0
-#define debug_bcast     0
-#define debug_divide    0
-#define debug_take_help 0
-#define debug_setup_help 0
-#define debug_resize_local_bins 0
+#define debug_swap      1
+#define debug_merge     1
+#define debug_bcast     1
+#define debug_divide    1
+#define debug_take_help 1
+#define debug_setup_help 1
+#define debug_resize_local_bins 1
 using namespace std;
 
 namespace parallel {
@@ -748,14 +748,18 @@ namespace parallel {
                         else{break;}
                     }
                     //Place this guy where he is needed
+                    assert(backfill_pos < constants::num_teams and backfill_pos >= 0);
                     team_id = backfill_pos;
-                    team_filling(backfill_pos++)++;
+                    team_filling(backfill_pos)++;
+                    backfill_pos++;
                 }
             }
             MPI_Barrier(MPI_COMM_WORLD);
             MPI_Bcast(team_filling.data(),constants::num_teams, MPI_INT, w, MPI_COMM_WORLD);
             MPI_Bcast(&backfill_pos,1, MPI_INT, w, MPI_COMM_WORLD);
         }
+        if (debug_setup_help) { debug_print(worker, " Backfilling successful. "); }
+
         assert(team_filling.sum() == worker.world_size);
         ArrayXi old_team_config(worker.world_size), new_team_config(worker.world_size);
         MPI_Allgather(&worker.team.team_id, 1, MPI_INT, old_team_config.data(), 1, MPI_INT, MPI_COMM_WORLD);

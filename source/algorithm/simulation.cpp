@@ -3,9 +3,9 @@
 //
 #include "simulation.h"
 
-#define debug_check_finish_line         0
-#define debug_divide_range              0
-#define debug_status                    0
+#define debug_check_finish_line         1
+#define debug_divide_range              1
+#define debug_status                    1
 
 using namespace std;
 

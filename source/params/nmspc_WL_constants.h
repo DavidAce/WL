@@ -10,7 +10,7 @@ namespace constants{
 
     //WL boostrap properties
     static const int simulation_reps = 1;      //Number of independent do_simulations
-    static const int bootstrap_reps  = 8;      //Number of times to bootstrap-sample existing simulation data
+    static const int bootstrap_reps  = 4;      //Number of times to bootstrap-sample existing simulation data
 
     static const int samples_to_collect   = 100; // How many samples to collect per thread.
     static const int rate_sampling        = 100; // How often to sample a lattice with respective energies and magnetization
@@ -23,7 +23,7 @@ namespace constants{
 
     //Lattice Properties
     static const int d = 2;                     //Dimension
-    static const int L = 16;                    //Linear size
+    static const int L = 10;                    //Linear size
     static const int N = (int) std::pow(L,d);   //Number of spins/particles
 
     //DOS and Histogram properties
@@ -41,7 +41,7 @@ namespace constants{
     static const int    rate_print_status      = 1000;    //How often to print in terminal
 
     //Wang-Landau convergence criteria
-    static const double minimum_lnf            = 1e-6;
+    static const double minimum_lnf            = 1e-3;
     static const double check_saturation_from  = 0.9;
     static const double reduce_factor_lnf      = 0.5;           // 131 s (check from 0.9
     static const double overlap_factor_energy  = 0.75;
