@@ -12,11 +12,8 @@ static const int debug_compute           =	1;
 
 using namespace Eigen;
 class class_stats {
-private:
-    int world_ID;
-    int world_size;
 public:
-    class_stats(const int &id, const int &size);
+    class_stats() = default;
     void load_thermo_data(class_worker &worker);
     void compute(class_worker &worker);
     ArrayXd T;

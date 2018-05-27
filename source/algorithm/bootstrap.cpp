@@ -61,7 +61,7 @@ void do_thermodynamics(class_worker &worker){
 void do_statistics(class_worker &worker){
     //This is a single threaded operation
     if(worker.team->is_commander()) {
-        class_stats stats(worker.world_ID, worker.world_size);
+        class_stats stats;
         if(debug_thermo){cout << "ID " << worker.world_ID << ": Stats: Loading thermodynamic files..." << endl;}
         stats.load_thermo_data(worker);
         if(debug_thermo){cout << "ID " << worker.world_ID << ": Stats: Computing statistics..." << endl;}

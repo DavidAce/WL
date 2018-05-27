@@ -5,8 +5,7 @@
 #include "class_WL_statistics.h"
 #include "IO/class_WL_read_data.h"
 //#include <eigen3/unsupported/Eigen/CXX11/Tensor>
-class_stats::class_stats(const int &id, const int &size): world_ID(id), world_size(size){
-}
+
 
 void class_stats::load_thermo_data(class_worker &worker){
     indata in;
