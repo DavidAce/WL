@@ -1,5 +1,7 @@
 #include <iostream>
 #include <mpi.h>
+#include <params/nmspc_WL_constants.h>
+#include <algorithm/class_WL_worker.h>
 #include "algorithm/simulation.h"
 #include "algorithm/bootstrap.h"
 
@@ -13,9 +15,9 @@ int main() {
     int world_ID,world_size;
     MPI_Comm_rank(MPI_COMM_WORLD, &world_ID);           //Establish thread number of this worker
     MPI_Comm_size(MPI_COMM_WORLD, &world_size);         //Get total number of threads
-    class_worker worker(world_ID, world_size);
     constants::num_teams = min(world_size , 8);
-    constants::team_size = worker.world_size / constants::num_teams;
+//    constants::team_size = world_size / constants::num_teams;
+    class_worker worker(world_ID, world_size);
     do_simulations(worker);
     do_sampling   (worker);
     do_bootstrap  (worker);

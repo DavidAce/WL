@@ -24,41 +24,22 @@ namespace parallel {
     extern void resize_global_range            (class_worker &);
     extern void synchronize_sets               (class_worker &);
     extern void adjust_local_bins              (class_worker &);
-    extern void sync_team                      (class_worker &)__attribute__((hot)) ;
-    extern void setup_team                     (class_worker &);
-    extern void setup_comm                     (class_worker &);
-    template <typename T>
-    void debug_print        (class_worker &worker, T input){
-        MPI_Barrier(MPI_COMM_WORLD);
-        if (worker.world_ID == 0) {
-            cout << input;
-            cout.flush();
-            std::this_thread::sleep_for(std::chrono::microseconds(100));
-        }
-        MPI_Barrier(MPI_COMM_WORLD);
-    }
+//    extern void sync_team                      (class_worker &)__attribute__((hot)) ;
+//    extern void setup_team                     (class_worker &);
+//    extern void setup_comm                     (class_worker &);
+//    template <typename T>
+//    void debug_print        (class_worker &worker, T input){
+//        MPI_Barrier(MPI_COMM_WORLD);
+//        if (worker.world_ID == 0) {
+//            cout << input;
+//            cout.flush();
+//            std::this_thread::sleep_for(std::chrono::microseconds(100));
+//        }
+//        MPI_Barrier(MPI_COMM_WORLD);
+//    }
 
-    template <typename T>
-    void debug_print_team_leader (class_worker &worker, T input){
-        MPI_Barrier(worker.team.MPI_COMM_TEAM);
-        if (worker.team.team_leader == 0) {
-            cout << input;
-            cout.flush();
-            std::this_thread::sleep_for(std::chrono::microseconds(100));
-        }
-        MPI_Barrier(worker.team.MPI_COMM_TEAM);
-    }
 
-    template <typename T>
-    void debug_print_team_commander (class_worker &worker, T input){
-        MPI_Barrier(worker.team.MPI_COMM_TEAM);
-        if (worker.team.team_commander == 0) {
-            cout << input;
-            cout.flush();
-            std::this_thread::sleep_for(std::chrono::microseconds(100));
-        }
-        MPI_Barrier(worker.team.MPI_COMM_TEAM);
-    }
+
 
 };
 

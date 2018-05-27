@@ -2,8 +2,16 @@
 // Created by david on 9/1/16.
 //
 
-#include "class_WL_read_data.h"
+#include <fstream>
+#include <string>
+#include <general/nmspc_random_numbers.h>
+#include <params/nmspc_WL_constants.h>
+#include <algorithm/nmspc_WL_parallelization.h>
+#include <algorithm/class_WL_worker.h>
+#include <algorithm/class_WL_teams.h>
+#include <algorithm/class_WL_statistics.h>
 
+#include "class_WL_read_data.h"
 #ifdef __linux__
 #define os 0
 #elif _WIN32
@@ -29,23 +37,27 @@ indata::indata(){
 
 
 void indata::load_random_section(class_worker &worker) {
-    int iteration = rn::uniform_integer(0,constants::simulation_reps-1);
-    string name_dos    = folder + to_string(iteration) + string("/dos")   + to_string(worker.world_ID) + string(".dat");
-    string name_E_bins = folder + to_string(iteration) + string("/E")     + to_string(worker.world_ID) + string(".dat");
-    string name_M_bins = folder + to_string(iteration) + string("/M")     + to_string(worker.world_ID) + string(".dat");
-    worker.dos  = read_file(name_dos);
-    worker.E_bins = read_file(name_E_bins);
-    worker.M_bins = read_file(name_M_bins);
+    if(worker.team->is_leader()){
+        int iteration = rn::uniform_integer(0,constants::simulation_reps-1);
+        string name_dos    = folder + to_string(iteration) + string("/dos")   + to_string(worker.team->get_team_id()) + string(".dat");
+        string name_E_bins = folder + to_string(iteration) + string("/E")     + to_string(worker.team->get_team_id()) + string(".dat");
+        string name_M_bins = folder + to_string(iteration) + string("/M")     + to_string(worker.team->get_team_id()) + string(".dat");
+        worker.dos  = read_file(name_dos);
+        worker.E_bins = read_file(name_E_bins);
+        worker.M_bins = read_file(name_M_bins);
+    }
+
 }
 void indata::load_your_section(class_worker &worker) {
-    int iteration       = worker.iteration;
-    string name_dos     = folder + to_string(iteration) + string("/dos") + to_string(worker.world_ID) + string(".dat");
-    string name_E_bins  = folder + to_string(iteration) + string("/E") + to_string(worker.world_ID) + string(".dat");
-    string name_M_bins  = folder + to_string(iteration) + string("/M") + to_string(worker.world_ID) + string(".dat");
-    worker.dos          = read_file(name_dos);
-    worker.E_bins       = read_file(name_E_bins);
-    worker.M_bins       = read_file(name_M_bins);
-
+    if(worker.team->is_leader()) {
+        int iteration = worker.iteration;
+        string name_dos = folder    + to_string(iteration) + string("/dos") + to_string(worker.team->get_team_id()) + string(".dat");
+        string name_E_bins = folder + to_string(iteration) + string("/E")   + to_string(worker.team->get_team_id()) + string(".dat");
+        string name_M_bins = folder + to_string(iteration) + string("/M")   + to_string(worker.team->get_team_id()) + string(".dat");
+        worker.dos = read_file(name_dos);
+        worker.E_bins = read_file(name_E_bins);
+        worker.M_bins = read_file(name_M_bins);
+    }
 }
 
 
@@ -54,6 +66,7 @@ void indata::load_full(class_worker &worker) {
     string name_dos     = folder + to_string(worker.iteration) + string("/dos.dat");
     string name_E_bins  = folder + to_string(worker.iteration) + string("/E.dat");
     string name_M_bins  = folder + to_string(worker.iteration) + string("/M.dat");
+    std::cout << "ID " << worker.world_ID << ": reading file: " << name_dos << std::endl;
     worker.dos_total    = read_file(name_dos);
     worker.E_bins_total = read_file(name_E_bins);
     worker.M_bins_total = read_file(name_M_bins);
@@ -72,21 +85,10 @@ void indata::load_full(class_stats &stats, class_worker &worker) {
     stats.u.resize(constants::T_num, reps);
     stats.x.resize(constants::T_num, reps);
     stats.dos1D.resize(worker.E_bins_total.size(), reps);
-    stats.c_peak.resize(2, reps);
-    stats.x_peak.resize(2, reps);
-    stats.Tc_F.resize(1, reps);
-    stats.Tc_D.resize(1, reps);
-    if (debug_load_full_thermo) {
-        cout << "Finished Resizing" << endl;
-        cout.flush();
-        std::this_thread::sleep_for(std::chrono::microseconds(1000));
-    }
+    if(debug_load_full_thermo){cout << "Finished Resizing" << endl;}
+
     for (int i = 0; i < reps; i++) {
-        if (debug_load_full_thermo) {
-            cout << "Loading rep " << i << endl;
-            cout.flush();
-            std::this_thread::sleep_for(std::chrono::microseconds(1000));
-        }
+        if(debug_load_full_thermo){cout << "Loading rep " << endl;}
         string name_E       = folder + to_string(i) + string("/E.dat");
         string name_M       = folder + to_string(i) + string("/M.dat");
         string name_s       = folder + to_string(i) + string("/s.dat");
@@ -96,10 +98,6 @@ void indata::load_full(class_stats &stats, class_worker &worker) {
         string name_u       = folder + to_string(i) + string("/u.dat");
         string name_x       = folder + to_string(i) + string("/x.dat");
         string name_dos1D   = folder + to_string(i) + string("/dos1D.dat");
-        string name_c_peak  = folder + to_string(i) + string("/c_peak.dat");
-        string name_x_peak  = folder + to_string(i) + string("/x_peak.dat");
-        string name_Tc_F    = folder + to_string(i) + string("/Tc_F.dat");
-        string name_Tc_D    = folder + to_string(i) + string("/Tc_D.dat");
         string name_dos     = folder + to_string(i) + string("/dos.dat");
         string name_D       = folder + to_string(i) + string("/D.dat");
         string name_F       = folder + to_string(i) + string("/F.dat");
@@ -113,10 +111,6 @@ void indata::load_full(class_stats &stats, class_worker &worker) {
         stats.u.col(i)      = read_file(name_u);
         stats.x.col(i)      = read_file(name_x);
         stats.dos1D.col(i)  = read_file(name_dos1D);
-        stats.c_peak.col(i) = read_file(name_c_peak);
-        stats.x_peak.col(i) = read_file(name_x_peak);
-        stats.Tc_F.col(i)   = read_file(name_Tc_F);
-        stats.Tc_D.col(i)   = read_file(name_Tc_D);
         stats.dos.push_back(read_file(name_dos));
         stats.D.push_back(read_file(name_D));
         stats.F.push_back(read_file(name_F));

@@ -2,10 +2,22 @@
 // Created by david on 2016-07-24.
 //
 #include "simulation.h"
-
-#define debug_check_finish_line         1
-#define debug_divide_range              1
-#define debug_status                    1
+#include <iomanip>
+#include <thread>
+#include <chrono>
+#include <ratio>
+#include <numeric>
+#include "general/class_tic_toc.h"
+#include "IO/class_WL_print_data.h"
+#include "params/nmspc_WL_constants.h"
+#include "algorithm/nmspc_WL_parallelization.h"
+#include "nmspc_WL_counters_timers.h"
+#include "class_WL_teams.h"
+#include "class_WL_worker.h"
+#define debug_wanglandau                0
+#define debug_check_finish_line         0
+#define debug_divide_range              0
+#define debug_status                    0
 
 using namespace std;
 
@@ -23,6 +35,7 @@ void do_sampling(class_worker &worker){
     outdata out;
     out.create_set_folder("outdata/samples/" + to_string(worker.world_ID) + "/");
     int samples = 0;
+    worker.debug_print_all<1>("Starting sampling.\n");
     while(samples < constants::samples_to_collect){
         worker.sweep();
         if (timer::swap                 >= constants::rate_swap             ){parallel::swap2         (worker)                     ;}
@@ -32,25 +45,26 @@ void do_sampling(class_worker &worker){
         timer::swap++;
         timer::sampling++;
     }
+    worker.debug_print_all<1>("Finished sampling.\n");
 }
 
 void wanglandau(class_worker &worker){
     int finish_line = 0;
     outdata out;
     class_backup backup;
-    out.create_iteration_folder_master(worker.iteration, worker.world_ID);
+    out.create_iteration_folder_commander(worker,worker.iteration);
     worker.t_total.tic();
     worker.t_print.tic();
     while(finish_line == 0){
         worker.sweep();
+        if (timer::sync_team            >= constants::rate_sync_team        ){sync_teams             (worker)                     ;}
+        if (timer::setup_team           >= constants::rate_setup_team       ){setup_teams            (worker)                     ;}
         if (timer::swap                 >= constants::rate_swap             ){parallel::swap2         (worker)                     ;}
         if (timer::add_hist_volume      >= constants::rate_add_hist_volume  ){worker.add_hist_volume ()                           ;}
         if (timer::check_saturation     >= constants::rate_check_saturation ){worker.check_saturation()                           ;}
-        if (timer::check_finish_line    >= constants::rate_check_finish_line){check_finish_line      (worker,backup, finish_line) ;}
         if (timer::divide_range         >= constants::rate_divide_range     ){divide_range           (worker,backup)              ;}
-        if (timer::sync_team            >= constants::rate_sync_team        ){parallel::sync_team    (worker)                     ;}
-        if (timer::setup_team           >= constants::rate_setup_team       ){parallel::setup_team   (worker)                     ;}
         if (timer::print                >= constants::rate_print_status     ){print_status           (worker,false)               ;}
+        if (timer::check_finish_line    >= constants::rate_check_finish_line){check_finish_line      (worker,backup, finish_line) ;}
 
         counter::MCS++;
         timer::add_hist_volume++;
@@ -63,16 +77,25 @@ void wanglandau(class_worker &worker){
         timer::setup_team++;
         timer::divide_range++;
     }
+    worker.debug_print_all<1>("MADE IT OUT ALIVE!\n");
     print_status           (worker,true);
+    MPI_Barrier(MPI_COMM_WORLD);
+
     backup.restore_state   (worker) ;
-    out.write_data_worker  (worker) ;
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    out.write_data_team_leader(worker) ;
+    MPI_Barrier(MPI_COMM_WORLD);
+
     parallel::merge        (worker,false,true) ;
-    out.write_data_master  (worker) ;
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    out.write_data_commander(worker) ;
 }
 
 void check_finish_line(class_worker &worker, class_backup &backup, int &finish_line){
         timer::check_finish_line = 0;
-        if (debug_check_finish_line) { debug_print(worker, "Check Finish line "); }
+        if (debug_check_finish_line) { worker.debug_print("Check Finish line "); }
         if (worker.lnf < constants::minimum_lnf){
             worker.finish_line = 1;
             backup.backup_state(worker);
@@ -90,7 +113,7 @@ void divide_range(class_worker &worker, class_backup &backup) {
     int need_to_resize;
     MPI_Allreduce(&worker.need_to_resize_global, &need_to_resize, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
     if (need_to_resize) {
-        if (debug_divide_range) { debug_print(worker, "Dividing global energy\n"); }
+        if (debug_divide_range) { worker.debug_print( "Dividing global energy\n"); }
         parallel::resize_global_range(worker);
         parallel::divide_global_range_uniform(worker);
         parallel::synchronize_sets(worker);
@@ -111,6 +134,7 @@ void divide_range(class_worker &worker, class_backup &backup) {
         MPI_Allreduce(&worker.state_in_window, &all_in_window, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
         if (all_in_window && min_walks >= counter::merges) {
             if (worker.world_ID == 0) { cout << "Dividing according to dos" << endl; }
+
             backup.restore_state(worker);
             parallel::merge(worker, true, false);
             counter::merges++;
@@ -129,6 +153,27 @@ void divide_range(class_worker &worker, class_backup &backup) {
             return;
         }
     }
+}
+
+void sync_teams(class_worker &worker){
+    timer::sync_team = 0;
+    if (worker.team->is_active()) {
+//        worker.debug_print_all<1>("size: " + to_string(worker.random_walk.size())+ "\n");
+        worker.t_sync_team.tic();
+        worker.team->sync_teams();
+        counter::MCS            += constants::rate_sync_team * (worker.team->get_team_size() - 1);
+        timer::add_hist_volume  += constants::rate_sync_team * (worker.team->get_team_size() - 1);
+        timer::check_saturation += constants::rate_sync_team * (worker.team->get_team_size() - 1);
+        worker.t_sync_team.toc();
+    }
+}
+
+void setup_teams(class_worker &worker){
+    timer::setup_team = 0;
+    worker.t_setup_team.tic();
+    worker.team->setup_teams();
+    worker.t_setup_team.toc();
+
 }
 
 void print_status(class_worker &worker, bool force) {
@@ -152,19 +197,13 @@ void print_status(class_worker &worker, bool force) {
                cout << " dE: "    << left << setw(7) << setprecision(2)   << worker.E_max_local - worker.E_min_local
                     << " : ["     << left << setw(7) << setprecision(1)   << worker.E_bins(0) << " " << left << setw(7) << setprecision(1) << worker.E_bins(worker.E_bins.size()-1) << "]"
                     << " Sw: "    << left << setw(7) << counter::swap_accepts
-                    << " Team: "  << left << setw(2) << worker.team.team_id
+                    << " Team: "  << left << setw(2) << worker.team->get_team_id()
                     << " I: "     << left << setw(3) << worker.rate_increment
                     << " iw: "    << worker.state_in_window
                     << " NR: "    << worker.need_to_resize_global
                     << " 1/t: "   << worker.flag_one_over_t
                     << " Fin: "   << worker.finish_line
                     << " slope "  << left << setw(10) << worker.slope;
-                    if(debug_status) {
-                cout<< " Edge dos: " << fixed << setprecision(3)
-                    << left << setw(10) << worker.dos.topLeftCorner(1, 1).sum() << " "
-                    << left << setw(10) << worker.dos.topRightCorner(1, 1).sum();
-                    }
-
                cout << " MCS: "   << left << setw(10) << counter::MCS;
                 worker.t_print               .print_delta();
                 worker.t_sweep               .print_total_reset();
@@ -190,7 +229,7 @@ void print_status(class_worker &worker, bool force) {
                 << " Merges: "      << fixed << setprecision(0) << counter::merges  << "("<< constants::max_merges  << ")"
                 << " Iteration: "   << fixed << setprecision(0) << worker.iteration+1   << "("<< constants::simulation_reps << ")";
                 worker.t_total.print_total<double>(); cout << " s";
-                if(true){
+                if(debug_status){
                     cout    << " Edge dos: " << fixed << setprecision(3)
                             << worker.dos.topLeftCorner(1,1) << " "
                             << worker.dos.topRightCorner(1,1) << " " ;

@@ -2,23 +2,23 @@
 // Created by david on 2016-07-24.
 //
 #include "class_WL_worker.h"
+#include <algorithm/class_WL_teams.h>
 
 #define profiling_total                	1
-#define profiling_print                	1
-#define profiling_sweep                	1
+#define profiling_print                	0
+#define profiling_sweep                	0
 #define profiling_swap                 	1
-#define profiling_merge                	1
-#define profiling_setup_team           	1
+#define profiling_merge                	0
+#define profiling_setup_team           	0
 #define profiling_sync_team            	1
-#define profiling_divide_range        	1
-#define profiling_check_convergence	    1
-#define profiling_make_MC_trial 		1
-#define profiling_acceptance_criterion 	1
-#define debug_sweep                     1
+#define profiling_divide_range        	0
+#define profiling_check_convergence	    0
+#define profiling_make_MC_trial 		0
+#define profiling_acceptance_criterion 	0
+#define debug_sweep                     0
 
 using namespace std;
 using namespace Eigen;
-int constants::team_size;
 int constants::num_teams;
 int counter::MCS;
 int counter::walks;
@@ -40,7 +40,7 @@ int timer::sampling;
 std::ostream& operator<< (std::ostream& out, const std::vector<state>& v) {
     if (!v.empty()) {
         out << "[ ";
-        for (int i = 0; i < v.size(); i++) {
+        for (auto i = 0; i < v.size(); i++) {
             out << "(" << v[i].E_idx << "," << v[i].M_idx << ") ";
         }
         out << "]";
@@ -63,8 +63,7 @@ class_worker::class_worker(int & id, int & size):
                                 t_sync_team            (profiling_sync_team,            3,"t_sync" ),
                                 t_divide_range         (profiling_divide_range,         3,"t_divr" ),
                                 t_check_convergence    (profiling_check_convergence,    3,"t_conv") ,
-                                t_acceptance_criterion (profiling_acceptance_criterion, 3,"t_accr"),
-                                team(id)
+                                t_acceptance_criterion (profiling_acceptance_criterion, 3,"t_accr")
 {
     rn::rng.seed((unsigned long)world_ID);
     lnf = 1.0;
@@ -76,7 +75,9 @@ class_worker::class_worker(int & id, int & size):
     rate_increment = 1;
     state_is_valid = false;
     trial_is_valid = false;
+    team  = std::make_shared<class_WL_teams>(*this, constants::num_teams);
     cout << "ID: " << world_ID << " Started OK"<<endl;
+    MPI_Barrier(MPI_COMM_WORLD);
 }
 
 void class_worker::find_initial_limits(){
@@ -210,7 +211,6 @@ void class_worker::sweep(){
             }
         }
     }
-
     if (flag_one_over_t) {
         lnf = 1.0 / max(1, counter::MCS);
     } else {
@@ -233,6 +233,7 @@ void class_worker::acceptance_criterion(){
         M_idx               = constants::rw_dims == 1 ? 0 : math::binary_search_exact(M_bins, M);
         M_idx_trial         = constants::rw_dims == 1 ? 0 : math::binary_search_exact(M_bins, M_trial);
     }
+
     state_is_valid      = E_idx       != -1 && M_idx       != -1;
     trial_is_valid      = E_idx_trial != -1 && M_idx_trial != -1;
     if (!need_to_resize_global && state_is_valid && E_idx >= E_bins.size()){

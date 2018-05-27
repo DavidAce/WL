@@ -23,7 +23,7 @@ namespace constants{
 
     //Lattice Properties
     static const int d = 2;                     //Dimension
-    static const int L = 12;                    //Linear size
+    static const int L = 10;                    //Linear size
     static const int N = (int) std::pow(L,d);   //Number of spins/particles
 
     //DOS and Histogram properties
@@ -36,7 +36,7 @@ namespace constants{
     static const int    rate_check_finish_line = 5000;     //Check if everybodies modification factor is below minimum_lnf
     static const int    rate_check_saturation  = 5000;     //How often to check if saturation has flattened out
     static const int    rate_divide_range      = 5000;     //How often to check if we can merge all dos and split energy subwindows in a smarter way.
-    static const int    rate_sync_team         = 1;
+    static const int    rate_sync_team         = 5;
     static const int    rate_setup_team        = 5000;
     static const int    rate_print_status      = 1000;    //How often to print in terminal
 
@@ -52,7 +52,7 @@ namespace constants{
 //    static const int max_no_global_change       = 3;
 
     //Parameters for parallelization
-    extern int           team_size; //See main.cpp!
+//    extern int           team_size; //See main.cpp!
     extern int           num_teams                ;//= 8;
     //Parameters for sub-window splitting
     static const int     max_merges          = 4;

@@ -1,28 +1,36 @@
 //
 // Created by david on 8/31/16.
 //
-
+#include <algorithm/class_WL_worker.h>
+#include <algorithm/class_WL_teams.h>
+#include <algorithm/nmspc_WL_parallelization.h>
+#include <algorithm/class_WL_statistics.h>
+#include <algorithm/class_WL_thermo.h>
+#include <IO/class_WL_print_data.h>
+#include <IO/class_WL_read_data.h>
+#include <general/nmspc_math_algorithms.h>
 #include "bootstrap.h"
-#define debug_boot      1
-#define debug_thermo    1
-#define debug_stats     1
+#define debug_boot      0
+#define debug_thermo    0
+#define debug_stats     0
+
+
 void do_bootstrap(class_worker &worker){
     //Each worker loads its segment from random iteration
     //Then merge, then write out new bootstrapped DOS.
     outdata out;
     indata  in;
-    if(debug_boot){parallel::debug_print(worker,"Bootstrap: Starting\n");}
-    worker.team.team_id = worker.world_ID / constants::team_size;
-    parallel::setup_comm(worker);
-    if (worker.team.team_leader) {
-        for (int i = 0; i < constants::bootstrap_reps; i++) {
-            worker.iteration = i + constants::simulation_reps;
-            in.load_random_section(worker);
-            parallel::merge(worker, false, true);
-            out.create_iteration_folder_master(worker.iteration, worker.world_ID);
-            out.write_data_master(worker);
-        }
+    worker.debug_print<debug_boot>("Bootstrap: Starting\n");
+    worker.team->set_defaults();
+//    if (worker.team->is_leader()) {
+    for (int i = 0; i < constants::bootstrap_reps; i++) {
+        worker.iteration = i + constants::simulation_reps;
+        in.load_random_section(worker);
+        parallel::merge(worker, false, true);
+        out.create_iteration_folder_commander(worker, worker.iteration);
+        out.write_data_commander(worker);
     }
+//    }
     MPI_Barrier(MPI_COMM_WORLD);
     //Now compute thermodynamic quantities
     do_thermodynamics(worker);
@@ -38,19 +46,13 @@ void do_thermodynamics(class_worker &worker){
     indata  in;
     class_thermodynamics thermo;
     worker.iteration = worker.world_ID;
-    if(debug_thermo){parallel::debug_print_team_commander(worker," Computing thermodynamic quantities...\n");}
-    std::cout << "ID: " << worker.world_ID << " step 1" << std::endl;
+    worker.team->debug_print_team_commander<debug_thermo>(" Computing thermodynamic quantities...\n");
     while (worker.iteration < (constants::bootstrap_reps + constants::simulation_reps)){
-        if(debug_thermo){cout << "ID: " << worker.world_ID << "  Thermo: Loading data..." << endl;}
+        if(debug_thermo){cout << "ID " << worker.world_ID << ": Thermo: Loading data..." << endl;}
         in.load_full(worker);
-        if(debug_thermo){cout << "ID: " << worker.world_ID << "  Thermo: Computing avgs..." << endl;}
+        if(debug_thermo){cout << "ID " << worker.world_ID << ": Thermo: Computing avgs..." << endl;}
         thermo.compute(worker);
-//        if(debug_thermo){cout << "ID: " << worker.world_ID << "  Thermo: Computing Peaks..." << endl;}
-//        thermo.get_c_peak(worker);
-//        thermo.get_x_peak(worker);
-//        thermo.get_Tc_free_energy(worker);
-//        thermo.get_Tc_canonical_distribution(worker);
-        if(debug_thermo){cout << "ID: " << worker.world_ID << "  Thermo: Writing Results..." << endl;}
+        if(debug_thermo){cout << "ID " << worker.world_ID << ": Thermo: Writing Results..." << endl;}
         out.write_data_thermo(thermo, worker.iteration);
         worker.iteration += worker.world_size ;
     }
@@ -58,14 +60,14 @@ void do_thermodynamics(class_worker &worker){
 
 void do_statistics(class_worker &worker){
     //This is a single threaded operation
-    if(worker.world_ID == 0) {
+    if(worker.team->is_commander()) {
         class_stats stats(worker.world_ID, worker.world_size);
-        if(debug_stats){cout << "ID: " << worker.world_ID << " Stats: Loading thermodynamic files" << endl;}
+        if(debug_thermo){cout << "ID " << worker.world_ID << ": Stats: Loading thermodynamic files..." << endl;}
         stats.load_thermo_data(worker);
-        if(debug_stats){cout << "ID: " << worker.world_ID << " Stats: Computing statistics" << endl;}
+        if(debug_thermo){cout << "ID " << worker.world_ID << ": Stats: Computing statistics..." << endl;}
         stats.compute(worker);
-        if(debug_stats){cout << "ID: " << worker.world_ID << " Stats: Writing final results" << endl;}
+        if(debug_thermo){cout << "ID " << worker.world_ID << ": Stats: Writing final results..." << endl;}
         outdata out;
-        out.write_final_data(stats, worker.world_ID);
+        out.write_final_data(worker, stats);
     }
 }

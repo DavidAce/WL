@@ -14,7 +14,7 @@ using namespace std;
 class class_model {
 private:
     int randI,randJ; //Coordinates of random position;
-    int L; //Linear size of your model
+    int L = 0; //Linear size of your model
 public:
     class_model(int l): L(l) {
         //lattice.resize(constants::L, constants::L);
@@ -42,6 +42,9 @@ public:
     }
 
     inline void __attribute__((always_inline)) make_new_state(const double E, const double M, double &E_trial, double &M_trial){
+        assert(L > 0);
+        assert(lattice.rows() > 0 and lattice.cols() > 0);
+        assert(lattice.rows() == lattice.cols());
         randI = rn::uniform_integer(0, L-1);
         randJ = rn::uniform_integer(0, L-1);
         E_trial = E + J * 2 * lattice(randI, randJ) * sum_neighbours(randI, randJ);

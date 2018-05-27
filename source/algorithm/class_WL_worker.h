@@ -21,6 +21,7 @@
 #include "general/nmspc_math_algorithms.h"
 #include "general/nmspc_random_numbers.h"
 
+
 using namespace Eigen;
 
 struct state{
@@ -66,38 +67,17 @@ typename Derived::PlainObject operator<< (ArrayBase<Derived> &in , const std::se
     return in;
 }
 
-class class_team{
-private:
-    int world_ID;
-public:
-    class_team(int id):world_ID(id){
-        reset();
-    }
-    void reset(){
-        team_commander = false;
-        team_leader  = false;
-        team_finished= false;
-        active       = false;
-        team_id      = -1; //Begin without team
-        team_rank    = -1;
-        team_size    = -1;
-        MPI_COMM_TEAM = MPI_COMM_NULL;
-        MPI_COMM_LEAD = MPI_COMM_NULL;
-    }
-//        ArrayXXi histogram_recv; //Receive histogram from helpers
-    bool team_commander;
-    bool team_leader;
-    bool active;
-    bool team_finished;
-    int  team_id;
-    int  team_rank;
-    int  team_size;
-    MPI_Comm MPI_COMM_TEAM; //Communicator among team members
-    MPI_Comm MPI_COMM_LEAD; //Communicator among team leaders
-};
 
 
-class class_worker {
+
+
+
+
+class class_WL_teams;
+
+
+
+class class_worker{
 private:
 
 public:
@@ -115,7 +95,6 @@ public:
     //MPI Communicator
     int world_ID;                   //Thread number
     int world_size;                 //Total number of threads
-
 
     //Lattice
     class_model model; //Takes argument L, the linear size of your lattice
@@ -163,7 +142,7 @@ public:
 
 
     //Used to keep track of your team
-    class_team team;
+    std::shared_ptr<class_WL_teams> team;
 
     //Functions
 
@@ -191,6 +170,38 @@ public:
     void add_hist_volume();
     void check_saturation();
     friend std::ostream &operator<<(std::ostream &, const class_worker &);
+
+
+    template <int on = 0, typename T>
+    void debug_print        (T input) {
+        if constexpr(on == 1) {
+            MPI_Barrier(MPI_COMM_WORLD);
+            if (world_ID == 0) {
+                cout << input;
+                cout.flush();
+                std::this_thread::sleep_for(std::chrono::microseconds(10));
+            }
+            MPI_Barrier(MPI_COMM_WORLD);
+        }
+    }
+    template <int on = 0, typename T>
+    void debug_print_all        (T input) {
+        if constexpr(on == 1) {
+            MPI_Barrier(MPI_COMM_WORLD);
+            for (int i = 0; i < world_size; i++){
+                if (i == world_ID){
+                    cout << "ID " << world_ID <<": " << input;
+                    cout.flush();
+                    std::this_thread::sleep_for(std::chrono::microseconds(10));
+                }
+                MPI_Barrier(MPI_COMM_WORLD);
+            }
+            MPI_Barrier(MPI_COMM_WORLD);
+        }
+    }
+
+
+
 };
 
 
@@ -263,6 +274,9 @@ public:
     std::set<double> M_set;              //Set of found energies, used in discrete do_simulations.
     int MCS;
     int walks;
+
+
+
 
 };
 

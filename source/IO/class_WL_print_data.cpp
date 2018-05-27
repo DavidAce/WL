@@ -2,6 +2,10 @@
 // Created by david on 2016-07-26.
 //
 #include <iomanip>
+#include <algorithm/class_WL_worker.h>
+#include <algorithm/class_WL_teams.h>
+#include <algorithm/class_WL_thermo.h>
+#include <algorithm/class_WL_statistics.h>
 #include "class_WL_print_data.h"
 #ifdef __linux__
 #define os 0
@@ -13,18 +17,20 @@
 
 
 
-void outdata::write_data_worker(class_worker &worker) {
-    set_foldername_to_iteration(worker.iteration);
-    string name_dos     = folder + string("dos") + to_string(worker.world_ID) + string(".dat");
-    string name_E_bins  = folder + string("E") + to_string(worker.world_ID) + string(".dat");
-    string name_M_bins  = folder + string("M") + to_string(worker.world_ID) + string(".dat");
-    write_to_file(worker.dos, name_dos);
-    write_to_file(worker.E_bins, name_E_bins);
-    write_to_file(worker.M_bins, name_M_bins);
+void outdata::write_data_team_leader(class_worker &worker) {
+    if(worker.team->is_leader()) {
+        set_foldername_to_iteration(worker.iteration);
+        string name_dos    = folder + string("dos") + to_string(worker.team->get_team_id()) + string(".dat");
+        string name_E_bins = folder + string("E")   + to_string(worker.team->get_team_id()) + string(".dat");
+        string name_M_bins = folder + string("M")   + to_string(worker.team->get_team_id()) + string(".dat");
+        write_to_file(worker.dos, name_dos);
+        write_to_file(worker.E_bins, name_E_bins);
+        write_to_file(worker.M_bins, name_M_bins);
+    }
 }
 
-void outdata::write_data_master(class_worker &worker){
-    if (worker.world_ID == 0) {
+void outdata::write_data_commander(class_worker &worker){
+    if (worker.team->is_commander()) {
         set_foldername_to_iteration(worker.iteration);
         string name_dos    = folder + string("dos.dat");
         string name_E_bins = folder + string("E.dat");
@@ -35,42 +41,34 @@ void outdata::write_data_master(class_worker &worker){
     }
 }
 
-void outdata::write_data_thermo(class_thermodynamics &thermo, const int &iter){
-    create_iteration_folder_worker(iter);
-    string name_T       = folder + string("T.dat");
-    string name_s       = folder + string("s.dat");
-    string name_c       = folder + string("c.dat");
-    string name_m       = folder + string("m.dat");
-    string name_u       = folder + string("u.dat");
-    string name_f       = folder + string("f.dat");
-    string name_x       = folder + string("x.dat");
-    string name_dos1D   = folder + string("dos1D.dat");
-    string name_c_peak  = folder + string("c_peak.dat");
-    string name_x_peak  = folder + string("x_peak.dat");
-    string name_Tc_F    = folder + string("Tc_F.dat");
-    string name_Tc_D    = folder + string("Tc_D.dat");
-    string name_D       = folder + string("D.dat");
-    string name_F       = folder + string("F.dat");
-    string name_P       = folder + string("P.dat");
-    write_to_file(thermo.T, name_T);
-    write_to_file(thermo.s, name_s);
-    write_to_file(thermo.c, name_c);
-    write_to_file(thermo.m, name_m);
-    write_to_file(thermo.u, name_u);
-    write_to_file(thermo.f, name_f);
-    write_to_file(thermo.x, name_x);
-    write_to_file(thermo.dos_total1D, name_dos1D);
-    write_to_file(thermo.c_peak, name_c_peak);
-    write_to_file(thermo.x_peak, name_x_peak);
-    write_to_file(thermo.Tc_F, name_Tc_F);
-    write_to_file(thermo.Tc_D, name_Tc_D);
-    write_to_file(thermo.D, name_D);
-    write_to_file(thermo.F, name_F);
-    write_to_file(thermo.P, name_P);
+void outdata::write_data_thermo(class_thermodynamics &thermo, const int iter){
+        create_iteration_folder_worker(iter);
+        string name_T = folder + string("T.dat");
+        string name_s = folder + string("s.dat");
+        string name_c = folder + string("c.dat");
+        string name_m = folder + string("m.dat");
+        string name_u = folder + string("u.dat");
+        string name_f = folder + string("f.dat");
+        string name_x = folder + string("x.dat");
+        string name_D = folder + string("D.dat");
+        string name_F = folder + string("F.dat");
+        string name_P = folder + string("P.dat");
+        string name_dos1D = folder + string("dos1D.dat");
+        write_to_file(thermo.T, name_T);
+        write_to_file(thermo.s, name_s);
+        write_to_file(thermo.c, name_c);
+        write_to_file(thermo.m, name_m);
+        write_to_file(thermo.u, name_u);
+        write_to_file(thermo.f, name_f);
+        write_to_file(thermo.x, name_x);
+        write_to_file(thermo.D, name_D);
+        write_to_file(thermo.F, name_F);
+        write_to_file(thermo.P, name_P);
+        write_to_file(thermo.dos_total1D, name_dos1D);
 }
 
-void outdata::write_final_data(class_stats &stats, const int &id){
-    if (id == 0) {
+void outdata::write_final_data(class_worker &worker, class_stats &stats){
+    if (worker.team->is_commander()) {
         folder = "outdata/final/";
         create_folder(folder);
         string name_E       = folder + string("E.dat");
@@ -83,10 +81,6 @@ void outdata::write_final_data(class_stats &stats, const int &id){
         string name_f       = folder + string("f.dat");
         string name_x       = folder + string("x.dat");
         string name_dos1D   = folder + string("dos1D.dat");
-        string name_c_peak  = folder + string("c_peak.dat");
-        string name_x_peak  = folder + string("x_peak.dat");
-        string name_Tc_F    = folder + string("Tc_F.dat");
-        string name_Tc_D    = folder + string("Tc_D.dat");
         string name_dos     = folder + string("dos.dat");
         string name_D       = folder + string("D.dat");
         string name_F       = folder + string("F.dat");
@@ -102,10 +96,6 @@ void outdata::write_final_data(class_stats &stats, const int &id){
         write_to_file(stats.f_avg, name_f);
         write_to_file(stats.x_avg, name_x);
         write_to_file(stats.dos1D_avg, name_dos1D);
-        write_to_file(stats.c_peak_avg, name_c_peak);
-        write_to_file(stats.x_peak_avg, name_x_peak);
-        write_to_file(stats.Tc_F_avg, name_Tc_F);
-        write_to_file(stats.Tc_D_avg, name_Tc_D);
         write_to_file(stats.dos_avg, name_dos);
         write_to_file(stats.D_avg, name_D);
         write_to_file(stats.F_avg, name_F);
@@ -118,10 +108,6 @@ void outdata::write_final_data(class_stats &stats, const int &id){
         name_f          = folder + string("f_err.dat");
         name_x          = folder + string("x_err.dat");
         name_dos1D      = folder + string("dos1D_err.dat");
-        name_c_peak     = folder + string("c_peak_err.dat");
-        name_x_peak     = folder + string("x_peak_err.dat");
-        name_Tc_F       = folder + string("Tc_F_err.dat");
-        name_Tc_D       = folder + string("Tc_D_err.dat");
         name_dos        = folder + string("dos_err.dat");
         name_D          = folder + string("D_err.dat");
         name_F          = folder + string("F_err.dat");
@@ -134,10 +120,6 @@ void outdata::write_final_data(class_stats &stats, const int &id){
         write_to_file(stats.f_err, name_f);
         write_to_file(stats.x_err, name_x);
         write_to_file(stats.dos1D_err, name_dos1D);
-        write_to_file(stats.c_peak_err, name_c_peak);
-        write_to_file(stats.x_peak_err, name_x_peak);
-        write_to_file(stats.Tc_F_err, name_Tc_F);
-        write_to_file(stats.Tc_D_err, name_Tc_D);
         write_to_file(stats.dos_err, name_dos);
         write_to_file(stats.D_err, name_D);
         write_to_file(stats.F_err, name_F);
@@ -157,7 +139,7 @@ void outdata::write_sample(class_worker &worker){
 }
 
 
-void outdata::set_foldername_to_iteration(const int &iter){
+void outdata::set_foldername_to_iteration(const int iter){
     iteration = iter;
     //Set folder for out data storage
     switch (os) {
@@ -229,14 +211,14 @@ void outdata::create_set_folder(string folder_name){
 }
 
 
-void outdata::create_iteration_folder_master(const int &iter, const int &id){
-    if(id == 0){
+void outdata::create_iteration_folder_commander(class_worker &worker, int iter){
+    if(worker.team->is_commander()){
         set_foldername_to_iteration(iter);
         create_folder(folder);
     }
 }
 
-void outdata::create_iteration_folder_worker(const int &iter){
+void outdata::create_iteration_folder_worker(const int iter){
     set_foldername_to_iteration(iter);
     create_folder(folder);
 }
