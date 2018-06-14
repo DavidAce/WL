@@ -32,20 +32,22 @@ void do_simulations(class_worker &worker){
 
 
 void do_sampling(class_worker &worker){
-    outdata out;
-    out.create_set_folder("outdata/samples/" + to_string(worker.world_ID) + "/");
-    int samples = 0;
-    worker.debug_print_all<1>("Starting sampling.\n");
-    while(samples < constants::samples_to_collect){
-        worker.sweep();
-        if (timer::swap                 >= constants::rate_swap             ){parallel::swap2         (worker)                     ;}
-        if (timer::print                >= constants::rate_print_status     ){print_status           (worker,false)               ;}
-        if (timer::sampling             >= constants::rate_sampling         ){timer::sampling = 0; out.write_sample(worker); samples++  ;}
-        timer::print++;
-        timer::swap++;
-        timer::sampling++;
+    if(constants::collect_samples){
+        outdata out;
+        out.create_set_folder("outdata/samples/" + to_string(worker.world_ID) + "/");
+        int samples = 0;
+        worker.debug_print_all<1>("Starting sampling.\n");
+        while(samples < constants::samples_to_collect){
+            worker.sweep();
+            if (timer::swap                 >= constants::rate_swap             ){parallel::swap2         (worker)                     ;}
+            if (timer::print                >= constants::rate_print_status     ){print_status           (worker,false)               ;}
+            if (timer::sampling             >= constants::rate_sampling         ){timer::sampling = 0; out.write_sample(worker); samples++  ;}
+            timer::print++;
+            timer::swap++;
+            timer::sampling++;
+        }
+        worker.debug_print_all<1>("Finished sampling.\n");
     }
-    worker.debug_print_all<1>("Finished sampling.\n");
 }
 
 void wanglandau(class_worker &worker){

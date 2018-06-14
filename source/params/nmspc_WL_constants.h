@@ -9,11 +9,12 @@
 namespace constants{
 
     //WL boostrap properties
-    static const int simulation_reps = 1;      //Number of independent do_simulations
+    static const int simulation_reps = 2;      //Number of independent do_simulations
     static const int bootstrap_reps  = 4;      //Number of times to bootstrap-sample existing simulation data
 
-    static const int samples_to_collect   = 100; // How many samples to collect per thread.
-    static const int rate_sampling        = 100; // How often to sample a lattice with respective energies and magnetization
+    static const bool collect_samples     = false; //Whether or not to collect lattice samples after simulation has converged.
+    static const int samples_to_collect   = 10; // How many samples to collect per thread.
+    static const int rate_sampling        = 10; // How often to sample a lattice with respective energies and magnetization
 
 
     //WL thermodynamics properties
