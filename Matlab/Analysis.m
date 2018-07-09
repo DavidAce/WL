@@ -3,7 +3,7 @@ clear all;
 L = 6;
 N = L^2;
 cores = 4;
-reps = 13;
+reps = 2;
 for n = 1:reps
 
 %      for i = 0:cores-1
@@ -32,7 +32,7 @@ for n = 1:reps
     c    = importdata(['../outdata/' num2str(n-1) '/c.dat']);
     u    = importdata(['../outdata/' num2str(n-1) '/u.dat']);
     s    = importdata(['../outdata/' num2str(n-1) '/s.dat']);
-    f    = importdata(['../outdata/' num2str(n-1) '/f.dat']);
+    %f    = importdata(['../outdata/' num2str(n-1) '/f.dat']);
 
     %[c,u,T] = thermo(dos,E,N);
     cIsing = c_ising(T,L);
@@ -60,7 +60,7 @@ for n = 1:reps
     plot(T,s ,'DisplayName', ['s WL ' num2str(n)]),hold all;
   
     figure(7)
-    plot(T,f ,'DisplayName', ['f WL ' num2str(n)]),hold all;
+%    plot(T,f ,'DisplayName', ['f WL ' num2str(n)]),hold all;
   
     
 

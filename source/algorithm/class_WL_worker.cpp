@@ -19,7 +19,7 @@
 
 using namespace std;
 using namespace Eigen;
-int constants::num_teams;
+//int constants::num_teams;
 int counter::MCS;
 int counter::walks;
 int counter::swaps;

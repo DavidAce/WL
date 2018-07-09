@@ -4,19 +4,20 @@
   <component name="CidrRootsConfiguration">
     <sourceRoots>
       <file path="$PROJECT_DIR$/source" />
-      <file path="$PROJECT_DIR$/source/EMC-Lib" />
     </sourceRoots>
     <libraryRoots>
-      <file path="$PROJECT_DIR$/EMC-Lib" />
-      <file path="$PROJECT_DIR$/eigen3" />
       <file path="$PROJECT_DIR$/libs" />
     </libraryRoots>
     <excludeRoots>
-      <file path="$PROJECT_DIR$/.literature" />
+      <file path="$PROJECT_DIR$/Analysis" />
       <file path="$PROJECT_DIR$/Matlab" />
       <file path="$PROJECT_DIR$/build" />
+      <file path="$PROJECT_DIR$/cmake-build-release" />
       <file path="$PROJECT_DIR$/cmake_modules" />
       <file path="$PROJECT_DIR$/outdata" />
     </excludeRoots>
+  </component>
+  <component name="JavaScriptSettings">
+    <option name="languageLevel" value="ES6" />
   </component>
 </project>

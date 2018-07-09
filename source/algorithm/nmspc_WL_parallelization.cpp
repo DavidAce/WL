@@ -308,11 +308,6 @@ namespace parallel {
 
         }
 
-        if (setNaN) {
-            if (worker.team->is_commander()) {
-                math::subtract_min_nonzero_nan(dos_total);
-            }
-        }
         if (worker.team->is_commander()) {
             if (setNaN) {
                 math::subtract_min_nonzero_nan(dos_total);
