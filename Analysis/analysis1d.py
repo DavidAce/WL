@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot  as plt
 from numpy import loadtxt
+import random
 import os, fnmatch
 import re
 
@@ -63,9 +64,29 @@ plt.figure(1)
 plt.plot(T,c)
 plt.figure(2)
 plt.plot(T,u)
+
+
+bincenters = 0.5*(e[1:] + e[:-1])
 plt.figure(3)
-plt.hist(E, bins=e, rwidth=0.8,normed=False)
+plt.hist(E, bins=bincenters, rwidth=0.8,normed=False)
 plt.figure(4)
-plt.hist(E.flatten(), bins=e, rwidth=0.8,normed=False)
+plt.hist(E.flatten(), bins=bincenters, rwidth=0.8,normed=False)
+
+
+
+# Build a uniform distribution of energies
+E_chunks = [e[i:i + cols] for i in range(0, len(e), cols)]
+E_edges  = [[E_chunks[i][0], E_chunks[i][-1]] for i in range(0, cols)]
+print(E_chunks[-1][:])
+print(E_edges[-1][:])
+
+E_uniform = E
+for i in range(0,rows):
+    for j in range(0,cols):
+        if E[i][j] < E_edges[j][0] or E[i][j] > E_edges[j][-1]:
+            E_uniform [i][j] = np.nan
+plt.figure(5)
+plt.hist(E_uniform[~np.isnan(E_uniform)], bins=bincenters, align='mid', rwidth=0.8, normed=False)
+
 
 plt.show()
