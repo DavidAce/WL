@@ -8,8 +8,9 @@ Usage            : $PROGNAME [-c] [-h ] [-j <num_threads>] [-l] [-m <mode>] [-t 
 
 -c               : Clear CMake files before build (delete ./build)
 -h               : Help. Shows this text.
--j <num_threads> : Number of threads used by CMake
+-j <num_threads> : Number of threads used by CMake (default $(nproc))
 -l               : Clear downloaded libraries before build (i.e. delete ./libs)
+-i               : Set install prefix (default: install)
 -m <mode>        : Release   | Debug | (default = Release)
 -t <target>      : DMRG++    | all   | any test target | (default = all)
 EOF
@@ -21,14 +22,16 @@ target="all"
 mode="Release"
 clear_cmake=""
 clear_libs=""
-threads="2"
+threads=$(nproc)
+install="install"
 
-while getopts chj:lm:t: o; do
+while getopts chj:li:m:t: o; do
     case $o in
         (c) clear_cmake="true";;
         (h) usage ;;
         (j) threads=$OPTARG;;
         (l) clear_libs="true";;
+        (i) install=$OPTARG;;
         (m) mode=$OPTARG;;
         (t) target=$OPTARG;;
         (:) echo "Option -$OPTARG requires an argument." >&2 ; exit 1 ;;
@@ -41,43 +44,17 @@ shift "$((OPTIND - 1))"
 if [ "$clear_cmake" = "true" ]
 then
     echo "Clearing CMake files from build."
-	rm -rf ./build
+	rm -f ./build/$mode/CMakeCache.txt
 fi
-
-if [ "$clear_libs" = "true" ]
-then
-    echo "Clearing downloaded libraries."
-	rm -rf ./libs
-fi
-
-
-
-if [[ "$OSTYPE" == "linux-gnu" ]] || [[ "$OSTYPE" == "cygwin" ]]; then
-    echo "OS: Linux"
-elif [[ "$OSTYPE" == "darwin"* ]]; then
-    echo "OS: Mac OSX"
-    echo "Checking if gcc-7 compiler is available"
-    if brew ls gcc@7 | grep -q 'g++-7'; then
-        echo " gcc-7 was found!"
-        if [[ "${CC}" != *"gcc-7"* ]]; then
-            echo "Please export before running: "
-            echo "  export CC=gcc-7"
-            echo "  export CXX=g++-7"
-            echo "  export FC=gfortran-7"
-        fi
-    else
-        echo "Please install gcc (version 7 or higher) through brew."
-        echo "Command:   brew install gcc@7"
-    fi
-fi
-
 
 echo "Starting Build"
 echo "Target          :   $target"
 echo "Build threads   :   $threads"
 echo "Mode            :   $mode"
+echo "Install prefix  :   $install"
+
 
 cmake -E make_directory build/$mode
 cd build/$mode
-cmake -DCMAKE_BUILD_TYPE=$mode -G "CodeBlocks - Unix Makefiles" ../../
-cmake --build . --target $target -- -j $threads
+cmake -DCMAKE_BUILD_TYPE=$mode -DCMAKE_INSTALL_PREFIX=$install ../../
+cmake --build . --target $target --parallel $threads
