@@ -206,8 +206,8 @@ namespace parallel {
 
                     double weight;
                     double E_span = fmax(E_total(E_shared_high_idx) - E_total(E_shared_low_idx), E_recv(E_shared_high_up_idx) - E_recv(E_shared_low_up_idx));
-                    vector<ArrayXd> dos_merge;
-                    vector<double>  E_merge;
+                   std::vector<ArrayXd> dos_merge;
+                   std::vector<double>  E_merge;
                     if(debug_merge) { cout << "Merging " << w - 1 << " and " << w << endl; }
                     for(int i = 0; i < E_total.size(); i++) {
                         if(i < E_shared_low_idx) {
@@ -520,16 +520,16 @@ namespace parallel {
 
     void synchronize_sets(class_worker &worker) {
         // This function collects all known energies from all sets
-        vector<double> E_vector(worker.E_set.begin(), worker.E_set.end());
-        vector<double> M_vector(worker.M_set.begin(), worker.M_set.end());
-        vector<int>    E_sizes((unsigned long) worker.world_size);
-        vector<int>    M_sizes((unsigned long) worker.world_size);
+       std::vector<double> E_vector(worker.E_set.begin(), worker.E_set.end());
+       std::vector<double> M_vector(worker.M_set.begin(), worker.M_set.end());
+       std::vector<int>    E_sizes((unsigned long) worker.world_size);
+       std::vector<int>    M_sizes((unsigned long) worker.world_size);
         int            Esize = (int) E_vector.size();
         int            Msize = (int) M_vector.size();
         MPI_Allgather(&Esize, 1, MPI_INT, E_sizes.data(), 1, MPI_INT, MPI_COMM_WORLD);
         MPI_Allgather(&Msize, 1, MPI_INT, M_sizes.data(), 1, MPI_INT, MPI_COMM_WORLD);
-        vector<double> E_recv;
-        vector<double> M_recv;
+       std::vector<double> E_recv;
+       std::vector<double> M_recv;
         for(int w = 0; w < worker.world_size; w++) {
             if(w == worker.world_ID) {
                 E_recv = E_vector;

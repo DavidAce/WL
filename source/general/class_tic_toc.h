@@ -21,7 +21,7 @@ class class_profiling {
     string                            name;
 
     public:
-    class_profiling(const int &on_off, int prec, const string output_text); // Constructor
+    class_profiling(const int &on_off, int prec, const std::string &output_text); // Constructor
     high_resolution_clock::duration delta_time;
     high_resolution_clock::duration total_time;
 

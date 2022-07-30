@@ -28,10 +28,10 @@ class class_stats {
     ArrayXXd         f;
     ArrayXXd         x;
     ArrayXXd         dos1D;
-    vector<ArrayXXd> dos;
-    vector<ArrayXXd> D;
-    vector<ArrayXXd> F;
-    vector<ArrayXXd> P;
+   std::vector<ArrayXXd> dos;
+   std::vector<ArrayXXd> D;
+   std::vector<ArrayXXd> F;
+   std::vector<ArrayXXd> P;
 
     ArrayXd E_avg;
     ArrayXd M_avg;

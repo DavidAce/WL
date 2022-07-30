@@ -168,7 +168,7 @@ void class_worker::set_initial_local_bins() {
 
 void class_worker::sweep() {
     t_sweep.tic();
-    for(int i = 0; i < constants::N; i++) {
+    for(int i = 0; i < constants::N(); i++) {
         model.make_new_state(E, M, E_trial, M_trial);
         update_global_range();
         acceptance_criterion();
@@ -403,7 +403,7 @@ void class_worker::check_saturation() {
             slope = 0;
             return;
         }
-        vector<double> sat_double(saturation.begin() + idx_from, saturation.end()); // Cast to double
+       std::vector<double> sat_double(saturation.begin() + idx_from, saturation.end()); // Cast to double
         ArrayXd        Y = Map<ArrayXd>(sat_double.data(), sat_double.size());      // Cast to eigen array
         ArrayXd        X = ArrayXd::LinSpaced(Y.size(), idx_from + 1, idx_to);
         slope            = ((X - X.mean()).cwiseProduct(Y - Y.mean())).sum() / fmax(1, (X - X.mean()).cwiseAbs2().sum());

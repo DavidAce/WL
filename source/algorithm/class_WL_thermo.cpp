@@ -20,9 +20,9 @@ void class_thermodynamics::compute(class_worker &worker) {
     ArrayXd  Z        = math::nansum_rowwise(weight1D);
     ArrayXd  eAvg     = math::nansum_rowwise(weight1D.rowwise() * worker.E_bins_total.transpose()) / Z;
     ArrayXd  eSqAvg   = math::nansum_rowwise(weight1D.rowwise() * worker.E_bins_total.cwiseAbs2().transpose()) / Z;
-    u                 = eAvg / constants::N;
-    c                 = (beta_vec.cwiseAbs2() * (eSqAvg - eAvg.cwiseAbs2())) / constants::N;
-    s                 = (Z.log() + lambdaT + beta_vec * eAvg) / constants::N;
+    u                 = eAvg / constants::N();
+    c                 = (beta_vec.cwiseAbs2() * (eSqAvg - eAvg.cwiseAbs2())) / constants::N();
+    s                 = (Z.log() + lambdaT + beta_vec * eAvg) / constants::N();
     s                 = s - s.minCoeff();
     f                 = u - T.cwiseProduct(s);
 
@@ -41,8 +41,8 @@ void class_thermodynamics::compute(class_worker &worker) {
     }
     mAvg /= Z;
     mSqAvg /= Z;
-    m = mAvg / constants::N;
-    x = (mSqAvg - mAvg.cwiseAbs2()) / constants::N;
+    m = mAvg / constants::N();
+    x = (mSqAvg - mAvg.cwiseAbs2()) / constants::N();
     double ZT;
     P.resize(T_num, worker.M_bins_total.size());
     for(int t = 0; t < T_num; t++) {
@@ -50,6 +50,6 @@ void class_thermodynamics::compute(class_worker &worker) {
         P.row(t) = math::nansum_colwise((worker.dos_total.colwise() - (beta_vec(t) * worker.E_bins_total + lambdaT(t))).exp()) / ZT;
     }
     int middle = (int) (worker.M_bins_total.size() - 1) / 2;
-    F          = P.log().array().colwise() / (-beta_vec) / constants::N;
+    F          = P.log().array().colwise() / (-beta_vec) / constants::N();
     for(int t = 0; t < T_num; t++) { F.row(t) -= F(t, middle); }
 }

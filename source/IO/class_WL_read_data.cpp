@@ -32,9 +32,9 @@ indata::indata() {
 void indata::load_random_section(class_worker &worker) {
     if(worker.team->is_leader()) {
         int    iteration   = rn::uniform_integer(0, constants::simulation_reps - 1);
-        string name_dos    = folder + to_string(iteration) + string("/dos") + to_string(worker.team->get_team_id()) + string(".dat");
-        string name_E_bins = folder + to_string(iteration) + string("/E") + to_string(worker.team->get_team_id()) + string(".dat");
-        string name_M_bins = folder + to_string(iteration) + string("/M") + to_string(worker.team->get_team_id()) + string(".dat");
+        string name_dos    = folder + to_string(iteration) +std::string("/dos") + to_string(worker.team->get_team_id()) +std::string(".dat");
+        string name_E_bins = folder + to_string(iteration) +std::string("/E") + to_string(worker.team->get_team_id()) +std::string(".dat");
+        string name_M_bins = folder + to_string(iteration) +std::string("/M") + to_string(worker.team->get_team_id()) +std::string(".dat");
         worker.dos         = read_file(name_dos);
         worker.E_bins      = read_file(name_E_bins);
         worker.M_bins      = read_file(name_M_bins);
@@ -43,9 +43,9 @@ void indata::load_random_section(class_worker &worker) {
 void indata::load_your_section(class_worker &worker) {
     if(worker.team->is_leader()) {
         int    iteration   = worker.iteration;
-        string name_dos    = folder + to_string(iteration) + string("/dos") + to_string(worker.team->get_team_id()) + string(".dat");
-        string name_E_bins = folder + to_string(iteration) + string("/E") + to_string(worker.team->get_team_id()) + string(".dat");
-        string name_M_bins = folder + to_string(iteration) + string("/M") + to_string(worker.team->get_team_id()) + string(".dat");
+        string name_dos    = folder + to_string(iteration) +std::string("/dos") + to_string(worker.team->get_team_id()) +std::string(".dat");
+        string name_E_bins = folder + to_string(iteration) +std::string("/E") + to_string(worker.team->get_team_id()) +std::string(".dat");
+        string name_M_bins = folder + to_string(iteration) +std::string("/M") + to_string(worker.team->get_team_id()) +std::string(".dat");
         worker.dos         = read_file(name_dos);
         worker.E_bins      = read_file(name_E_bins);
         worker.M_bins      = read_file(name_M_bins);
@@ -53,9 +53,9 @@ void indata::load_your_section(class_worker &worker) {
 }
 
 void indata::load_full(class_worker &worker) {
-    string name_dos    = folder + to_string(worker.iteration) + string("/dos.dat");
-    string name_E_bins = folder + to_string(worker.iteration) + string("/E.dat");
-    string name_M_bins = folder + to_string(worker.iteration) + string("/M.dat");
+    string name_dos    = folder + to_string(worker.iteration) +std::string("/dos.dat");
+    string name_E_bins = folder + to_string(worker.iteration) +std::string("/E.dat");
+    string name_M_bins = folder + to_string(worker.iteration) +std::string("/M.dat");
     std::cout << "ID " << worker.world_ID << ": reading file: " << name_dos << std::endl;
     worker.dos_total    = read_file(name_dos);
     worker.E_bins_total = read_file(name_E_bins);
@@ -64,7 +64,7 @@ void indata::load_full(class_worker &worker) {
 
 void indata::load_full(class_stats &stats, class_worker &worker) {
     int    reps   = constants::bootstrap_reps + constants::simulation_reps;
-    string name_T = folder + to_string(0) + string("/T.dat");
+    string name_T = folder + to_string(0) +std::string("/T.dat");
     stats.T       = read_file(name_T);
     stats.E.resize(worker.E_bins_total.size(), reps);
     stats.M.resize(worker.M_bins_total.size(), reps);
@@ -79,19 +79,19 @@ void indata::load_full(class_stats &stats, class_worker &worker) {
 
     for(int i = 0; i < reps; i++) {
         if(debug_load_full_thermo) { cout << "Loading rep " << endl; }
-        string name_E      = folder + to_string(i) + string("/E.dat");
-        string name_M      = folder + to_string(i) + string("/M.dat");
-        string name_s      = folder + to_string(i) + string("/s.dat");
-        string name_f      = folder + to_string(i) + string("/f.dat");
-        string name_c      = folder + to_string(i) + string("/c.dat");
-        string name_m      = folder + to_string(i) + string("/m.dat");
-        string name_u      = folder + to_string(i) + string("/u.dat");
-        string name_x      = folder + to_string(i) + string("/x.dat");
-        string name_dos1D  = folder + to_string(i) + string("/dos1D.dat");
-        string name_dos    = folder + to_string(i) + string("/dos.dat");
-        string name_D      = folder + to_string(i) + string("/D.dat");
-        string name_F      = folder + to_string(i) + string("/F.dat");
-        string name_P      = folder + to_string(i) + string("/P.dat");
+        string name_E      = folder + to_string(i) +std::string("/E.dat");
+        string name_M      = folder + to_string(i) +std::string("/M.dat");
+        string name_s      = folder + to_string(i) +std::string("/s.dat");
+        string name_f      = folder + to_string(i) +std::string("/f.dat");
+        string name_c      = folder + to_string(i) +std::string("/c.dat");
+        string name_m      = folder + to_string(i) +std::string("/m.dat");
+        string name_u      = folder + to_string(i) +std::string("/u.dat");
+        string name_x      = folder + to_string(i) +std::string("/x.dat");
+        string name_dos1D  = folder + to_string(i) +std::string("/dos1D.dat");
+        string name_dos    = folder + to_string(i) +std::string("/dos.dat");
+        string name_D      = folder + to_string(i) +std::string("/D.dat");
+        string name_F      = folder + to_string(i) +std::string("/F.dat");
+        string name_P      = folder + to_string(i) +std::string("/P.dat");
         stats.E.col(i)     = read_file(name_E);
         stats.M.col(i)     = read_file(name_M);
         stats.s.col(i)     = read_file(name_s);
@@ -110,7 +110,7 @@ void indata::load_full(class_stats &stats, class_worker &worker) {
 
 ArrayXXd indata::read_file(string filename) {
     ifstream       infile;
-    vector<string> lines;
+   std::vector<string> lines;
     string         line;
     string         number;
     infile.open(filename);

@@ -32,7 +32,7 @@ void class_WL_teams::sync_teams() {
     displ(0) = 0;
     for(int i = 1; i < team_size; i++) { displ(i) = displ(i - 1) + sizes(i - 1); }
 
-    vector<state> random_walk_recv((unsigned long) (sizes.sum()));
+   std::vector<state> random_walk_recv((unsigned long) (sizes.sum()));
     MPI_Allgatherv(worker.random_walk.data(), size, MPI_2INT, random_walk_recv.data(), sizes.data(), displ.data(), MPI_2INT, MPI_COMM_TEAM);
 
     for(auto &rwri : random_walk_recv) {
@@ -60,7 +60,7 @@ void class_WL_teams::setup_teams() {
         MPI_Bcast(team_forbidden.data(), num_teams, MPI_INT, w, MPI_COMM_WORLD);
     }
 
-    int     max_filling_per_slot = std::ceil((double) worker.world_size / (1 - team_forbidden).sum());
+    auto  max_filling_per_slot = std::ceil(static_cast<double>(worker.world_size) / (1 - team_forbidden).sum());
     ArrayXi team_filling         = ArrayXi::Zero(num_teams);
     for(int w = 0; w < worker.world_size; w++) {
         if(w == worker.world_ID) {

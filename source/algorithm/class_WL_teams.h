@@ -7,6 +7,7 @@
 
 #include <memory>
 #include <mpi.h>
+#include <thread>
 
 class class_worker;
 
@@ -54,8 +55,8 @@ class class_WL_teams {
             MPI_Barrier(MPI_COMM_TEAM);
             for(int i = 0; i < num_teams; i++) {
                 if(i == team_id and team_leader) {
-                    cout << input;
-                    cout.flush();
+                    std::cout << input;
+                    std::cout.flush();
                     std::this_thread::sleep_for(std::chrono::microseconds(100));
                 }
                 MPI_Barrier(MPI_COMM_TEAM);
@@ -68,8 +69,8 @@ class class_WL_teams {
         if constexpr(on == 1) {
             MPI_Barrier(MPI_COMM_TEAM);
             if(team_commander) {
-                cout << input;
-                cout.flush();
+                std::cout << input;
+                std::cout.flush();
                 std::this_thread::sleep_for(std::chrono::microseconds(100));
             }
             MPI_Barrier(MPI_COMM_TEAM);

@@ -4,7 +4,7 @@
 
 #include "class_tic_toc.h"
 
-class_profiling::class_profiling(const int &on_off, int prec, const string output_text) : profiling(on_off), print_precision(prec), name(output_text) {
+class_profiling::class_profiling(const int &on_off, int prec, const std::string &output_text) : profiling(on_off), print_precision(prec), name(output_text) {
     if(profiling) {
         if(!name.empty()) { name = " " + name + ": "; }
         total_time = total_time.zero();

@@ -79,7 +79,7 @@ class class_worker {
     // WL DOS and Histograms
     ArrayXXd      dos;
     ArrayXXi      histogram;
-    vector<state> random_walk;
+   std::vector<state> random_walk;
     ArrayXd       E_bins, M_bins;
 
     // MPI Communicator
@@ -109,7 +109,7 @@ class class_worker {
     // WL convergence parameters
     int         flag_one_over_t; // turns to 1 when 1/t algorithm starts
     int         finish_line;     // turns to 1 when converged
-    vector<int> saturation;
+   std::vector<int> saturation;
     double      slope;
 
     // Holders for total, merged data
