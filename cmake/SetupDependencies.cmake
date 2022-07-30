@@ -18,7 +18,6 @@ target_link_libraries(deps INTERFACE std::filesystem)
 # Install dependencies
 include(cmake/SetupDependenciesFind.cmake)
 include(cmake/SetupDependenciesCMake.cmake)
-include(cmake/SetupDependenciesFetch.cmake)
 include(cmake/SetupDependenciesCPM.cmake)
 include(cmake/SetupDependenciesConan.cmake)
 
