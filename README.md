@@ -43,7 +43,7 @@ By default, `./build.sh` will build in release mode, and `./run.sh` will run a s
 using 4 cores.
  
 The default setting will run 2 independent and consecutive simulations, to generate 
-good quality thermodynamic averages with using bootstrap. See below on how to control the number of simulations.
+good quality thermodynamic averages using bootstrap. See below on how to control the number of simulations.
 
 ## Run time parameters
 
@@ -64,7 +64,7 @@ estimates from made from bootstrapping portions of the DOS. For the bootstrap to
 control the number of independent simulations with the parameter `simulation_reps` found in the header file `source/params/nmspc_WL_constants.h`.
  
  
- and a `outdata/samples/` subfolder containing lattice samples
-that are uniformly distributed in energy and magnetization (which is useful for generating training data for machine learning algorithms, for instance).
+Enable `constants::collect_samples` to obtain a subfolder `outdata/samples/` containing lattice samples that are uniformly
+distributed in energy and magnetization. This is useful for generating training data for machine learning algorithms, for instance.
 
 
