@@ -11,4 +11,4 @@ void do_bootstrap(class_worker &worker);
 void do_thermodynamics(class_worker &worker);
 void do_statistics(class_worker &worker);
 
-#endif //WL_BOOTSTRAP_H
+#endif // WL_BOOTSTRAP_H

@@ -6,7 +6,7 @@
 #define WL_COUNTERS_TIMERS_H
 
 namespace counter {
-    //Counters
+    // Counters
     extern int MCS;
     extern int walks;
     extern int swaps;
@@ -28,5 +28,4 @@ namespace timer {
     extern int sampling;
 }
 
-
-#endif //WL_COUNTERS_TIMERS_H
+#endif // WL_COUNTERS_TIMERS_H
