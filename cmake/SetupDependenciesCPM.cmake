@@ -56,4 +56,18 @@ if(WL_PACKAGE_MANAGER MATCHES "cpm")
     else()
         message(FATAL_ERROR "CPM failed to add package: spdlog")
     endif()
+    CPMAddPackage(NAME cli11
+            GITHUB_REPOSITORY CLIUtils/CLI11
+            GIT_TAG 2.1.1
+            OPTIONS
+            "CLI11_BUILD_EXAMPLES OFF"
+            "CLI11_BUILD_TESTS OFF"
+            "CLI11_BUILD_DOC OFF")
+    find_package(CLI11 REQUIRED)
+    if(TARGET CLI11)
+        target_link_libraries(deps INTERFACE CLI11::CLI11)
+    else()
+        message(FATAL_ERROR "CPM failed to add package: CLI11")
+    endif()
+
 endif()

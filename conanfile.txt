@@ -1,0 +1,11 @@
+# Here you can specify desired software packages to be downloaded by conan.
+# To activate reading this file from CMakeLists.txt, enable the setting -DWL_PACKAGE_MANAGER=conan
+
+[requires]
+fmt/8.1.1
+spdlog/1.10.0
+eigen/3.4.0
+cli11/2.2.0
+
+[generators]
+CMakeDeps

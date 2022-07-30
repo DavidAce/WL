@@ -27,8 +27,9 @@ if(WL_PACKAGE_MANAGER MATCHES "cmake")
             -DSPDLOG_FMT_EXTERNAL:BOOL=ON
             -Dfmt_ROOT:PATH=${WL_DEPS_INSTALL_DIR})
     install_package(Eigen3 VERSION 3.4.0 TARGET_NAME Eigen3::Eigen ${INSTALL_PREFIX_PKGNAME})
+    install_package(cli11 VERSION 2.1.1 TARGET_NAME CLI11::CLI11 FIND_NAME CLI11)
 
     # Link to dependencies
-    target_link_libraries(deps INTERFACE ${PKG_fmt_TARGET} ${PKG_spdlog_TARGET} ${PKG_Eigen3_TARGET})
+    target_link_libraries(deps INTERFACE fmt::fmt spdlog::spdlog Eigen3::Eigen CLI11::CLI11)
 
 endif()

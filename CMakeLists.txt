@@ -15,7 +15,7 @@ option(CMAKE_POSITION_INDEPENDENT_CODE  "Use -fPIC when compiling shared librari
 
 
 # Make an "enum" for valid download methods
-set(WL_PACKAGE_MANAGERS_VALID find cmake conan)
+set(WL_PACKAGE_MANAGERS_VALID find cmake cpm conan)
 set(WL_PACKAGE_MANAGER cmake CACHE STRING "Package manager for external dependencies")
 set_property(CACHE WL_PACKAGE_MANAGER PROPERTY STRINGS ${WL_PACKAGE_MANAGERS_VALID})
 if (NOT WL_PACKAGE_MANAGER IN_LIST WL_PACKAGE_MANAGERS_VALID)
