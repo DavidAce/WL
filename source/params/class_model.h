@@ -7,9 +7,6 @@
 #include "general/nmspc_math_algorithms.h"
 #include "general/nmspc_random_numbers.h"
 #include <Eigen/Core>
-#include <Eigen/Dense>
-using namespace Eigen;
-using namespace std;
 
 class class_model {
     private:
@@ -21,7 +18,7 @@ class class_model {
         lattice.resize(L, L);
         randomize_lattice();
     };
-    ArrayXXi lattice; // The Lattice Data structure
+    Eigen::ArrayXXi lattice; // The Lattice Data structure
     // double E_new, M_new;                      //Store values from MC-trial
     const static bool discrete_model = true; // Toggle model type
     const static int  J              = 1;

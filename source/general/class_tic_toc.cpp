@@ -17,6 +17,6 @@ void class_profiling::reset() {
 }
 
 std::ostream &operator<<(std::ostream &os, const class_profiling &t) {
-    if(t.profiling) { os << setprecision(5) << t.name << t.total_time.count(); }
+    if(t.profiling) { os << std::setprecision(5) << t.name << t.total_time.count(); }
     return os;
 }

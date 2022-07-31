@@ -18,9 +18,9 @@
 void outdata::write_data_team_leader(class_worker &worker) {
     if(worker.team->is_leader()) {
         set_foldername_to_iteration(worker.iteration);
-        string name_dos    = folder +std::string("dos") + to_string(worker.team->get_team_id()) +std::string(".dat");
-        string name_E_bins = folder +std::string("E") + to_string(worker.team->get_team_id()) +std::string(".dat");
-        string name_M_bins = folder +std::string("M") + to_string(worker.team->get_team_id()) +std::string(".dat");
+        std::string name_dos    = folder +std::string("dos") + std::to_string(worker.team->get_team_id()) +std::string(".dat");
+        std::string name_E_bins = folder +std::string("E") + std::to_string(worker.team->get_team_id()) +std::string(".dat");
+        std::string name_M_bins = folder +std::string("M") + std::to_string(worker.team->get_team_id()) +std::string(".dat");
         for(int id = 0; id < worker.team->get_team_size(); id++) {
             if(id == worker.team->get_team_id()) {
                 write_to_file(worker.dos, name_dos);
@@ -35,9 +35,9 @@ void outdata::write_data_team_leader(class_worker &worker) {
 void outdata::write_data_commander(class_worker &worker) {
     if(worker.team->is_commander()) {
         set_foldername_to_iteration(worker.iteration);
-        string name_dos    = folder +std::string("dos.dat");
-        string name_E_bins = folder +std::string("E.dat");
-        string name_M_bins = folder +std::string("M.dat");
+        std::string name_dos    = folder +std::string("dos.dat");
+        std::string name_E_bins = folder +std::string("E.dat");
+        std::string name_M_bins = folder +std::string("M.dat");
         write_to_file(worker.dos_total, name_dos);
         write_to_file(worker.E_bins_total, name_E_bins);
         write_to_file(worker.M_bins_total, name_M_bins);
@@ -46,17 +46,17 @@ void outdata::write_data_commander(class_worker &worker) {
 
 void outdata::write_data_thermo(class_thermodynamics &thermo, const int iter) {
     create_iteration_folder_worker(iter);
-    string name_T     = folder +std::string("T.dat");
-    string name_s     = folder +std::string("s.dat");
-    string name_c     = folder +std::string("c.dat");
-    string name_m     = folder +std::string("m.dat");
-    string name_u     = folder +std::string("u.dat");
-    string name_f     = folder +std::string("f.dat");
-    string name_x     = folder +std::string("x.dat");
-    string name_D     = folder +std::string("D.dat");
-    string name_F     = folder +std::string("F.dat");
-    string name_P     = folder +std::string("P.dat");
-    string name_dos1D = folder +std::string("dos1D.dat");
+    std::string name_T     = folder +std::string("T.dat");
+    std::string name_s     = folder +std::string("s.dat");
+    std::string name_c     = folder +std::string("c.dat");
+    std::string name_m     = folder +std::string("m.dat");
+    std::string name_u     = folder +std::string("u.dat");
+    std::string name_f     = folder +std::string("f.dat");
+    std::string name_x     = folder +std::string("x.dat");
+    std::string name_D     = folder +std::string("D.dat");
+    std::string name_F     = folder +std::string("F.dat");
+    std::string name_P     = folder +std::string("P.dat");
+    std::string name_dos1D = folder +std::string("dos1D.dat");
     write_to_file(thermo.T, name_T);
     write_to_file(thermo.s, name_s);
     write_to_file(thermo.c, name_c);
@@ -74,20 +74,20 @@ void outdata::write_final_data(class_worker &worker, class_stats &stats) {
     if(worker.team->is_commander()) {
         folder = "outdata/final/";
         create_folder(folder);
-        string name_E     = folder +std::string("E.dat");
-        string name_M     = folder +std::string("M.dat");
-        string name_T     = folder +std::string("T.dat");
-        string name_s     = folder +std::string("s.dat");
-        string name_c     = folder +std::string("c.dat");
-        string name_m     = folder +std::string("m.dat");
-        string name_u     = folder +std::string("u.dat");
-        string name_f     = folder +std::string("f.dat");
-        string name_x     = folder +std::string("x.dat");
-        string name_dos1D = folder +std::string("dos1D.dat");
-        string name_dos   = folder +std::string("dos.dat");
-        string name_D     = folder +std::string("D.dat");
-        string name_F     = folder +std::string("F.dat");
-        string name_P     = folder +std::string("P.dat");
+        std::string name_E     = folder +std::string("E.dat");
+        std::string name_M     = folder +std::string("M.dat");
+        std::string name_T     = folder +std::string("T.dat");
+        std::string name_s     = folder +std::string("s.dat");
+        std::string name_c     = folder +std::string("c.dat");
+        std::string name_m     = folder +std::string("m.dat");
+        std::string name_u     = folder +std::string("u.dat");
+        std::string name_f     = folder +std::string("f.dat");
+        std::string name_x     = folder +std::string("x.dat");
+        std::string name_dos1D = folder +std::string("dos1D.dat");
+        std::string name_dos   = folder +std::string("dos.dat");
+        std::string name_D     = folder +std::string("D.dat");
+        std::string name_F     = folder +std::string("F.dat");
+        std::string name_P     = folder +std::string("P.dat");
 
         write_to_file(stats.E_avg, name_E);
         write_to_file(stats.M_avg, name_M);
@@ -131,9 +131,9 @@ void outdata::write_final_data(class_worker &worker, class_stats &stats) {
 }
 
 void outdata::write_sample(class_worker &worker) {
-    std::string name_sample_lattice = folder + "lattice_" + to_string(iteration) + ".dat";
-    std::string name_sample_energy  = folder + "energy_" + to_string(iteration) + ".dat";
-    std::string name_sample_magnet  = folder + "magnet_" + to_string(iteration) + ".dat";
+    std::string name_sample_lattice = folder + "lattice_" + std::to_string(iteration) + ".dat";
+    std::string name_sample_energy  = folder + "energy_" + std::to_string(iteration) + ".dat";
+    std::string name_sample_magnet  = folder + "magnet_" + std::to_string(iteration) + ".dat";
     write_to_file(worker.model.lattice, name_sample_lattice);
     write_to_file(worker.model.get_E(), name_sample_energy);
     write_to_file(worker.model.get_M(), name_sample_magnet);
@@ -144,9 +144,9 @@ void outdata::set_foldername_to_iteration(const int iter) {
     iteration = iter;
     // Set folder for out data storage
     switch(os) {
-        case 0: folder = "outdata/" + to_string(iteration) +std::string("/"); break;
-        case 1: folder = "..\\outdata\\" + to_string(iteration) + "\\"; break;
-        default: folder = "outdata/" + to_string(iteration) +std::string("/"); break;
+        case 0: folder = "outdata/" + std::to_string(iteration) +std::string("/"); break;
+        case 1: folder = "..\\outdata\\" + std::to_string(iteration) + "\\"; break;
+        default: folder = "outdata/" + std::to_string(iteration) +std::string("/"); break;
     }
 }
 
@@ -186,16 +186,16 @@ int outdata::mkdir_p(const char *path) {
     return 0;
 }
 
-void outdata::create_folder(string folder_name) {
+void outdata::create_folder(std::string folder_name) {
     if(mkdir_p(folder_name.c_str()) == 0) {
-        cout << "Set folder: " << folder_name << endl;
+        std::cout << "Set folder: " << folder_name << std::endl;
 
     } else {
-        cout << "Failed to set folder: " << folder_name << endl;
+        std::cout << "Failed to set folder: " << folder_name << std::endl;
     }
 }
 
-void outdata::create_set_folder(string folder_name) {
+void outdata::create_set_folder(std::string folder_name) {
     folder = folder_name;
     create_folder(folder);
 }

@@ -4,7 +4,6 @@
 #include "class_model.h"
 #include <fstream>
 
-using namespace std;
 
 void class_model::randomize_lattice() {
     for(int i = 0; i < L; i++) {

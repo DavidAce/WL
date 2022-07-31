@@ -6,59 +6,57 @@
 #define WL_CLASS_WL_STATISTICS_H
 #include "class_WL_worker.h"
 #include <Eigen/Core>
-#include <Eigen/Dense>
 #include <thread>
 static const int debug_compute = 1;
 
-using namespace Eigen;
 class class_stats {
     public:
     class_stats() = default;
-    void    load_thermo_data(class_worker &worker);
-    void    compute(class_worker &worker);
-    ArrayXd T;
+    void           load_thermo_data(class_worker &worker);
+    void           compute(class_worker &worker);
+    Eigen::ArrayXd T;
 
-    ArrayXXd E;
-    ArrayXXd M;
+    Eigen::ArrayXXd E;
+    Eigen::ArrayXXd M;
 
-    ArrayXXd         s;
-    ArrayXXd         c;
-    ArrayXXd         m;
-    ArrayXXd         u;
-    ArrayXXd         f;
-    ArrayXXd         x;
-    ArrayXXd         dos1D;
-   std::vector<ArrayXXd> dos;
-   std::vector<ArrayXXd> D;
-   std::vector<ArrayXXd> F;
-   std::vector<ArrayXXd> P;
+    Eigen::ArrayXXd              s;
+    Eigen::ArrayXXd              c;
+    Eigen::ArrayXXd              m;
+    Eigen::ArrayXXd              u;
+    Eigen::ArrayXXd              f;
+    Eigen::ArrayXXd              x;
+    Eigen::ArrayXXd              dos1D;
+    std::vector<Eigen::ArrayXXd> dos;
+    std::vector<Eigen::ArrayXXd> D;
+    std::vector<Eigen::ArrayXXd> F;
+    std::vector<Eigen::ArrayXXd> P;
 
-    ArrayXd E_avg;
-    ArrayXd M_avg;
+    Eigen::ArrayXd E_avg;
+    Eigen::ArrayXd M_avg;
 
-    ArrayXd  s_avg;
-    ArrayXd  c_avg;
-    ArrayXd  m_avg;
-    ArrayXd  u_avg;
-    ArrayXd  f_avg;
-    ArrayXd  x_avg;
-    ArrayXd  dos1D_avg;
-    ArrayXXd dos_avg;
-    ArrayXXd D_avg;
-    ArrayXXd F_avg;
-    ArrayXXd P_avg;
+    Eigen::ArrayXd  s_avg;
+    Eigen::ArrayXd  c_avg;
+    Eigen::ArrayXd  m_avg;
+    Eigen::ArrayXd  u_avg;
+    Eigen::ArrayXd  f_avg;
+    Eigen::ArrayXd  x_avg;
+    Eigen::ArrayXd  dos1D_avg;
+    Eigen::ArrayXXd dos_avg;
+    Eigen::ArrayXXd D_avg;
+    Eigen::ArrayXXd F_avg;
+    Eigen::ArrayXXd P_avg;
 
-    ArrayXd  s_err;
-    ArrayXd  c_err;
-    ArrayXd  m_err;
-    ArrayXd  u_err;
-    ArrayXd  f_err;
-    ArrayXd  x_err;
-    ArrayXd  dos1D_err;
-    ArrayXXd dos_err;
-    ArrayXXd D_err;
-    ArrayXXd F_err;
-    ArrayXXd P_err;
+    Eigen::ArrayXd  s_err;
+    Eigen::ArrayXd  c_err;
+    Eigen::ArrayXd  m_err;
+    Eigen::ArrayXd  u_err;
+    Eigen::ArrayXd  f_err;
+    Eigen::ArrayXd  x_err;
+    Eigen::ArrayXd  dos1D_err;
+    Eigen::ArrayXXd dos_err;
+    Eigen::ArrayXXd D_err;
+    Eigen::ArrayXXd F_err;
+    Eigen::ArrayXXd P_err;
 };
 
 #endif // WL_CLASS_WL_STATISTICS_H

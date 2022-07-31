@@ -9,7 +9,6 @@
 #include <climits>
 #include <cstdlib>
 #include <Eigen/Core>
-#include <Eigen/Dense>
 #include <fstream>
 #include <iomanip>
 #include <iostream>

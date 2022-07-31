@@ -47,11 +47,11 @@ void do_thermodynamics(class_worker &worker) {
     worker.iteration = worker.world_ID;
     worker.team->debug_print_team_commander<debug_thermo>(" Computing thermodynamic quantities...\n");
     while(worker.iteration < (constants::bootstrap_reps + constants::simulation_reps)) {
-        if(debug_thermo) { cout << "ID " << worker.world_ID << ": Thermo: Loading data..." << endl; }
+        if(debug_thermo) { std::cout << "ID " << worker.world_ID << ": Thermo: Loading data..." << std::endl; }
         in.load_full(worker);
-        if(debug_thermo) { cout << "ID " << worker.world_ID << ": Thermo: Computing avgs..." << endl; }
+        if(debug_thermo) { std::cout << "ID " << worker.world_ID << ": Thermo: Computing avgs..." << std::endl; }
         thermo.compute(worker);
-        if(debug_thermo) { cout << "ID " << worker.world_ID << ": Thermo: Writing Results..." << endl; }
+        if(debug_thermo) { std::cout << "ID " << worker.world_ID << ": Thermo: Writing Results..." << std::endl; }
         out.write_data_thermo(thermo, worker.iteration);
         worker.iteration += worker.world_size;
     }
@@ -61,11 +61,11 @@ void do_statistics(class_worker &worker) {
     // This is a single threaded operation
     if(worker.team->is_commander()) {
         class_stats stats;
-        if(debug_thermo) { cout << "ID " << worker.world_ID << ": Stats: Loading thermodynamic files..." << endl; }
+        if(debug_thermo) { std::cout << "ID " << worker.world_ID << ": Stats: Loading thermodynamic files..." << std::endl; }
         stats.load_thermo_data(worker);
-        if(debug_thermo) { cout << "ID " << worker.world_ID << ": Stats: Computing statistics..." << endl; }
+        if(debug_thermo) { std::cout << "ID " << worker.world_ID << ": Stats: Computing statistics..." << std::endl; }
         stats.compute(worker);
-        if(debug_thermo) { cout << "ID " << worker.world_ID << ": Stats: Writing final results..." << endl; }
+        if(debug_thermo) { std::cout << "ID " << worker.world_ID << ": Stats: Writing final results..." << std::endl; }
         outdata out;
         out.write_final_data(worker, stats);
     }

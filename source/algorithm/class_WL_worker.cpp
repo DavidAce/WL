@@ -17,8 +17,6 @@
 #define profiling_acceptance_criterion 0
 #define debug_sweep 0
 
-using namespace std;
-using namespace Eigen;
 // int constants::num_teams;
 int counter::MCS;
 int counter::walks;
@@ -63,7 +61,7 @@ class_worker::class_worker(int &id, int &size)
     state_is_valid = false;
     trial_is_valid = false;
     team           = std::make_shared<class_WL_teams>(*this, constants::num_teams);
-    cout << "ID: " << world_ID << " Started OK" << endl;
+    std::cout << "ID: " << world_ID << " Started OK" << std::endl;
     MPI_Barrier(MPI_COMM_WORLD);
 }
 
@@ -104,7 +102,7 @@ void class_worker::find_initial_limits() {
             M_max_global = *M_set.rbegin();
             break;
         default:
-            cout << "Error: Wrong dimension  constants::rw_dims" << endl;
+            std::cout << "Error: Wrong dimension  constants::rw_dims" << std::endl;
             MPI_Finalize();
             exit(5);
     }
@@ -149,18 +147,18 @@ void class_worker::set_initial_local_bins() {
     switch(constants::rw_dims) {
         case 1:
             E_bins << E_set;
-            M_bins = ArrayXd::Zero(1);
-            histogram.conservativeResizeLike(ArrayXXi::Zero(E_bins.size(), M_bins.size()));
-            dos.conservativeResizeLike(ArrayXXd::Zero(E_bins.size(), M_bins.size()));
+            M_bins = Eigen::ArrayXd::Zero(1);
+            histogram.conservativeResizeLike(Eigen::ArrayXXi::Zero(E_bins.size(), M_bins.size()));
+            dos.conservativeResizeLike(Eigen::ArrayXXd::Zero(E_bins.size(), M_bins.size()));
             break;
         case 2:
             E_bins << E_set;
             M_bins << M_set;
-            histogram.conservativeResizeLike(ArrayXXi::Zero(E_bins.size(), M_bins.size()));
-            dos.conservativeResizeLike(ArrayXXd::Zero(E_bins.size(), M_bins.size()));
+            histogram.conservativeResizeLike(Eigen::ArrayXXi::Zero(E_bins.size(), M_bins.size()));
+            dos.conservativeResizeLike(Eigen::ArrayXXd::Zero(E_bins.size(), M_bins.size()));
             break;
         default:
-            cout << "Error in class_worker::set_initial_local_bins. Wrong dimension for WL-random walk (rw_dims = ?)" << endl;
+            std::cout << "Error in class_worker::set_initial_local_bins. Wrong dimension for WL-random walk (rw_dims = ?)" << std::endl;
             MPI_Finalize();
             exit(1);
     }
@@ -194,9 +192,9 @@ void class_worker::sweep() {
         }
     }
     if(flag_one_over_t) {
-        lnf = 1.0 / max(1, counter::MCS);
+        lnf = 1.0 / std::max(1, counter::MCS);
     } else {
-        flag_one_over_t = lnf < 1.0 / max(1, counter::MCS) ? 1 : 0;
+        flag_one_over_t = lnf < 1.0 / std::max(1, counter::MCS) ? 1 : 0;
     }
     t_sweep.toc();
 }
@@ -217,8 +215,8 @@ void class_worker::acceptance_criterion() {
 
     state_is_valid = E_idx != -1 && M_idx != -1;
     trial_is_valid = E_idx_trial != -1 && M_idx_trial != -1;
-    if(!need_to_resize_global && state_is_valid && E_idx >= E_bins.size()) { cout << "E_idx out of bounds" << endl; }
-    if(!need_to_resize_global && state_is_valid && E != E_bins(E_idx)) { cout << "Big error E: " << E << " E: " << E_bins(E_idx) << endl; }
+    if(!need_to_resize_global && state_is_valid && E_idx >= E_bins.size()) { std::cout << "E_idx out of bounds" << std::endl; }
+    if(!need_to_resize_global && state_is_valid && E != E_bins(E_idx)) { std::cout << "Big error E: " << E << " E: " << E_bins(E_idx) << std::endl; }
 
     bool normal_step = need_to_resize_global == 0 && state_is_valid; // Most often
     if(normal_step) {
@@ -261,7 +259,7 @@ void class_worker::acceptance_criterion() {
         t_acceptance_criterion.toc();
         return;
     }
-    cout << "Undefined behavior! " << endl;
+    std::cout << "Undefined behavior! " << std::endl;
     exit(1);
     t_acceptance_criterion.toc();
 }
@@ -378,7 +376,7 @@ void class_worker::set_rate_increment() {
         if((dos.col(i) != 0).any()) { dos_width += 1; }
     }
     if(counter::merges == constants::max_merges) {
-        rate_increment = max(1, (int) std::sqrt(fmax(dos_width, dos_height)));
+        rate_increment = std::max(1, static_cast<int>(std::sqrt(fmax(dos_width, dos_height))));
     } else {
         rate_increment = 1;
     }
@@ -403,10 +401,10 @@ void class_worker::check_saturation() {
             slope = 0;
             return;
         }
-       std::vector<double> sat_double(saturation.begin() + idx_from, saturation.end()); // Cast to double
-        ArrayXd        Y = Map<ArrayXd>(sat_double.data(), sat_double.size());      // Cast to eigen array
-        ArrayXd        X = ArrayXd::LinSpaced(Y.size(), idx_from + 1, idx_to);
-        slope            = ((X - X.mean()).cwiseProduct(Y - Y.mean())).sum() / fmax(1, (X - X.mean()).cwiseAbs2().sum());
+        std::vector<double> sat_double(saturation.begin() + idx_from, saturation.end());                             // Cast to double
+        Eigen::ArrayXd      Y = Eigen::Map<Eigen::ArrayXd>(sat_double.data(), static_cast<long>(sat_double.size())); // Cast to eigen array
+        Eigen::ArrayXd      X = Eigen::ArrayXd::LinSpaced(Y.size(), idx_from + 1, idx_to);
+        slope                 = ((X - X.mean()).cwiseProduct(Y - Y.mean())).sum() / fmax(1, (X - X.mean()).cwiseAbs2().sum());
         if(slope < 0) { next_WL_iteration(); }
         if(lnf < 1.0 / counter::MCS) {
             lnf             = 1.0 / counter::MCS;
@@ -419,26 +417,26 @@ void class_worker::check_saturation() {
 
 // Function for printing the lattice. Very easy if L is an Eigen matrix.
 std::ostream &operator<<(std::ostream &os, const class_worker &worker) {
-    os << setprecision(2);
+    os << std::setprecision(2);
     os << "ID: " << worker.world_ID << " Current State: "
-       << " Need to resize: " << worker.need_to_resize_global << endl
+       << " Need to resize: " << worker.need_to_resize_global << std::endl
        << "     E = " << worker.E << " (" << worker.E_idx << ")"
-       << "     M = " << worker.M << " (" << worker.M_idx << ")" << endl
+       << "     M = " << worker.M << " (" << worker.M_idx << ")" << std::endl
        << "     E_trial = " << worker.E_trial << " (" << worker.E_idx_trial << ")"
-       << "     M_trial = " << worker.M_trial << " (" << worker.M_idx_trial << ")" << endl
-       << "     E_size  = " << worker.E_bins.size() << "     M_size  = " << worker.M_bins.size() << endl
+       << "     M_trial = " << worker.M_trial << " (" << worker.M_idx_trial << ")" << std::endl
+       << "     E_size  = " << worker.E_bins.size() << "     M_size  = " << worker.M_bins.size() << std::endl
        << "     Local E "
        << "[" << worker.E_min_local << " " << worker.E_max_local << "]"
        << " M "
-       << "[" << worker.M_min_local << " " << worker.M_max_local << "]" << endl
+       << "[" << worker.M_min_local << " " << worker.M_max_local << "]" << std::endl
        << "     Global E "
        << "[" << worker.E_min_global << " " << worker.E_max_global << "]"
        << " M "
        << "[" << worker.M_min_global << " " << worker.M_max_global << "]" << std::endl
        << "     E_bins "
-       << "[" << worker.E_bins.size() << "] " << worker.E_bins.transpose() << endl
+       << "[" << worker.E_bins.size() << "] " << worker.E_bins.transpose() << std::endl
        << "     M_bins "
-       << "[" << worker.M_bins.size() << "] " << worker.M_bins.transpose() << endl
+       << "[" << worker.M_bins.size() << "] " << worker.M_bins.transpose() << std::endl
        << "     E_set  "
        << "[" << worker.E_set.size() << "] ";
     for(auto it = worker.E_set.begin(); it != worker.E_set.end(); it++) {
@@ -447,7 +445,7 @@ std::ostream &operator<<(std::ostream &os, const class_worker &worker) {
         if(*it == worker.E) { os << "]"; }
         os << " ";
     }
-    os << endl
+    os << std::endl
        << "     M_set : "
        << "[" << worker.M_set.size() << "] ";
     for(auto it = worker.M_set.begin(); it != worker.M_set.end(); it++) {
@@ -456,8 +454,8 @@ std::ostream &operator<<(std::ostream &os, const class_worker &worker) {
         if(*it == worker.M) { os << "]"; }
         os << " ";
     }
-    os << endl;
-    // os << setprecision(0) << worker.dos << endl;
+    os << std::endl;
+    // os << std::setprecision(0) << worker.dos << std::endl;
 
     return os;
 }

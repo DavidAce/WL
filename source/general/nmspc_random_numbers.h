@@ -8,7 +8,6 @@
 #include <iostream>
 #include <random>
 
-using namespace std;
 namespace rn {
     // typedef std::mt19937 RNGType;
     // RNGType rng;

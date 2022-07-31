@@ -65,7 +65,7 @@ int main(int argc, char *argv[]) {
     int world_ID, world_size;
     MPI_Comm_rank(MPI_COMM_WORLD, &world_ID);   // Establish thread number of this worker
     MPI_Comm_size(MPI_COMM_WORLD, &world_size); // Get total number of threads
-    constants::num_teams = min(world_size, constants::num_teams);
+    constants::num_teams = std::min(world_size, constants::num_teams);
     class_worker worker(world_ID, world_size);
 
     wl::setLogger(fmt::format("WL-{:2}", world_ID), constants::loglevel, constants::logstamp);
@@ -73,7 +73,7 @@ int main(int argc, char *argv[]) {
     do_simulations(worker);
     do_bootstrap(worker);
     do_sampling(worker);
-    if(world_ID == 0) { cout << "Finished successfully" << endl; }
+    if(world_ID == 0) { std::cout << "Finished successfully" << std::endl; }
 
     MPI_Finalize();
     return 0;

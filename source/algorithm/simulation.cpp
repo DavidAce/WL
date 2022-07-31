@@ -19,8 +19,6 @@
 #define debug_divide_range 0
 #define debug_status 0
 
-using namespace std;
-
 void do_simulations(class_worker &worker) {
     // Begin by finding the global energy range in which to work.
     for(int i = 0; i < constants::simulation_reps; i++) {
@@ -33,7 +31,7 @@ void do_simulations(class_worker &worker) {
 void do_sampling(class_worker &worker) {
     if(constants::collect_samples) {
         outdata out;
-        out.create_set_folder("outdata/samples/" + to_string(worker.world_ID) + "/");
+        out.create_set_folder("outdata/samples/" + std::to_string(worker.world_ID) + "/");
         int samples = 0;
         worker.debug_print_all<1>("Starting sampling.\n");
         while(samples < constants::samples_to_collect) {
@@ -138,7 +136,7 @@ void divide_range(class_worker &worker, class_backup &backup) {
         MPI_Allreduce(&counter::walks, &min_walks, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
         MPI_Allreduce(&worker.state_in_window, &all_in_window, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
         if(all_in_window && min_walks >= counter::merges) {
-            if(worker.world_ID == 0) { cout << "Dividing according to dos" << endl; }
+            if(worker.world_ID == 0) { std::cout << "Dividing according to dos" << std::endl; }
 
             backup.restore_state(worker);
             parallel::merge(worker, true, false);
@@ -186,20 +184,25 @@ void print_status(class_worker &worker, bool force) {
     worker.t_print.toc();
     for(int i = 0; i < worker.world_size; i++) {
         if(worker.world_ID == i) {
-            if(worker.world_ID == 0) { cout << endl; }
-            cout << fixed << showpoint;
-            cout << "ID: " << left << setw(3) << i << " Walk: " << left << setw(3) << counter::walks << " lnf: " << left << setw(16) << fixed
-                 << setprecision(12) << worker.lnf << " Bins: [" << left << setw(4) << worker.dos.rows() << " " << worker.dos.cols() << "]";
+            if(worker.world_ID == 0) { std::cout << std::endl; }
+            std::cout << std::fixed << std::showpoint;
+            std::cout << "ID: " << std::left << std::setw(3) << i << " Walk: " << std::left << std::setw(3) << counter::walks << " lnf: " << std::left
+                      << std::setw(16) << std::fixed << std::setprecision(12) << worker.lnf << " Bins: [" << std::left << std::setw(4) << worker.dos.rows()
+                      << " " << worker.dos.cols() << "]";
             if(debug_status) {
-                cout << " E: " << left << setw(9) << setprecision(2) << worker.E << " M: " << left << setw(9) << setprecision(2) << worker.M;
-                cout << " E_tr: " << left << setw(9) << setprecision(2) << worker.E_trial << " M_tr: " << left << setw(9) << setprecision(2) << worker.M_trial;
+                std::cout << " E: " << std::left << std::setw(9) << std::setprecision(2) << worker.E << " M: " << std::left << std::setw(9)
+                          << std::setprecision(2) << worker.M;
+                std::cout << " E_tr: " << std::left << std::setw(9) << std::setprecision(2) << worker.E_trial << " M_tr: " << std::left << std::setw(9)
+                          << std::setprecision(2) << worker.M_trial;
             }
-            cout << " dE: " << left << setw(7) << setprecision(2) << worker.E_max_local - worker.E_min_local << " : [" << left << setw(7) << setprecision(1)
-                 << worker.E_bins(0) << " " << left << setw(7) << setprecision(1) << worker.E_bins(worker.E_bins.size() - 1) << "]"
-                 << " Sw: " << left << setw(7) << counter::swap_accepts << " Team: " << left << setw(2) << worker.team->get_team_id() << " I: " << left
-                 << setw(3) << worker.rate_increment << " iw: " << worker.state_in_window << " NR: " << worker.need_to_resize_global
-                 << " 1/t: " << worker.flag_one_over_t << " Fin: " << worker.finish_line << " slope " << left << setw(10) << worker.slope;
-            cout << " MCS: " << left << setw(10) << counter::MCS;
+            std::cout << " dE: " << std::left << std::setw(7) << std::setprecision(2) << worker.E_max_local - worker.E_min_local << " : [" << std::left
+                      << std::setw(7) << std::setprecision(1) << worker.E_bins(0) << " " << std::left << std::setw(7) << std::setprecision(1)
+                      << worker.E_bins(worker.E_bins.size() - 1) << "]"
+                      << " Sw: " << std::left << std::setw(7) << counter::swap_accepts << " Team: " << std::left << std::setw(2) << worker.team->get_team_id()
+                      << " I: " << std::left << std::setw(3) << worker.rate_increment << " iw: " << worker.state_in_window
+                      << " NR: " << worker.need_to_resize_global << " 1/t: " << worker.flag_one_over_t << " Fin: " << worker.finish_line << " slope "
+                      << std::left << std::setw(10) << worker.slope;
+            std::cout << " MCS: " << std::left << std::setw(10) << counter::MCS;
             worker.t_print.print_delta();
             worker.t_sweep.print_total_reset();
             worker.t_acceptance_criterion.print_total_reset();
@@ -208,31 +211,29 @@ void print_status(class_worker &worker, bool force) {
             worker.t_setup_team.print_total_reset();
             worker.t_sync_team.print_total_reset();
             worker.t_divide_range.print_total_reset<double, std::milli>();
-            std::cout << "ms";
             worker.t_check_convergence.print_total_reset<double, std::milli>();
-            std::cout << "ms";
-            cout << endl;
+            std::cout << "ms\n";
         }
-        cout.flush();
+        std::cout << std::flush;
         std::this_thread::sleep_for(std::chrono::microseconds(10));
         MPI_Barrier(MPI_COMM_WORLD);
     }
-    cout.flush();
+    std::cout << std::flush;
     std::this_thread::sleep_for(std::chrono::microseconds(10));
     MPI_Barrier(MPI_COMM_WORLD);
     if(worker.world_ID == 0) {
-        cout << "-----"
-             << " MaxWalks: " << fixed << setprecision(0) << (int) ceil(log(constants::minimum_lnf) / log(constants::reduce_factor_lnf)) << " Merges: " << fixed
-             << setprecision(0) << counter::merges << "(" << constants::max_merges << ")"
-             << " Iteration: " << fixed << setprecision(0) << worker.iteration + 1 << "(" << constants::simulation_reps << ")";
+        std::cout << "-----"
+                  << " MaxWalks: " << std::fixed << std::setprecision(0) << (int) ceil(log(constants::minimum_lnf) / log(constants::reduce_factor_lnf))
+                  << " Merges: " << std::fixed << std::setprecision(0) << counter::merges << "(" << constants::max_merges << ")"
+                  << " Iteration: " << std::fixed << std::setprecision(0) << worker.iteration + 1 << "(" << constants::simulation_reps << ")";
         worker.t_total.print_total<double>();
-        cout << " s";
+        std::cout << " s";
         if(debug_status) {
-            cout << " Edge dos: " << fixed << setprecision(3) << worker.dos.topLeftCorner(1, 1) << " " << worker.dos.topRightCorner(1, 1) << " ";
-            //                                << worker.dos << endl << endl
-            //                                << worker.histogram << endl;
+            std::cout << " Edge dos: " << std::fixed << std::setprecision(3) << worker.dos.topLeftCorner(1, 1) << " " << worker.dos.topRightCorner(1, 1) << " ";
+            //                                << worker.dos << std::endl << std::endl
+            //                                << worker.histogram << std::endl;
         }
-        cout << "  -----" << endl;
+        std::cout << "  -----" << std::endl;
     }
     //        timer::print_tic = std::chrono::high_resolution_clock::now();
     worker.t_total.tic();

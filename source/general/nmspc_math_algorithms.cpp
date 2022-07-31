@@ -7,12 +7,12 @@
 
 namespace math {
 
-    ArrayXXd mean_depthwise(std::vector<ArrayXXd> &array3D) {
-        auto     rows = (int) array3D[0].rows();
-        auto     cols = (int) array3D[0].cols();
-        auto     dept = (int) array3D.size();
-        ArrayXXd result(rows, cols);
-        ArrayXd  depth_array(dept);
+    Eigen::ArrayXXd mean_depthwise(std::vector<Eigen::ArrayXXd> &array3D) {
+        auto            rows = (int) array3D[0].rows();
+        auto            cols = (int) array3D[0].cols();
+        auto            dept = (int) array3D.size();
+        Eigen::ArrayXXd result(rows, cols);
+        Eigen::ArrayXd  depth_array(dept);
         for(auto j = 0; j < cols; j++) {
             for(auto i = 0; i < rows; i++) {
                 for(auto k = 0; k < dept; k++) { depth_array(k) = array3D[k](i, j); }
@@ -23,12 +23,12 @@ namespace math {
         return result;
     }
 
-    ArrayXXd err_depthwise(std::vector<ArrayXXd> &array3D, ArrayXXd &avg) {
-        auto     rows = array3D[0].rows();
-        auto     cols = array3D[0].cols();
-        auto     dept = array3D.size();
-        ArrayXXd result(rows, cols);
-        ArrayXd  depth_array(dept);
+    Eigen::ArrayXXd err_depthwise(std::vector<Eigen::ArrayXXd> &array3D, Eigen::ArrayXXd &avg) {
+        auto            rows = array3D[0].rows();
+        auto            cols = array3D[0].cols();
+        auto            dept = array3D.size();
+        Eigen::ArrayXXd result(rows, cols);
+        Eigen::ArrayXd  depth_array(dept);
         for(auto j = 0; j < cols; j++) {
             for(auto i = 0; i < rows; i++) {
                 for(unsigned long int k = 0; k < dept; k++) { depth_array(k) = array3D[k](i, j); }
@@ -50,7 +50,7 @@ namespace math {
         return ret;
     }
 
-    double volume(const ArrayXXd &dos, const ArrayXd &E, const ArrayXd &M) {
+    double volume(const Eigen::ArrayXXd &dos, const Eigen::ArrayXd &E, const Eigen::ArrayXd &M) {
         double vol = 0;
         switch(constants::rw_dims) {
             case 1:
@@ -74,7 +74,7 @@ namespace math {
         return vol;
     }
 
-    int volume_idx(const ArrayXXd &dos, const ArrayXd &E, const ArrayXd &M, const double &vol_limit) {
+    int volume_idx(const Eigen::ArrayXXd &dos, const Eigen::ArrayXd &E, const Eigen::ArrayXd &M, const double &vol_limit) {
         double vol = 0;
         switch(constants::rw_dims) {
             case 1:
@@ -100,7 +100,7 @@ namespace math {
         return (int) E.size() - 1;
     }
 
-    double area(const ArrayXXd &dos, const ArrayXd &E, const ArrayXd &M) {
+    double area(const Eigen::ArrayXXd &dos, const Eigen::ArrayXd &E, const Eigen::ArrayXd &M) {
         double area = 0;
         switch(constants::rw_dims) {
             case 1:
@@ -124,7 +124,7 @@ namespace math {
         return area;
     }
 
-    int area_idx(const ArrayXXd &dos, const ArrayXd &E, const ArrayXd &M, const double &area_limit) {
+    int area_idx(const Eigen::ArrayXXd &dos, const Eigen::ArrayXd &E, const Eigen::ArrayXd &M, const double &area_limit) {
         double area = 0;
         switch(constants::rw_dims) {
             case 1:
@@ -150,24 +150,24 @@ namespace math {
         return (int) E.size() - 1;
     }
 
-    bool on_the_edge_up(const ArrayXXd &dos, const ArrayXd &E, const ArrayXd &M, const int &i, const int &j) {
+    bool on_the_edge_up(const Eigen::ArrayXXd &dos, const Eigen::ArrayXd &E, const Eigen::ArrayXd &M, const int &i, const int &j) {
         return i == 0 || dos(std::max(i - 1, 0), j) == 0 || std::isnan(dos(std::max(i - 1, 0), j));
     }
 
-    bool on_the_edge_dn(const ArrayXXd &dos, const ArrayXd &E, const ArrayXd &M, const int &i, const int &j) {
+    bool on_the_edge_dn(const Eigen::ArrayXXd &dos, const Eigen::ArrayXd &E, const Eigen::ArrayXd &M, const int &i, const int &j) {
         return i == E.size() - 1 || dos(std::min(i + 1, (int) E.size() - 1), j) == 0 || std::isnan(dos(std::min(i + 1, (int) E.size() - 1), j));
     }
 
-    bool on_the_edge_lf(const ArrayXXd &dos, const ArrayXd &E, const ArrayXd &M, const int &i, const int &j) {
+    bool on_the_edge_lf(const Eigen::ArrayXXd &dos, const Eigen::ArrayXd &E, const Eigen::ArrayXd &M, const int &i, const int &j) {
         return j == 0 || dos(i, std::max(j - 1, 0)) == 0 || std::isnan(dos(i, std::max(j - 1, 0)));
     }
 
-    bool on_the_edge_rt(const ArrayXXd &dos, const ArrayXd &E, const ArrayXd &M, const int &i, const int &j) {
+    bool on_the_edge_rt(const Eigen::ArrayXXd &dos, const Eigen::ArrayXd &E, const Eigen::ArrayXd &M, const int &i, const int &j) {
         return j == M.size() - 1 || dos(i, std::min(j + 1, (int) M.size() - 1)) == 0 || std::isnan(dos(i, std::min(j + 1, (int) M.size() - 1)));
     }
 
-    Vector3d gradient_vector(const ArrayXXd &dos, const ArrayXd &E, const ArrayXd &M, const int &i, const int &j) {
-        Vector3d v_up, v_rt, v_dn, v_lf; // Vectors connecting adjacent 3 orthogonal points on DOS
+    Eigen::Vector3d gradient_vector(const Eigen::ArrayXXd &dos, const Eigen::ArrayXd &E, const Eigen::ArrayXd &M, const int &i, const int &j) {
+        Eigen::Vector3d v_up, v_rt, v_dn, v_lf; // Vectors connecting adjacent 3 orthogonal points on DOS
         switch(constants::rw_dims) {
             case 1: v_dn << E(i + 1) - E(i), 0, dos(i + 1, j) - dos(i, j); return v_dn.normalized();
             case 2:
@@ -197,10 +197,11 @@ namespace math {
         }
     }
 
-    int find_matching_slope(const ArrayXXd &dos1, const ArrayXXd &dos2, const ArrayXd &E1, const ArrayXd &E2, const ArrayXd &M1, const ArrayXd &M2) {
-        Vector3d u1, u2; // Vectors connecting adjacent 3 orthogonal points on DOS
-        //        ArrayXd sum(E1.size());
-        ArrayXXd sum(E1.size(), M1.size());
+    int find_matching_slope(const Eigen::ArrayXXd &dos1, const Eigen::ArrayXXd &dos2, const Eigen::ArrayXd &E1, const Eigen::ArrayXd &E2,
+                            const Eigen::ArrayXd &M1, const Eigen::ArrayXd &M2) {
+        Eigen::Vector3d u1, u2; // Vectors connecting adjacent 3 orthogonal points on DOS
+        //        Eigen::ArrayXd sum(E1.size());
+        Eigen::ArrayXXd sum(E1.size(), M1.size());
         sum.fill(0);
         int E_merge_idx; // Index of merging point
 

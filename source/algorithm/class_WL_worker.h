@@ -12,7 +12,6 @@
 #include "params/nmspc_WL_constants.h"
 #include <chrono>
 #include <Eigen/Core>
-#include <Eigen/Dense>
 #include <exception>
 #include <fstream>
 #include <iterator>
@@ -21,8 +20,6 @@
 #include <random>
 #include <set>
 #include <thread>
-
-using namespace Eigen;
 
 struct state {
     int E_idx;
@@ -52,9 +49,9 @@ std::ostream &operator<<(std::ostream &out, const std::set<T> &v) {
 }
 
 template<typename Derived, typename T>
-typename Derived::PlainObject operator<<(ArrayBase<Derived> &in, const std::set<T> &v) {
+typename Derived::PlainObject operator<<(Eigen::ArrayBase<Derived> &in, const std::set<T> &v) {
     if(!v.empty()) {
-        Array<typename Derived::Scalar, Dynamic, 1> temp;
+        Eigen::Array<typename Derived::Scalar, Eigen::Dynamic, 1> temp;
         temp.resize(v.size());
         int k = 0;
         for(auto it = v.begin(); it != v.end(); it++) {
@@ -77,10 +74,10 @@ class class_worker {
     int    rate_increment; // Increment rate should be proportional to number of bins
 
     // WL DOS and Histograms
-    ArrayXXd      dos;
-    ArrayXXi      histogram;
-   std::vector<state> random_walk;
-    ArrayXd       E_bins, M_bins;
+    Eigen::ArrayXXd    dos;
+    Eigen::ArrayXXi    histogram;
+    std::vector<state> random_walk;
+    Eigen::ArrayXd     E_bins, M_bins;
 
     // MPI Communicator
     int world_ID;   // Thread number
@@ -107,15 +104,15 @@ class class_worker {
     bool state_in_window, trial_in_window, state_is_valid, trial_is_valid;
     int  need_to_resize_global;
     // WL convergence parameters
-    int         flag_one_over_t; // turns to 1 when 1/t algorithm starts
-    int         finish_line;     // turns to 1 when converged
-   std::vector<int> saturation;
-    double      slope;
+    int              flag_one_over_t; // turns to 1 when 1/t algorithm starts
+    int              finish_line;     // turns to 1 when converged
+    std::vector<int> saturation;
+    double           slope;
 
     // Holders for total, merged data
-    ArrayXXd dos_total;
-    ArrayXd  E_bins_total, M_bins_total;
-    int      iteration;
+    Eigen::ArrayXXd dos_total;
+    Eigen::ArrayXd  E_bins_total, M_bins_total;
+    int             iteration;
 
     // Used for profiling functions in worker
     class_profiling t_total, t_print, t_sweep, t_swap, t_merge, t_setup_team, t_sync_team, t_divide_range, t_check_convergence, t_acceptance_criterion;
@@ -153,8 +150,7 @@ class class_worker {
         if constexpr(on == 1) {
             MPI_Barrier(MPI_COMM_WORLD);
             if(world_ID == 0) {
-                cout << input;
-                cout.flush();
+                std::cout << input << std::flush;
                 std::this_thread::sleep_for(std::chrono::microseconds(10));
             }
             MPI_Barrier(MPI_COMM_WORLD);
@@ -166,8 +162,7 @@ class class_worker {
             MPI_Barrier(MPI_COMM_WORLD);
             for(int i = 0; i < world_size; i++) {
                 if(i == world_ID) {
-                    cout << "ID " << world_ID << ": " << input;
-                    cout.flush();
+                    std::cout << "ID " << world_ID << ": " << input << std::flush;
                     std::this_thread::sleep_for(std::chrono::microseconds(10));
                 }
                 MPI_Barrier(MPI_COMM_WORLD);
@@ -199,7 +194,7 @@ class class_backup {
             MCS            = counter::MCS;
             walks          = counter::walks;
             backed_up      = true;
-            cout << "ID: " << worker.world_ID << " Is backed up" << endl;
+            std::cout << "ID: " << worker.world_ID << " Is backed up" << std::endl;
         }
     }
 
@@ -218,12 +213,12 @@ class class_backup {
             worker.M_set          = M_set;
             counter::MCS          = MCS;
             counter::walks        = walks;
-            worker.histogram      = ArrayXXi::Zero(dos.rows(), dos.cols());
+            worker.histogram      = Eigen::ArrayXXi::Zero(dos.rows(), dos.cols());
             worker.saturation.clear();
             worker.random_walk.clear();
             worker.state_is_valid = false;
             backed_up             = false;
-            cout << "ID: " << worker.world_ID << " Is now restored" << endl;
+            std::cout << "ID: " << worker.world_ID << " Is now restored" << std::endl;
         }
     }
 
@@ -232,8 +227,8 @@ class class_backup {
     int    rate_increment; // Increment probability should be proportional to number of bins
 
     // WL DOS and Histograms
-    ArrayXXd dos;
-    ArrayXd  E_bins, M_bins;
+    Eigen::ArrayXXd dos;
+    Eigen::ArrayXd  E_bins, M_bins;
 
     // Lattice
     //    class_model model;

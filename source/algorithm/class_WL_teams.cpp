@@ -26,13 +26,13 @@ void class_WL_teams::sync_teams() {
     int size = (int) worker.random_walk.size();
     //    worker.debug_print_all<1>("size: " + to_string(size)+ "\n");
     //    debug_print_team_commander("\n \n");
-    ArrayXi sizes(team_size);
-    ArrayXi displ(team_size);
+    Eigen::ArrayXi sizes(team_size);
+    Eigen::ArrayXi displ(team_size);
     MPI_Allgather(&size, 1, MPI_INT, sizes.data(), 1, MPI_INT, MPI_COMM_TEAM);
     displ(0) = 0;
     for(int i = 1; i < team_size; i++) { displ(i) = displ(i - 1) + sizes(i - 1); }
 
-   std::vector<state> random_walk_recv((unsigned long) (sizes.sum()));
+    std::vector<state> random_walk_recv((unsigned long) (sizes.sum()));
     MPI_Allgatherv(worker.random_walk.data(), size, MPI_2INT, random_walk_recv.data(), sizes.data(), displ.data(), MPI_2INT, MPI_COMM_TEAM);
 
     for(auto &rwri : random_walk_recv) {
@@ -44,13 +44,13 @@ void class_WL_teams::sync_teams() {
 
 void class_WL_teams::setup_teams() {
     // Get a list of workers that have finished
-    ArrayXi workers_finished(worker.world_size);
+    Eigen::ArrayXi workers_finished(worker.world_size);
     MPI_Allgather(&worker.finish_line, 1, MPI_INT, workers_finished.data(), 1, MPI_INT, MPI_COMM_WORLD);
     int team_id_old = team_id;
     int team_id_new = (int) ((double) num_teams / worker.world_size * worker.world_ID);
 
     // First get a list of forbidden teams
-    ArrayXi team_forbidden = ArrayXi::Zero(num_teams);
+    Eigen::ArrayXi team_forbidden = Eigen::ArrayXi::Zero(num_teams);
     for(int w = 0; w < worker.world_size; w++) {
         if(w == worker.world_ID) {
             // If you are finished, mark your team as a forbidden team.
@@ -60,8 +60,8 @@ void class_WL_teams::setup_teams() {
         MPI_Bcast(team_forbidden.data(), num_teams, MPI_INT, w, MPI_COMM_WORLD);
     }
 
-    auto  max_filling_per_slot = std::ceil(static_cast<double>(worker.world_size) / (1 - team_forbidden).sum());
-    ArrayXi team_filling         = ArrayXi::Zero(num_teams);
+    auto           max_filling_per_slot = std::ceil(static_cast<double>(worker.world_size) / (1 - team_forbidden).sum());
+    Eigen::ArrayXi team_filling         = Eigen::ArrayXi::Zero(num_teams);
     for(int w = 0; w < worker.world_size; w++) {
         if(w == worker.world_ID) {
             // If team_id is assigned to a team that's already finished, find another team that
@@ -80,7 +80,7 @@ void class_WL_teams::setup_teams() {
 
     //    if (debug_setup_teams) { debug_print(worker, " Team assignment successful. "); }
     assert(team_filling.sum() == worker.world_size);
-    ArrayXi old_team_config(worker.world_size), new_team_config(worker.world_size);
+    Eigen::ArrayXi old_team_config(worker.world_size), new_team_config(worker.world_size);
     MPI_Allgather(&team_id_old, 1, MPI_INT, old_team_config.data(), 1, MPI_INT, MPI_COMM_WORLD);
     MPI_Allgather(&team_id_new, 1, MPI_INT, new_team_config.data(), 1, MPI_INT, MPI_COMM_WORLD);
     // If there has been no change since last time, simply return;
@@ -93,8 +93,8 @@ void class_WL_teams::setup_teams() {
     // Create Team communicators
     team_id = team_id_new;
     setup_comms();
-    //        if(worker.world_ID == 0) {cout << "Finished workers: " << workers_finished.transpose() << endl;}
-    //        if(worker.world_ID == 0) {cout << "Teams (" << new_team_size << ") : " << team_filling.transpose() << endl<<endl;}
+    //        if(worker.world_ID == 0) {std::cout << "Finished workers: " << workers_finished.transpose() << std::endl;}
+    //        if(worker.world_ID == 0) {std::cout << "Teams (" << new_team_size << ") : " << team_filling.transpose() << std::endl<<std::endl;}
     // Now every available guy knows who to help (rank 0 in MPI_COMM_TEAM) and the helpees know who to send their info to (Bcast).
     // Share details with the new team to begin.
     mpi::bcast_dynamic(worker.dos, MPI_DOUBLE, 0, MPI_COMM_TEAM);
@@ -105,7 +105,7 @@ void class_WL_teams::setup_teams() {
     MPI_Bcast(&counter::MCS, 1, MPI_INT, 0, MPI_COMM_TEAM);
     MPI_Bcast(&counter::walks, 1, MPI_INT, 0, MPI_COMM_TEAM);
 
-    ArrayXi saturation_map = Map<ArrayXi>(worker.saturation.data(), (int) worker.saturation.size());
+    Eigen::ArrayXi saturation_map = Eigen::Map<Eigen::ArrayXi>(worker.saturation.data(), (int) worker.saturation.size());
     mpi::bcast_dynamic(saturation_map, MPI_INT, 0, MPI_COMM_TEAM);
     if(!team_leader) {
         worker.E_min_local = worker.E_bins.minCoeff();
@@ -117,7 +117,7 @@ void class_WL_teams::setup_teams() {
     worker.saturation.clear();
     worker.random_walk.clear();
     worker.state_is_valid  = false;
-    worker.flag_one_over_t = worker.lnf < 1.0 / max(1, counter::MCS) ? 1 : 0;
+    worker.flag_one_over_t = worker.lnf < 1.0 / std::max(1, counter::MCS) ? 1 : 0;
     worker.t_setup_team.toc();
     //    if (debug_setup_teams) { debug_print(worker, "Success\n"); }
 }

@@ -14,7 +14,6 @@
 #define debug_take_help 0
 #define debug_setup_help 0
 #define debug_resize_local_bins 0
-using namespace std;
 
 namespace parallel {
     void swap2(class_worker &worker) {
@@ -64,7 +63,9 @@ namespace parallel {
         assert(swap_partner < worker.world_size and swap_partner >= 0 and "Neighbor swap_partner out of range");
         if(debug_swap) {
             for(int w = 0; w < worker.world_size; w++) {
-                if(w == worker.world_ID) { cout << "ID: " << w << " Starting Swap. Myturn = " << myTurn << " swap_partner: " << swap_partner << endl; }
+                if(w == worker.world_ID) {
+                    std::cout << "ID: " << w << " Starting Swap. Myturn = " << myTurn << " swap_partner: " << swap_partner << std::endl;
+                }
                 MPI_Barrier(MPI_COMM_WORLD);
             }
         }
@@ -133,15 +134,15 @@ namespace parallel {
 
     void merge(class_worker &worker, bool broadcast, bool setNaN) {
         worker.debug_print<debug_merge>("Merging.\n");
-        ArrayXXd dos_total;
-        ArrayXd  E_total;
-        ArrayXd  M_total;
+        Eigen::ArrayXXd dos_total;
+        Eigen::ArrayXd  E_total;
+        Eigen::ArrayXd  M_total;
 
         // Start by trimming
         //        int num_teams = worker.world_size/constants::team_size;
         worker.debug_print<1>("Made it to merge \n");
-        worker.debug_print_all<1>("ID: " + to_string(worker.world_ID) + " leader: " + to_string(worker.team->is_leader()) +
-                                  " commander: " + to_string(worker.team->is_commander()) + "\n");
+        worker.debug_print_all<1>("ID: " + std::to_string(worker.world_ID) + " leader: " + std::to_string(worker.team->is_leader()) +
+                                  " commander: " + std::to_string(worker.team->is_commander()) + "\n");
         if(worker.team->is_leader()) {
             if(worker.team->is_commander()) {
                 std::cout << "ID: " << worker.world_ID << " is team_commander. Lives in team " << worker.team->get_team_id() << std::endl;
@@ -153,12 +154,11 @@ namespace parallel {
             for(int w = 1; w < constants::num_teams; w++) {
                 if(worker.team->is_commander()) {
                     if(debug_merge) {
-                        cout << "Receiving from team " << w << endl;
-                        cout.flush();
+                        std::cout << "Receiving from team " << w << std::endl;
                         std::this_thread::sleep_for(std::chrono::microseconds(1000));
                     }
-                    ArrayXXd dos_recv;
-                    ArrayXd  E_recv, M_recv;
+                    Eigen::ArrayXXd dos_recv;
+                    Eigen::ArrayXd  E_recv, M_recv;
                     mpi::recv_dynamic(dos_recv, MPI_DOUBLE, w, worker.team->get_MPI_COMM_LEAD());
                     mpi::recv_dynamic(E_recv, MPI_DOUBLE, w, worker.team->get_MPI_COMM_LEAD());
                     mpi::recv_dynamic(M_recv, MPI_DOUBLE, w, worker.team->get_MPI_COMM_LEAD());
@@ -173,10 +173,10 @@ namespace parallel {
 
                     // Add that difference to the next
                     if(std::isnan(diff)) {
-                        cout << setprecision(2) << std::fixed << std::showpoint;
-                        cout << "Tried to concatenate " << w - 1 << " and " << w << ". Diff between two DOS is NaN, exiting" << endl;
-                        cout << "dos_tot" << endl << dos_total << endl;
-                        cout << "dos_rec" << endl << dos_recv << endl;
+                        std::cout << std::setprecision(2) << std::fixed << std::showpoint;
+                        std::cout << "Tried to concatenate " << w - 1 << " and " << w << ". Diff between two DOS is NaN, exiting" << std::endl;
+                        std::cout << "dos_tot" << std::endl << dos_total << std::endl;
+                        std::cout << "dos_rec" << std::endl << dos_recv << std::endl;
                         exit(1);
                     }
 
@@ -190,38 +190,37 @@ namespace parallel {
                         for(int i = 0; i < dos_recv.rows(); i++) {
                             if((dos_recv.row(i) == 0).all()) { zero_rows += 1; }
                         }
-                        cout << setprecision(2) << fixed;
-                        if(rows_total != rows_total_up) { cout << "Rows mismatch!!" << endl; }
-                        cout << "Concatenating " << w - 1 << " and " << w << endl;
-                        cout << "Zero rows recv = " << zero_rows << endl;
-                        cout << "E_total = " << E_total.size() << " dos_total =  " << dos_total.rows() << " Shared Rows_total = " << rows_total
-                             << " E_idx_low = " << E_shared_low_idx << " E_idx_high = " << E_shared_high_idx << endl;
-                        cout << "E_recv  = " << E_recv.size() << " dos_recv  =  " << dos_recv.rows() << " Shared Rows_up    = " << rows_total_up
-                             << " E_idx_low = " << E_shared_low_up_idx << " E_idx_high = " << E_shared_high_up_idx << endl;
-                        //                    cout << "dos_total:" << endl << dos_total << endl << endl;
-                        //                    cout << "dos_recv:" << endl << dos_recv<< endl << endl;
-                        cout.flush();
+                        std::cout << std::setprecision(2) << std::fixed;
+                        if(rows_total != rows_total_up) { std::cout << "Rows mismatch!!" << std::endl; }
+                        std::cout << "Concatenating " << w - 1 << " and " << w << std::endl;
+                        std::cout << "Zero rows recv = " << zero_rows << std::endl;
+                        std::cout << "E_total = " << E_total.size() << " dos_total =  " << dos_total.rows() << " Shared Rows_total = " << rows_total
+                                  << " E_idx_low = " << E_shared_low_idx << " E_idx_high = " << E_shared_high_idx << std::endl;
+                        std::cout << "E_recv  = " << E_recv.size() << " dos_recv  =  " << dos_recv.rows() << " Shared Rows_up    = " << rows_total_up
+                                  << " E_idx_low = " << E_shared_low_up_idx << " E_idx_high = " << E_shared_high_up_idx << std::endl;
+                        //                    std::cout << "dos_total:" << std::endl << dos_total << std::endl << std::endl;
+                        //                    std::cout << "dos_recv:" << std::endl << dos_recv<< std::endl << std::endl;
                         std::this_thread::sleep_for(std::chrono::microseconds(1000));
                     }
 
                     double weight;
                     double E_span = fmax(E_total(E_shared_high_idx) - E_total(E_shared_low_idx), E_recv(E_shared_high_up_idx) - E_recv(E_shared_low_up_idx));
-                   std::vector<ArrayXd> dos_merge;
-                   std::vector<double>  E_merge;
-                    if(debug_merge) { cout << "Merging " << w - 1 << " and " << w << endl; }
+                    std::vector<Eigen::ArrayXd> dos_merge;
+                    std::vector<double>         E_merge;
+                    if(debug_merge) { std::cout << "Merging " << w - 1 << " and " << w << std::endl; }
                     for(int i = 0; i < E_total.size(); i++) {
                         if(i < E_shared_low_idx) {
                             // Take E_total(i)
                             dos_merge.push_back(dos_total.row(i));
                             E_merge.push_back(E_total(i));
                             if(debug_merge) {
-                                cout << " Inserted "
-                                     << "i: " << i << endl
-                                     << " E_total(i): " << E_total(i) << endl
-                                     << " E_total   : " << E_total.transpose() << endl
-                                     << " E_recv    : " << E_recv.transpose() << endl
-                                     << " E_merge   : " << E_merge << endl
-                                     << endl;
+                                std::cout << " Inserted "
+                                          << "i: " << i << std::endl
+                                          << " E_total(i): " << E_total(i) << std::endl
+                                          << " E_total   : " << E_total.transpose() << std::endl
+                                          << " E_recv    : " << E_recv.transpose() << std::endl
+                                          << " E_merge   : " << E_merge << std::endl
+                                          << std::endl;
                             }
                             continue;
                         } else if(i <= E_shared_high_idx) {
@@ -229,11 +228,11 @@ namespace parallel {
                             if(j == -1) {
                                 j = math::binary_search_nearest(E_recv, E_total(i));
                                 printf(" Could not find E_total(%d) = %f. Closest match: E_recv(%d) = %f \n", i, E_total(i), j, E_recv(j));
-                                cout << " E_total(i): " << E_total(i) << endl
-                                     << " E_total   : " << E_total.transpose() << endl
-                                     << " E_recv    : " << E_recv.transpose() << endl
-                                     << " E_merge   : " << E_merge << endl
-                                     << endl;
+                                std::cout << " E_total(i): " << E_total(i) << std::endl
+                                          << " E_total   : " << E_total.transpose() << std::endl
+                                          << " E_recv    : " << E_recv.transpose() << std::endl
+                                          << " E_merge   : " << E_merge << std::endl
+                                          << std::endl;
                                 exit(1);
                             } else {
                                 // Merge taking Average
@@ -241,12 +240,12 @@ namespace parallel {
                                 dos_merge.push_back((1 - weight) * dos_total.row(i) + weight * dos_recv.row(j));
                                 E_merge.push_back(E_total(i));
                                 if(debug_merge) {
-                                    cout << " Merged  i : " << i << " and j: " << j << endl
-                                         << " E_total(i): " << E_total(i) << endl
-                                         << " E_total   : " << E_total.transpose() << endl
-                                         << " E_recv    : " << E_recv.transpose() << endl
-                                         << " E_merge   : " << E_merge << endl
-                                         << endl;
+                                    std::cout << " Merged  i : " << i << " and j: " << j << std::endl
+                                              << " E_total(i): " << E_total(i) << std::endl
+                                              << " E_total   : " << E_total.transpose() << std::endl
+                                              << " E_recv    : " << E_recv.transpose() << std::endl
+                                              << " E_merge   : " << E_merge << std::endl
+                                              << std::endl;
                                 }
                             }
                         }
@@ -259,11 +258,11 @@ namespace parallel {
                         dos_merge.push_back(dos_recv.row(j));
                         E_merge.push_back(E_recv(j));
                         if(debug_merge) {
-                            cout << " Inserted "
-                                 << "j: " << j << endl
-                                 << " E_recv    : " << E_recv.transpose() << endl
-                                 << " E_merge   : " << E_merge << endl
-                                 << endl;
+                            std::cout << " Inserted "
+                                      << "j: " << j << std::endl
+                                      << " E_recv    : " << E_recv.transpose() << std::endl
+                                      << " E_merge   : " << E_merge << std::endl
+                                      << std::endl;
                         }
                     }
 
@@ -276,8 +275,7 @@ namespace parallel {
                     dos_merge.clear();
                     E_merge.clear();
                     if(debug_merge) {
-                        cout << "OK ";
-                        cout.flush();
+                        std::cout << "OK " << std::flush;
                         std::this_thread::sleep_for(std::chrono::microseconds(1000));
                     }
                 } else if(w == worker.team->get_team_id()) {
@@ -328,7 +326,7 @@ namespace parallel {
         // Make sure the overlap covers at least a hefty percent of the global range.
         // This is needed when you have too many workers on a small global energy range.
         if(overlap_range * 2 + local_range < global_range * 0.2) {
-            if(worker.world_ID == 0) { cout << "Forced readjustment of local energy range" << endl; }
+            if(worker.world_ID == 0) { std::cout << "Forced readjustment of local energy range" << std::endl; }
             overlap_range = (global_range * 0.2 - local_range) / 2;
         }
 
@@ -352,18 +350,18 @@ namespace parallel {
         worker.M_max_local = worker.M_max_global;
         if(debug_divide) {
             if(worker.world_ID == 0) {
-                cout << "Dividing according to energy range" << endl;
-                cout << flush;
+                std::cout << "Dividing according to energy range" << std::endl;
+                std::cout << std::flush;
                 std::this_thread::sleep_for(std::chrono::microseconds(10));
             }
             MPI_Barrier(MPI_COMM_WORLD);
             for(int w = 0; w < worker.world_size; w++) {
                 if(w == worker.world_ID) {
-                    cout << "ID: " << worker.world_ID << endl;
-                    cout << "   Global Bound= " << worker.E_min_global << " " << worker.E_max_global << endl;
-                    cout << "   Local Range = " << local_range << " overlap_range = " << overlap_range << endl;
-                    cout << "   Bounds E: [" << worker.E_min_local << " " << worker.E_max_local << "]" << endl;
-                    cout << "          M: [" << worker.M_min_local << " " << worker.M_max_local << "]" << endl;
+                    std::cout << "ID: " << worker.world_ID << std::endl;
+                    std::cout << "   Global Bound= " << worker.E_min_global << " " << worker.E_max_global << std::endl;
+                    std::cout << "   Local Range = " << local_range << " overlap_range = " << overlap_range << std::endl;
+                    std::cout << "   Bounds E: [" << worker.E_min_local << " " << worker.E_max_local << "]" << std::endl;
+                    std::cout << "          M: [" << worker.M_min_local << " " << worker.M_max_local << "]" << std::endl;
                     std::this_thread::sleep_for(std::chrono::microseconds(10));
                 }
                 MPI_Barrier(MPI_COMM_WORLD);
@@ -396,8 +394,8 @@ namespace parallel {
         while(E_max_local_idx - E_min_local_idx < constants::bins) {
             E_min_local_idx--;
             E_max_local_idx++;
-            E_min_local_idx = max(E_min_local_idx, 0);
-            E_max_local_idx = min(E_max_local_idx, (int) worker.E_bins_total.size() - 1);
+            E_min_local_idx = std::max(E_min_local_idx, 0);
+            E_max_local_idx = std::min(E_max_local_idx, (int) worker.E_bins_total.size() - 1);
         }
 
         worker.E_min_local = worker.E_bins_total(E_min_local_idx);
@@ -411,7 +409,7 @@ namespace parallel {
 
         worker.dos       = worker.dos_total.middleRows(from, rows);
         worker.E_bins    = worker.E_bins_total.segment(from, rows);
-        worker.histogram = ArrayXXi::Zero(worker.dos.rows(), worker.dos.cols());
+        worker.histogram = Eigen::ArrayXXi::Zero(worker.dos.rows(), worker.dos.cols());
         worker.random_walk.clear();
         worker.saturation.clear();
         worker.state_is_valid = false;
@@ -419,15 +417,15 @@ namespace parallel {
         if(debug_divide) {
             for(int w = 0; w < worker.world_size; w++) {
                 if(w == worker.world_ID) {
-                    cout << setprecision(2);
-                    cout << "ID: " << w << " Bounds : " << worker.E_min_local << " " << worker.E_max_local << endl;
-                    cout << worker.E_bins.transpose() << endl;
-                    cout.flush();
+                    std::cout << std::setprecision(2);
+                    std::cout << "ID: " << w << " Bounds : " << worker.E_min_local << " " << worker.E_max_local << std::endl;
+                    std::cout << worker.E_bins.transpose() << std::endl;
+                    std::cout << std::flush;
                     std::this_thread::sleep_for(std::chrono::microseconds(1000));
                 }
                 MPI_Barrier(MPI_COMM_WORLD);
             }
-            cout.flush();
+            std::cout << std::flush;
             std::this_thread::sleep_for(std::chrono::microseconds(1000));
         }
     }
@@ -457,8 +455,8 @@ namespace parallel {
         while(E_max_local_idx - E_min_local_idx < constants::bins) {
             E_min_local_idx--;
             E_max_local_idx++;
-            E_min_local_idx = max(E_min_local_idx, 0);
-            E_max_local_idx = min(E_max_local_idx, (int) worker.E_bins_total.size() - 1);
+            E_min_local_idx = std::max(E_min_local_idx, 0);
+            E_max_local_idx = std::min(E_max_local_idx, (int) worker.E_bins_total.size() - 1);
         }
 
         worker.E_min_local = worker.E_bins_total(E_min_local_idx);
@@ -473,7 +471,7 @@ namespace parallel {
 
         worker.dos       = worker.dos_total.middleRows(from, rows);
         worker.E_bins    = worker.E_bins_total.segment(from, rows);
-        worker.histogram = ArrayXXi::Zero(worker.dos.rows(), worker.dos.cols());
+        worker.histogram = Eigen::ArrayXXi::Zero(worker.dos.rows(), worker.dos.cols());
         worker.random_walk.clear();
         worker.saturation.clear();
         worker.state_is_valid = false;
@@ -481,15 +479,14 @@ namespace parallel {
         if(debug_divide) {
             for(int w = 0; w < worker.world_size; w++) {
                 if(w == worker.world_ID) {
-                    cout << setprecision(2);
-                    cout << "ID: " << w << " Bounds : " << worker.E_min_local << " " << worker.E_max_local << endl;
-                    cout << worker.E_bins.transpose() << endl;
-                    cout.flush();
+                    std::cout << std::setprecision(2);
+                    std::cout << "ID: " << w << " Bounds : " << worker.E_min_local << " " << worker.E_max_local << std::endl;
+                    std::cout << worker.E_bins.transpose() << std::endl;
                     std::this_thread::sleep_for(std::chrono::microseconds(1000));
                 }
                 MPI_Barrier(MPI_COMM_WORLD);
             }
-            cout.flush();
+            std::cout << std::flush;
             std::this_thread::sleep_for(std::chrono::microseconds(1000));
         }
     }
@@ -512,7 +509,7 @@ namespace parallel {
                 MPI_Allreduce(MPI_IN_PLACE, &worker.M_max_global, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
                 break;
             default:
-                cout << "Error in check_windows(). Wrong dimension for WL-random walk (rw_dims = ?)" << endl;
+                std::cout << "Error in check_windows(). Wrong dimension for WL-random walk (rw_dims = ?)" << std::endl;
                 MPI_Finalize();
                 exit(1);
         }
@@ -520,26 +517,26 @@ namespace parallel {
 
     void synchronize_sets(class_worker &worker) {
         // This function collects all known energies from all sets
-       std::vector<double> E_vector(worker.E_set.begin(), worker.E_set.end());
-       std::vector<double> M_vector(worker.M_set.begin(), worker.M_set.end());
-       std::vector<int>    E_sizes((unsigned long) worker.world_size);
-       std::vector<int>    M_sizes((unsigned long) worker.world_size);
-        int            Esize = (int) E_vector.size();
-        int            Msize = (int) M_vector.size();
+        std::vector<double> E_vector(worker.E_set.begin(), worker.E_set.end());
+        std::vector<double> M_vector(worker.M_set.begin(), worker.M_set.end());
+        std::vector<int>    E_sizes((unsigned long) worker.world_size);
+        std::vector<int>    M_sizes((unsigned long) worker.world_size);
+        int                 Esize = (int) E_vector.size();
+        int                 Msize = (int) M_vector.size();
         MPI_Allgather(&Esize, 1, MPI_INT, E_sizes.data(), 1, MPI_INT, MPI_COMM_WORLD);
         MPI_Allgather(&Msize, 1, MPI_INT, M_sizes.data(), 1, MPI_INT, MPI_COMM_WORLD);
-       std::vector<double> E_recv;
-       std::vector<double> M_recv;
+        std::vector<double> E_recv;
+        std::vector<double> M_recv;
         for(int w = 0; w < worker.world_size; w++) {
             if(w == worker.world_ID) {
                 E_recv = E_vector;
                 M_recv = M_vector;
             } else {
-                E_recv.resize((unsigned long) E_sizes[w]);
-                M_recv.resize((unsigned long) M_sizes[w]);
+                E_recv.resize((unsigned long) E_sizes[static_cast<unsigned long>(w)]);
+                M_recv.resize((unsigned long) M_sizes[static_cast<unsigned long>(w)]);
             }
-            MPI_Bcast(E_recv.data(), (int) E_sizes[w], MPI_DOUBLE, w, MPI_COMM_WORLD);
-            MPI_Bcast(M_recv.data(), (int) M_sizes[w], MPI_DOUBLE, w, MPI_COMM_WORLD);
+            MPI_Bcast(E_recv.data(), (int) E_sizes[static_cast<unsigned long>(w)], MPI_DOUBLE, w, MPI_COMM_WORLD);
+            MPI_Bcast(M_recv.data(), (int) M_sizes[static_cast<unsigned long>(w)], MPI_DOUBLE, w, MPI_COMM_WORLD);
             worker.E_set.insert(E_recv.begin(), E_recv.end());
             worker.M_set.insert(M_recv.begin(), M_recv.end());
         }
@@ -548,8 +545,8 @@ namespace parallel {
     void adjust_local_bins(class_worker &worker) {
         // This function does rebinning of dos and histograms.
         // Snap the local boundaries to existing energies
-        ArrayXd E_set_to_array;
-        ArrayXd M_set_to_array;
+        Eigen::ArrayXd E_set_to_array;
+        Eigen::ArrayXd M_set_to_array;
         E_set_to_array << worker.E_set;
         M_set_to_array << worker.M_set;
 
@@ -564,8 +561,8 @@ namespace parallel {
 
         worker.E_bins      = E_set_to_array.segment(E_idx_min, E_idx_max - E_idx_min + 1);
         worker.M_bins      = M_set_to_array.segment(M_idx_min, M_idx_max - M_idx_min + 1);
-        worker.histogram   = ArrayXXi::Zero(worker.E_bins.size(), worker.M_bins.size());
-        worker.dos         = ArrayXXd::Zero(worker.E_bins.size(), worker.M_bins.size());
+        worker.histogram   = Eigen::ArrayXXi::Zero(worker.E_bins.size(), worker.M_bins.size());
+        worker.dos         = Eigen::ArrayXXd::Zero(worker.E_bins.size(), worker.M_bins.size());
     }
 
 }

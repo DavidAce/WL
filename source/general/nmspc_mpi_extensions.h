@@ -6,12 +6,11 @@
 #define WL_NMSPC_MPI_EXTENSIONS_H
 #include <Eigen/Core>
 #include <mpi.h>
-using namespace Eigen;
 
 namespace mpi {
 
     template<typename Derived, typename mpitype>
-    void __attribute__((hot)) bcast_dynamic(ArrayBase<Derived> &arr, mpitype MPI_TYPE, int master_id) {
+    void __attribute__((hot)) bcast_dynamic(Eigen::ArrayBase<Derived> &arr, mpitype MPI_TYPE, int master_id) {
         int rows = (int) arr.rows();
         int cols = (int) arr.cols();
         MPI_Bcast(&rows, 1, MPI_INT, master_id, MPI_COMM_WORLD);
@@ -20,7 +19,7 @@ namespace mpi {
         MPI_Bcast(arr.derived().data(), cols * rows, MPI_TYPE, master_id, MPI_COMM_WORLD);
     }
     template<typename Derived, typename mpitype, typename mpicommtype>
-    void __attribute__((hot)) bcast_dynamic(ArrayBase<Derived> &arr, mpitype MPI_TYPE, int master_id, mpicommtype MPI_COMM) {
+    void __attribute__((hot)) bcast_dynamic(Eigen::ArrayBase<Derived> &arr, mpitype MPI_TYPE, int master_id, mpicommtype MPI_COMM) {
         int rows = (int) arr.rows();
         int cols = (int) arr.cols();
         MPI_Bcast(&rows, 1, MPI_INT, master_id, MPI_COMM);
@@ -30,7 +29,7 @@ namespace mpi {
     }
 
     template<typename Derived, typename mpitype>
-    void __attribute__((hot)) send_dynamic(ArrayBase<Derived> &arr, mpitype MPI_TYPE, int dest_id) {
+    void __attribute__((hot)) send_dynamic(Eigen::ArrayBase<Derived> &arr, mpitype MPI_TYPE, int dest_id) {
         int rows = (int) arr.rows();
         int cols = (int) arr.cols();
         MPI_Send(&rows, 1, MPI_INT, dest_id, dest_id + 1, MPI_COMM_WORLD);
@@ -39,7 +38,7 @@ namespace mpi {
     }
 
     template<typename Derived, typename mpitype, typename mpicommtype>
-    void __attribute__((hot)) send_dynamic(ArrayBase<Derived> &arr, mpitype MPI_TYPE, int dest_id, mpicommtype MPI_COMM) {
+    void __attribute__((hot)) send_dynamic(Eigen::ArrayBase<Derived> &arr, mpitype MPI_TYPE, int dest_id, mpicommtype MPI_COMM) {
         int rows = (int) arr.rows();
         int cols = (int) arr.cols();
         MPI_Send(&rows, 1, MPI_INT, dest_id, dest_id + 1, MPI_COMM);
@@ -48,7 +47,7 @@ namespace mpi {
     }
 
     template<typename Derived, typename mpitype>
-    void __attribute__((hot)) recv_dynamic(ArrayBase<Derived> &arr, mpitype MPI_TYPE, int src_id) {
+    void __attribute__((hot)) recv_dynamic(Eigen::ArrayBase<Derived> &arr, mpitype MPI_TYPE, int src_id) {
         int rows = (int) arr.rows();
         int cols = (int) arr.cols();
         int id;
@@ -60,7 +59,7 @@ namespace mpi {
     }
 
     template<typename Derived, typename mpitype, typename mpicommtype>
-    void __attribute__((hot)) recv_dynamic(ArrayBase<Derived> &arr, mpitype MPI_TYPE, int src_id, mpicommtype MPI_COMM) {
+    void __attribute__((hot)) recv_dynamic(Eigen::ArrayBase<Derived> &arr, mpitype MPI_TYPE, int src_id, mpicommtype MPI_COMM) {
         int rows = (int) arr.rows();
         int cols = (int) arr.cols();
         int id;

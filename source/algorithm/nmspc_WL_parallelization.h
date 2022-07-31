@@ -9,7 +9,6 @@
 #include "general/nmspc_mpi_extensions.h"
 #include <chrono>
 #include <Eigen/Core>
-#include <Eigen/Dense>
 #include <thread>
 
 namespace parallel {
@@ -30,8 +29,7 @@ namespace parallel {
     //    void debug_print        (class_worker &worker, T input){
     //        MPI_Barrier(MPI_COMM_WORLD);
     //        if (worker.world_ID == 0) {
-    //            cout << input;
-    //            cout.flush();
+    //            std::cout << input << std::flush;
     //            std::this_thread::sleep_for(std::chrono::microseconds(100));
     //        }
     //        MPI_Barrier(MPI_COMM_WORLD);
