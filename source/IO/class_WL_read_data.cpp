@@ -2,13 +2,14 @@
 // Created by david on 9/1/16.
 //
 
-#include <algorithm/class_WL_statistics.h>
-#include <algorithm/class_WL_teams.h>
-#include <algorithm/class_WL_worker.h>
-#include <algorithm/nmspc_WL_parallelization.h>
+#include "algorithm/class_WL_statistics.h"
+#include "algorithm/class_WL_teams.h"
+#include "algorithm/class_WL_worker.h"
+#include "algorithm/nmspc_WL_parallelization.h"
+#include "general/nmspc_logger.h"
+#include "general/nmspc_random_numbers.h"
+#include "params/nmspc_WL_constants.h"
 #include <fstream>
-#include <general/nmspc_random_numbers.h>
-#include <params/nmspc_WL_constants.h>
 #include <string>
 
 #include "class_WL_read_data.h"
@@ -56,10 +57,9 @@ void indata::load_full(class_worker &worker) {
     std::string name_dos    = folder + std::to_string(worker.iteration) + std::string("/dos.dat");
     std::string name_E_bins = folder + std::to_string(worker.iteration) + std::string("/E.dat");
     std::string name_M_bins = folder + std::to_string(worker.iteration) + std::string("/M.dat");
-    std::cout << "ID " << worker.world_ID << ": reading file: " << name_dos << std::endl;
-    worker.dos_total    = read_file(name_dos);
-    worker.E_bins_total = read_file(name_E_bins);
-    worker.M_bins_total = read_file(name_M_bins);
+    worker.dos_total        = read_file(name_dos);
+    worker.E_bins_total     = read_file(name_E_bins);
+    worker.M_bins_total     = read_file(name_M_bins);
 }
 
 void indata::load_full(class_stats &stats, class_worker &worker) {

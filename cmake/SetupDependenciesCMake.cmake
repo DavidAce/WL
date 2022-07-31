@@ -12,6 +12,7 @@ if(WL_PACKAGE_MANAGER MATCHES "cmake")
     unset_NOT_FOUND(fmt)
     unset_NOT_FOUND(spdlog)
     unset_NOT_FOUND(Eigen3)
+    unset_NOT_FOUND(h5pp)
 
     include(cmake/InstallPackage.cmake)
     if(WL_PREFIX_ADD_PKGNAME)
@@ -28,8 +29,9 @@ if(WL_PACKAGE_MANAGER MATCHES "cmake")
             -Dfmt_ROOT:PATH=${WL_DEPS_INSTALL_DIR})
     install_package(Eigen3 VERSION 3.4.0 TARGET_NAME Eigen3::Eigen ${INSTALL_PREFIX_PKGNAME})
     install_package(cli11 VERSION 2.1.1 TARGET_NAME CLI11::CLI11 FIND_NAME CLI11)
+    install_package(h5pp VERSION 1.10.0 CMAKE_ARGS -DH5PP_PACKAGE_MANAGER=${WL_PACKAGE_MANAGER} -DCMAKE_PREFIX_PATH:PATH=${WL_DEPS_INSTALL_DIR} )
 
     # Link to dependencies
-    target_link_libraries(deps INTERFACE fmt::fmt spdlog::spdlog Eigen3::Eigen CLI11::CLI11)
+    target_link_libraries(wl-deps INTERFACE fmt::fmt spdlog::spdlog Eigen3::Eigen CLI11::CLI11 h5pp::h5pp)
 
 endif()

@@ -74,32 +74,32 @@ set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 ###  Add optional RELEASE/DEBUG compile to flags
-if(NOT TARGET flags)
-    add_library(flags INTERFACE)
+if(NOT TARGET wl-flags)
+    add_library(wl-flags INTERFACE)
 endif()
-target_compile_options(flags INTERFACE -fno-strict-aliasing -fdiagnostics-color=always -Wall -Wpedantic -Wextra -Wconversion -Wunused)
-target_compile_options(flags INTERFACE $<$<CONFIG:RELEASE>:${MARCH} ${MTUNE}>)
-target_compile_options(flags INTERFACE $<$<CONFIG:DEBUG>:-fno-omit-frame-pointer -fstack-protector -D_FORTIFY_SOURCE=2>)
-target_compile_options(flags INTERFACE $<$<AND:$<CONFIG:DEBUG>,$<CXX_COMPILER_ID:Clang>>: -fstandalone-debug>)
-target_compile_options(flags INTERFACE $<$<CONFIG:RELWITHDEBINFO>:>)
-target_compile_options(flags INTERFACE $<$<CONFIG:MINSIZEREL>:-fno-omit-frame-pointer -fstack-protector -D_FORTIFY_SOURCE=2>)
+target_compile_options(wl-flags INTERFACE -fno-strict-aliasing -fdiagnostics-color=always -Wall -Wpedantic -Wextra -Wconversion -Wunused)
+target_compile_options(wl-flags INTERFACE $<$<CONFIG:RELEASE>:${MARCH} ${MTUNE}>)
+target_compile_options(wl-flags INTERFACE $<$<CONFIG:DEBUG>:-fno-omit-frame-pointer -fstack-protector -D_FORTIFY_SOURCE=2>)
+target_compile_options(wl-flags INTERFACE $<$<AND:$<CONFIG:DEBUG>,$<CXX_COMPILER_ID:Clang>>: -fstandalone-debug>)
+target_compile_options(wl-flags INTERFACE $<$<CONFIG:RELWITHDEBINFO>:>)
+target_compile_options(wl-flags INTERFACE $<$<CONFIG:MINSIZEREL>:-fno-omit-frame-pointer -fstack-protector -D_FORTIFY_SOURCE=2>)
 
 ###  Enable c++17 support
-target_compile_features(flags INTERFACE cxx_std_17)
+target_compile_features(wl-flags INTERFACE cxx_std_17)
 
 ###  Enable build profiling
 if (${PROJECT_UNAME}_PROFILE_BUILD AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    target_compile_options(flags INTERFACE -ftime-trace)
+    target_compile_options(wl-flags INTERFACE -ftime-trace)
 endif ()
 
 # Settings for sanitizers
 if (${PROJECT_UNAME}_ENABLE_ASAN)
-    target_compile_options(flags INTERFACE -fsanitize=address -fno-omit-frame-pointer)
-    target_link_libraries(flags INTERFACE -fsanitize=address)
+    target_compile_options(wl-flags INTERFACE -fsanitize=address -fno-omit-frame-pointer)
+    target_link_libraries(wl-flags INTERFACE -fsanitize=address)
 endif ()
 if (${PROJECT_UNAME}_ENABLE_USAN)
-    target_compile_options(flags INTERFACE -fsanitize=undefined -fno-omit-frame-pointer)
-    target_link_libraries(flags INTERFACE -fsanitize=undefined)
+    target_compile_options(wl-flags INTERFACE -fsanitize=undefined -fno-omit-frame-pointer)
+    target_link_libraries(wl-flags INTERFACE -fsanitize=undefined)
 endif ()
 
 

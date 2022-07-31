@@ -37,8 +37,8 @@ include(cmake/PrintBuildInfo.cmake)
 
 
 ###  Add targets to collect common settings
-add_library(flags INTERFACE)
-add_library(deps INTERFACE)
+add_library(wl-flags INTERFACE)
+add_library(wl-deps INTERFACE)
 
 
 ###  Apply compiler flags
@@ -52,15 +52,12 @@ include(cmake/SetupDependencies.cmake)
 ###########################################
 file(GLOB_RECURSE SOURCES "source/*.cpp")
 file(GLOB_RECURSE HEADERS "source/*.h")
-file(GLOB_RECURSE EMC_SOURCES "EMC-Lib/source/*.cpp")
-file(GLOB_RECURSE EMC_HEADERS "EMC-Lib/source/*.hpp")
-add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS} ${EMC_SOURCES} ${EMC_HEADERS})
-target_include_directories(${PROJECT_NAME} PUBLIC EMC-Lib)
+add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
 target_include_directories(${PROJECT_NAME} PUBLIC source)
 set_target_properties(${PROJECT_NAME} PROPERTIES LINK_WHAT_YOU_USE TRUE)
 
 # Link all the things
-target_link_libraries(${PROJECT_NAME} PUBLIC deps flags)
+target_link_libraries(${PROJECT_NAME} PUBLIC wl-deps wl-flags)
 
 # Print summary
 include(cmake/PrintTargetInfo.cmake)
