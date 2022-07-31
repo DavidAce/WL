@@ -48,7 +48,7 @@ int parse(int argc, char **argv) {
     app.add_option("--minimum-lnf"                     , constants::minimum_lnf         , "Convergence threshold for the modification factor lnf");
     app.add_option("--num-teams"                       , constants::num_teams           , "Number of energy sub-windows (if num_teams < MPI world size, take the latter)");
     app.add_option("-v,--log,--verbosity,--loglevel"   , constants::loglevel            , "Log level of WL")->transform(CLI::CheckedTransformer(s2e_log, CLI::ignore_case))->type_name("ENUM");
-    app.add_option("--timestamp,--logstamp"            , constants::logstamp            , "Prepend timestamp to log messages");
+    app.add_flag("--timestamp,--logstamp"              , constants::logstamp            , "Prepend timestamp to log messages");
     /* clang-format on */
 
     app.parse(argc, argv);
