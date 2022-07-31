@@ -20,7 +20,7 @@ namespace math {
     extern double area(const Eigen::ArrayXXd &dos, const Eigen::ArrayXd &E, const Eigen::ArrayXd &M);
     int           area_idx(const Eigen::ArrayXXd &dos, const Eigen::ArrayXd &E, const Eigen::ArrayXd &M, const double &area_limit);
 
-    extern Eigen::Vector3d gradient_vector(const Eigen::ArrayXXd &dos, const Eigen::ArrayXd &E, const Eigen::ArrayXd &M, const int &i, const int &j);
+    extern Eigen::Vector3d gradient_vector(const Eigen::ArrayXXd &dos, const Eigen::ArrayXd &E, const Eigen::ArrayXd &M, const long &i, const long &j);
     extern int             find_matching_slope(const Eigen::ArrayXXd &dos1, const Eigen::ArrayXXd &dos2, const Eigen::ArrayXd &E1, const Eigen::ArrayXd &E2,
                                                const Eigen::ArrayXd &M1, const Eigen::ArrayXd &M2);
 
@@ -108,7 +108,8 @@ namespace math {
     }
 
     template<typename Derived1, typename Derived2>
-    typename Derived1::Scalar nanzerostd(const Eigen::ArrayBase<Derived1> &distance, const Eigen::ArrayBase<Derived2> &array1, const Eigen::ArrayBase<Derived2> &array2) {
+    typename Derived1::Scalar nanzerostd(const Eigen::ArrayBase<Derived1> &distance, const Eigen::ArrayBase<Derived2> &array1,
+                                         const Eigen::ArrayBase<Derived2> &array2) {
         double sum   = 0;
         double m     = nanzeromean(distance); // mean
         int    count = 0;
@@ -229,7 +230,7 @@ namespace math {
 
     // Finds the element nearest x in an Eigen array
     template<typename Derived, typename T>
-    inline int binary_search_nearest(const Eigen::ArrayBase<Derived> &list, const T x) {
+    inline long binary_search_nearest(const Eigen::ArrayBase<Derived> &list, const T x) {
         // Now find the point in list closest to x
 
         // CPP REFERENCE lower_bound: Iterator pointing to the first element that is not less than value,
@@ -278,7 +279,7 @@ namespace math {
 
     // Finds the element exactly x in an Eigen array
     template<typename Derived, typename T>
-    int binary_search_exact(const Eigen::ArrayBase<Derived> &list, const T x) {
+    long binary_search_exact(const Eigen::ArrayBase<Derived> &list, const T x) {
         // Now find the point in list that exactly matches x.
         // If none is found, return -1;
         // CPP REFERENCE lower_bound: Iterator pointing to the first element that is not less than value,

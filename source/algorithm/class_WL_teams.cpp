@@ -17,13 +17,13 @@ class_WL_teams::class_WL_teams(class_worker &worker_ref, int num_teams_) : worke
 }
 
 void class_WL_teams::set_defaults() {
-    team_id = (int) ((double) num_teams / worker.world_size * worker.world_ID);
+    team_id = static_cast<int>((static_cast<double>(num_teams) / worker.world_size * worker.world_ID));
     setup_comms();
 }
 
 void class_WL_teams::sync_teams() {
     //    worker.debug_print_all<1>("size: " + to_string(worker.random_walk.size())+ "\n");
-    int size = (int) worker.random_walk.size();
+    auto size = static_cast<int>(worker.random_walk.size());
     //    worker.debug_print_all<1>("size: " + to_string(size)+ "\n");
     //    debug_print_team_commander("\n \n");
     Eigen::ArrayXi sizes(team_size);
@@ -47,7 +47,7 @@ void class_WL_teams::setup_teams() {
     Eigen::ArrayXi workers_finished(worker.world_size);
     MPI_Allgather(&worker.finish_line, 1, MPI_INT, workers_finished.data(), 1, MPI_INT, MPI_COMM_WORLD);
     int team_id_old = team_id;
-    int team_id_new = (int) ((double) num_teams / worker.world_size * worker.world_ID);
+    int team_id_new = static_cast<int>((static_cast<double>(num_teams) / worker.world_size * worker.world_ID));
 
     // First get a list of forbidden teams
     Eigen::ArrayXi team_forbidden = Eigen::ArrayXi::Zero(num_teams);
@@ -105,7 +105,7 @@ void class_WL_teams::setup_teams() {
     MPI_Bcast(&counter::MCS, 1, MPI_INT, 0, MPI_COMM_TEAM);
     MPI_Bcast(&counter::walks, 1, MPI_INT, 0, MPI_COMM_TEAM);
 
-    Eigen::ArrayXi saturation_map = Eigen::Map<Eigen::ArrayXi>(worker.saturation.data(), (int) worker.saturation.size());
+    Eigen::ArrayXi saturation_map = Eigen::Map<Eigen::ArrayXi>(worker.saturation.data(), static_cast<long>(worker.saturation.size()));
     mpi::bcast_dynamic(saturation_map, MPI_INT, 0, MPI_COMM_TEAM);
     if(!team_leader) {
         worker.E_min_local = worker.E_bins.minCoeff();

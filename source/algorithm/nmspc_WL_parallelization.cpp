@@ -33,7 +33,7 @@ namespace parallel {
         //        double E_X, E_Y, M_X, M_Y;
         double dos_partner, dos_myown;
         double E_partner, M_partner;
-        int    E_idx_partner, M_idx_partner;
+        long   E_idx_partner, M_idx_partner;
         //        int E_X_idx, E_Y_idx, M_X_idx, M_Y_idx;
         double E_min_partner, E_max_partner;
         double P_swap; // Swap probability
@@ -41,7 +41,7 @@ namespace parallel {
 
         // Broadcast a randomly shuffled list to all workers like {3,2,7,1,0,5...}
         // Find myself on the list.
-        // If I'm at an even position, it's my turn. Otherwise not.
+        // If I'm at an even position, it's my turn. Otherwise, not.
         // If it is my turn, look at who's on my right, that's who I'm swapping with.
         // If it is not my turn, look left, that's who I'm swapping with.
 
@@ -52,12 +52,12 @@ namespace parallel {
         }
         MPI_Bcast(swap_list.data(), worker.world_size, MPI_INT, 0, MPI_COMM_WORLD);
         int swap_partner;
-        int my_idx_on_swap_list = (int) (std::find(swap_list.begin(), swap_list.end(), worker.world_ID) - swap_list.begin());
+        int my_idx_on_swap_list = static_cast<int>(std::find(swap_list.begin(), swap_list.end(), worker.world_ID) - swap_list.begin());
         int myTurn              = math::mod(my_idx_on_swap_list, 2); // It's my turn to throw dice if I'm at an even position on the swap_list
         if(myTurn) {
-            swap_partner = swap_list[math::mod(my_idx_on_swap_list + 1, worker.world_size)];
+            swap_partner = swap_list[static_cast<unsigned long>(math::mod(my_idx_on_swap_list + 1, worker.world_size))];
         } else {
-            swap_partner = swap_list[math::mod(my_idx_on_swap_list - 1, worker.world_size)];
+            swap_partner = swap_list[static_cast<unsigned long>(math::mod(my_idx_on_swap_list - 1, worker.world_size))];
         }
 
         assert(swap_partner < worker.world_size and swap_partner >= 0 and "Neighbor swap_partner out of range");
@@ -70,7 +70,7 @@ namespace parallel {
             }
         }
 
-        // Send each others info
+        // Send each other's info
         MPI_Sendrecv(&worker.E, 1, MPI_DOUBLE, swap_partner, 100, &E_partner, 1, MPI_DOUBLE, swap_partner, 100, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         MPI_Sendrecv(&worker.M, 1, MPI_DOUBLE, swap_partner, 101, &M_partner, 1, MPI_DOUBLE, swap_partner, 101, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         MPI_Sendrecv(&worker.E_min_local, 1, MPI_DOUBLE, swap_partner, 102, &E_min_partner, 1, MPI_DOUBLE, swap_partner, 102, MPI_COMM_WORLD,
@@ -94,8 +94,8 @@ namespace parallel {
         }
         MPI_Sendrecv(&dos_send_back, 1, MPI_DOUBLE, swap_partner, 105, &dos_myown, 1, MPI_DOUBLE, swap_partner, 105, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
-        // Decide if you want to swap
-        // Swap if your're inside each others windows, your respective windows, and not swapping with self.
+        // Decide if you want to swap.
+        // Swap if you are inside each other's windows, your respective windows, and not swapping with self.
         swap = 1;
         swap = swap && worker.E >= E_min_partner && worker.E <= E_max_partner;
         swap = swap && worker.check_in_window(worker.E);
@@ -118,8 +118,8 @@ namespace parallel {
 
         // Do swap if yo got lucky!
         if(swap == 1) {
-            MPI_Sendrecv_replace(worker.model.lattice.data(), (int) worker.model.lattice.size(), MPI_INT, swap_partner, 107, swap_partner, 107, MPI_COMM_WORLD,
-                                 MPI_STATUS_IGNORE);
+            MPI_Sendrecv_replace(worker.model.lattice.data(), static_cast<int>(worker.model.lattice.size()), MPI_INT, swap_partner, 107, swap_partner, 107,
+                                 MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             worker.E              = E_partner;
             worker.M              = M_partner;
             worker.state_is_valid = false;
@@ -163,13 +163,13 @@ namespace parallel {
                     mpi::recv_dynamic(E_recv, MPI_DOUBLE, w, worker.team->get_MPI_COMM_LEAD());
                     mpi::recv_dynamic(M_recv, MPI_DOUBLE, w, worker.team->get_MPI_COMM_LEAD());
                     // Find average height of shared sections
-                    int E_shared_low_idx     = math::binary_search_nearest(E_total, fmax(E_recv.minCoeff(), E_total.minCoeff()));
-                    int E_shared_high_idx    = math::binary_search_nearest(E_total, fmin(E_recv.maxCoeff(), E_total.maxCoeff()));
-                    int E_shared_low_up_idx  = math::binary_search_nearest(E_recv, fmax(E_recv.minCoeff(), E_total.minCoeff()));
-                    int E_shared_high_up_idx = math::binary_search_nearest(E_recv, fmin(E_recv.maxCoeff(), E_total.maxCoeff()));
+                    auto E_shared_low_idx     = math::binary_search_nearest(E_total, fmax(E_recv.minCoeff(), E_total.minCoeff()));
+                    auto E_shared_high_idx    = math::binary_search_nearest(E_total, fmin(E_recv.maxCoeff(), E_total.maxCoeff()));
+                    auto E_shared_low_up_idx  = math::binary_search_nearest(E_recv, fmax(E_recv.minCoeff(), E_total.minCoeff()));
+                    auto E_shared_high_up_idx = math::binary_search_nearest(E_recv, fmin(E_recv.maxCoeff(), E_total.maxCoeff()));
 
-                    double diff              = math::dos_distance(dos_total.middleRows(E_shared_low_idx, E_shared_high_idx - E_shared_low_idx),
-                                                                  dos_recv.middleRows(E_shared_low_up_idx, E_shared_high_up_idx - E_shared_low_up_idx));
+                    double diff               = math::dos_distance(dos_total.middleRows(E_shared_low_idx, E_shared_high_idx - E_shared_low_idx),
+                                                                   dos_recv.middleRows(E_shared_low_up_idx, E_shared_high_up_idx - E_shared_low_up_idx));
 
                     // Add that difference to the next
                     if(std::isnan(diff)) {
@@ -181,12 +181,12 @@ namespace parallel {
                     }
 
                     math::add_to_nonzero_nonnan(dos_recv, diff);
-                    // Now now all doses should be the same height
+                    // Now all doses should be the same height
 
                     if(debug_merge) {
-                        int zero_rows     = 0;
-                        int rows_total    = E_shared_high_idx - E_shared_low_idx;
-                        int rows_total_up = E_shared_high_up_idx - E_shared_low_up_idx;
+                        auto zero_rows     = 0l;
+                        auto rows_total    = E_shared_high_idx - E_shared_low_idx;
+                        auto rows_total_up = E_shared_high_up_idx - E_shared_low_up_idx;
                         for(int i = 0; i < dos_recv.rows(); i++) {
                             if((dos_recv.row(i) == 0).all()) { zero_rows += 1; }
                         }
@@ -208,10 +208,10 @@ namespace parallel {
                     std::vector<Eigen::ArrayXd> dos_merge;
                     std::vector<double>         E_merge;
                     if(debug_merge) { std::cout << "Merging " << w - 1 << " and " << w << std::endl; }
-                    for(int i = 0; i < E_total.size(); i++) {
+                    for(long i = 0; i < E_total.size(); i++) {
                         if(i < E_shared_low_idx) {
                             // Take E_total(i)
-                            dos_merge.push_back(dos_total.row(i));
+                            dos_merge.emplace_back(dos_total.row(i));
                             E_merge.push_back(E_total(i));
                             if(debug_merge) {
                                 std::cout << " Inserted "
@@ -224,10 +224,10 @@ namespace parallel {
                             }
                             continue;
                         } else if(i <= E_shared_high_idx) {
-                            int j = math::binary_search_exact(E_recv, E_total(i));
+                            long j = math::binary_search_exact(E_recv, E_total(i));
                             if(j == -1) {
                                 j = math::binary_search_nearest(E_recv, E_total(i));
-                                printf(" Could not find E_total(%d) = %f. Closest match: E_recv(%d) = %f \n", i, E_total(i), j, E_recv(j));
+                                printf(" Could not find E_total(%ld) = %f. Closest match: E_recv(%ld) = %f \n", i, E_total(i), j, E_recv(j));
                                 std::cout << " E_total(i): " << E_total(i) << std::endl
                                           << " E_total   : " << E_total.transpose() << std::endl
                                           << " E_recv    : " << E_recv.transpose() << std::endl
@@ -237,7 +237,7 @@ namespace parallel {
                             } else {
                                 // Merge taking Average
                                 weight = (E_total(i) - E_total(E_shared_low_idx)) / E_span;
-                                dos_merge.push_back((1 - weight) * dos_total.row(i) + weight * dos_recv.row(j));
+                                dos_merge.emplace_back((1 - weight) * dos_total.row(i) + weight * dos_recv.row(j));
                                 E_merge.push_back(E_total(i));
                                 if(debug_merge) {
                                     std::cout << " Merged  i : " << i << " and j: " << j << std::endl
@@ -255,7 +255,7 @@ namespace parallel {
                         // Check that it hasn't been used already
                         if(j <= E_shared_high_up_idx) { continue; }
                         // Take E_recv(j)
-                        dos_merge.push_back(dos_recv.row(j));
+                        dos_merge.emplace_back(dos_recv.row(j));
                         E_merge.push_back(E_recv(j));
                         if(debug_merge) {
                             std::cout << " Inserted "
@@ -266,8 +266,8 @@ namespace parallel {
                         }
                     }
 
-                    dos_total.resize(dos_merge.size(), M_recv.size());
-                    E_total.resize(E_merge.size());
+                    dos_total.resize(static_cast<long>(dos_merge.size()), M_recv.size());
+                    E_total.resize(static_cast<long>(E_merge.size()));
                     for(unsigned int i = 0; i < dos_merge.size(); i++) {
                         dos_total.row(i) = dos_merge[i];
                         E_total(i)       = E_merge[i];
@@ -395,7 +395,7 @@ namespace parallel {
             E_min_local_idx--;
             E_max_local_idx++;
             E_min_local_idx = std::max(E_min_local_idx, 0);
-            E_max_local_idx = std::min(E_max_local_idx, (int) worker.E_bins_total.size() - 1);
+            E_max_local_idx = std::min(E_max_local_idx, static_cast<int>(worker.E_bins_total.size()) - 1);
         }
 
         worker.E_min_local = worker.E_bins_total(E_min_local_idx);
@@ -456,7 +456,7 @@ namespace parallel {
             E_min_local_idx--;
             E_max_local_idx++;
             E_min_local_idx = std::max(E_min_local_idx, 0);
-            E_max_local_idx = std::min(E_max_local_idx, (int) worker.E_bins_total.size() - 1);
+            E_max_local_idx = std::min(E_max_local_idx, static_cast<int>(worker.E_bins_total.size()) - 1);
         }
 
         worker.E_min_local = worker.E_bins_total(E_min_local_idx);
@@ -521,8 +521,8 @@ namespace parallel {
         std::vector<double> M_vector(worker.M_set.begin(), worker.M_set.end());
         std::vector<int>    E_sizes((unsigned long) worker.world_size);
         std::vector<int>    M_sizes((unsigned long) worker.world_size);
-        int                 Esize = (int) E_vector.size();
-        int                 Msize = (int) M_vector.size();
+        auto                Esize = static_cast<int>(E_vector.size());
+        auto                Msize = static_cast<int>(M_vector.size());
         MPI_Allgather(&Esize, 1, MPI_INT, E_sizes.data(), 1, MPI_INT, MPI_COMM_WORLD);
         MPI_Allgather(&Msize, 1, MPI_INT, M_sizes.data(), 1, MPI_INT, MPI_COMM_WORLD);
         std::vector<double> E_recv;
@@ -535,8 +535,8 @@ namespace parallel {
                 E_recv.resize((unsigned long) E_sizes[static_cast<unsigned long>(w)]);
                 M_recv.resize((unsigned long) M_sizes[static_cast<unsigned long>(w)]);
             }
-            MPI_Bcast(E_recv.data(), (int) E_sizes[static_cast<unsigned long>(w)], MPI_DOUBLE, w, MPI_COMM_WORLD);
-            MPI_Bcast(M_recv.data(), (int) M_sizes[static_cast<unsigned long>(w)], MPI_DOUBLE, w, MPI_COMM_WORLD);
+            MPI_Bcast(E_recv.data(), static_cast<int>(E_sizes[static_cast<unsigned long>(w)]), MPI_DOUBLE, w, MPI_COMM_WORLD);
+            MPI_Bcast(M_recv.data(), static_cast<int>(M_sizes[static_cast<unsigned long>(w)]), MPI_DOUBLE, w, MPI_COMM_WORLD);
             worker.E_set.insert(E_recv.begin(), E_recv.end());
             worker.M_set.insert(M_recv.begin(), M_recv.end());
         }
@@ -550,12 +550,12 @@ namespace parallel {
         E_set_to_array << worker.E_set;
         M_set_to_array << worker.M_set;
 
-        int E_idx_min      = math::binary_search_nearest(E_set_to_array, worker.E_min_local);
-        int E_idx_max      = math::binary_search_nearest(E_set_to_array, worker.E_max_local);
+        auto E_idx_min     = math::binary_search_nearest(E_set_to_array, worker.E_min_local);
+        auto E_idx_max     = math::binary_search_nearest(E_set_to_array, worker.E_max_local);
         worker.E_min_local = E_set_to_array(E_idx_min);
         worker.E_max_local = E_set_to_array(E_idx_max);
-        int M_idx_min      = math::binary_search_nearest(M_set_to_array, worker.M_min_local);
-        int M_idx_max      = math::binary_search_nearest(M_set_to_array, worker.M_max_local);
+        auto M_idx_min     = math::binary_search_nearest(M_set_to_array, worker.M_min_local);
+        auto M_idx_max     = math::binary_search_nearest(M_set_to_array, worker.M_max_local);
         worker.M_min_local = M_set_to_array(M_idx_min);
         worker.M_max_local = M_set_to_array(M_idx_max);
 

@@ -22,8 +22,8 @@
 #include <thread>
 
 struct state {
-    int E_idx;
-    int M_idx;
+    long E_idx;
+    long M_idx;
 };
 
 std::ostream &operator<<(std::ostream &out, const std::vector<state> &v);
@@ -88,8 +88,8 @@ class class_worker {
     // WL Energy and Order parameter and their limits
     double E, M;             // Current Energy and Order parameter
     double E_trial, M_trial; // Proposed
-    int    E_idx, M_idx;
-    int    E_idx_trial, M_idx_trial;   // Position of trial values
+    long   E_idx, M_idx;
+    long   E_idx_trial, M_idx_trial;   // Position of trial values
     double E_min_global, M_min_global; // Global minimum
     double E_max_global, M_max_global; // Global maximum
     double E_min_local, M_min_local;   // Local minimum

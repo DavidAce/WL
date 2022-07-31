@@ -31,11 +31,11 @@ namespace math {
         Eigen::ArrayXd  depth_array(dept);
         for(auto j = 0; j < cols; j++) {
             for(auto i = 0; i < rows; i++) {
-                for(unsigned long int k = 0; k < dept; k++) { depth_array(k) = array3D[k](i, j); }
+                for(unsigned long int k = 0; k < dept; k++) { depth_array(static_cast<long>(k)) = array3D[k](i, j); }
                 if(depth_array.hasNaN()) {
                     result(i, j) = std::numeric_limits<double>::quiet_NaN();
                 } else {
-                    result(i, j) = sqrt((depth_array - avg(i, j)).cwiseAbs2().sum() / (dept - 1));
+                    result(i, j) = sqrt((depth_array - avg(i, j)).cwiseAbs2().sum() / static_cast<double>(dept - 1));
                 }
                 //                result(i,j) = depth_array.mean();
             }
@@ -150,23 +150,23 @@ namespace math {
         return (int) E.size() - 1;
     }
 
-    bool on_the_edge_up(const Eigen::ArrayXXd &dos, const Eigen::ArrayXd &E, const Eigen::ArrayXd &M, const int &i, const int &j) {
-        return i == 0 || dos(std::max(i - 1, 0), j) == 0 || std::isnan(dos(std::max(i - 1, 0), j));
+    bool on_the_edge_up(const Eigen::ArrayXXd &dos, const Eigen::ArrayXd &E, const Eigen::ArrayXd &M, const long &i, const long &j) {
+        return i == 0 || dos(std::max(i - 1, 0l), j) == 0 || std::isnan(dos(std::max(i - 1, 0l), j));
     }
 
-    bool on_the_edge_dn(const Eigen::ArrayXXd &dos, const Eigen::ArrayXd &E, const Eigen::ArrayXd &M, const int &i, const int &j) {
-        return i == E.size() - 1 || dos(std::min(i + 1, (int) E.size() - 1), j) == 0 || std::isnan(dos(std::min(i + 1, (int) E.size() - 1), j));
+    bool on_the_edge_dn(const Eigen::ArrayXXd &dos, const Eigen::ArrayXd &E, const Eigen::ArrayXd &M, const long &i, const long &j) {
+        return i == E.size() - 1 || dos(std::min(i + 1, E.size() - 1), j) == 0 || std::isnan(dos(std::min(i + 1, E.size() - 1), j));
     }
 
-    bool on_the_edge_lf(const Eigen::ArrayXXd &dos, const Eigen::ArrayXd &E, const Eigen::ArrayXd &M, const int &i, const int &j) {
-        return j == 0 || dos(i, std::max(j - 1, 0)) == 0 || std::isnan(dos(i, std::max(j - 1, 0)));
+    bool on_the_edge_lf(const Eigen::ArrayXXd &dos, const Eigen::ArrayXd &E, const Eigen::ArrayXd &M, const long &i, const long &j) {
+        return j == 0 || dos(i, std::max(j - 1, 0l)) == 0 || std::isnan(dos(i, std::max(j - 1, 0l)));
     }
 
-    bool on_the_edge_rt(const Eigen::ArrayXXd &dos, const Eigen::ArrayXd &E, const Eigen::ArrayXd &M, const int &i, const int &j) {
-        return j == M.size() - 1 || dos(i, std::min(j + 1, (int) M.size() - 1)) == 0 || std::isnan(dos(i, std::min(j + 1, (int) M.size() - 1)));
+    bool on_the_edge_rt(const Eigen::ArrayXXd &dos, const Eigen::ArrayXd &E, const Eigen::ArrayXd &M, const long &i, const long &j) {
+        return j == M.size() - 1 || dos(i, std::min(j + 1, M.size() - 1)) == 0 || std::isnan(dos(i, std::min(j + 1, M.size() - 1)));
     }
 
-    Eigen::Vector3d gradient_vector(const Eigen::ArrayXXd &dos, const Eigen::ArrayXd &E, const Eigen::ArrayXd &M, const int &i, const int &j) {
+    Eigen::Vector3d gradient_vector(const Eigen::ArrayXXd &dos, const Eigen::ArrayXd &E, const Eigen::ArrayXd &M, const long &i, const long &j) {
         Eigen::Vector3d v_up, v_rt, v_dn, v_lf; // Vectors connecting adjacent 3 orthogonal points on DOS
         switch(constants::rw_dims) {
             case 1: v_dn << E(i + 1) - E(i), 0, dos(i + 1, j) - dos(i, j); return v_dn.normalized();
@@ -194,6 +194,7 @@ namespace math {
                 } // Detect if on edge
                 return (v_up.cross(v_rt) + v_rt.cross(v_dn) + v_dn.cross(v_lf) + v_lf.cross(v_dn)).normalized();
                 //                return v_tot.normalized();
+            default: throw std::runtime_error("constants::rw_dims must be 1 or 2");
         }
     }
 
@@ -210,7 +211,7 @@ namespace math {
             exit(35);
         }
 
-        int x, y; // Coordinates closest to i, j on dos of neighbor above.
+        long x, y; // Coordinates closest to i, j on dos of neighbor above.
         for(int i = 0; i < E1.size(); i++) {
             if(E1(i) < E2.minCoeff()) { continue; }
             if(E1(i) > E2.maxCoeff()) { continue; }

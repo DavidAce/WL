@@ -38,7 +38,7 @@ int timer::sampling;
 std::ostream &operator<<(std::ostream &out, const std::vector<state> &v) {
     if(!v.empty()) {
         out << "[ ";
-        for(auto i = 0; i < v.size(); i++) { out << "(" << v[i].E_idx << "," << v[i].M_idx << ") "; }
+        for(const auto &s : v) { out << "(" << s.E_idx << "," << s.M_idx << ") "; }
         out << "]";
     }
     return out;
@@ -332,7 +332,7 @@ void class_worker::prev_WL_iteration() {
         lnf /= constants::reduce_factor_lnf;
         counter::walks--;
     }
-    counter::MCS    = counter::walks == 0 ? 0 : (int) (1.0 / lnf);
+    counter::MCS    = counter::walks == 0 ? 0 : static_cast<int>(1.0 / lnf);
     flag_one_over_t = 0;
     histogram.setZero();
     saturation.clear();
@@ -345,7 +345,7 @@ void class_worker::rewind_to_lowest_walk() {
     counter::walks = min_walks;
     lnf            = pow(constants::reduce_factor_lnf, min_walks);
     finish_line    = 0;
-    counter::MCS   = (int) (1.0 / lnf);
+    counter::MCS   = static_cast<int>(1.0 / lnf);
     random_walk.clear();
     saturation.clear();
 }
@@ -395,8 +395,8 @@ void class_worker::add_hist_volume() {
 void class_worker::check_saturation() {
     timer::check_saturation = 0;
     if(flag_one_over_t == 0) {
-        int idx_to   = (int) saturation.size() - 1;
-        int idx_from = (int) (constants::check_saturation_from * idx_to);
+        int idx_to   = static_cast<int>(saturation.size()) - 1;
+        int idx_from = static_cast<int>(constants::check_saturation_from * idx_to);
         if(saturation.empty() || idx_to == idx_from || need_to_resize_global) {
             slope = 0;
             return;
@@ -411,7 +411,7 @@ void class_worker::check_saturation() {
             flag_one_over_t = 1;
         }
     } else {
-        counter::walks = (int) (-log(lnf) / log(2));
+        counter::walks = static_cast<int>(-log(lnf) / log(2));
     }
 }
 

@@ -49,7 +49,7 @@ void class_thermodynamics::compute(class_worker &worker) {
         ZT       = math::nansum(math::nansum_rowwise((worker.dos_total.colwise() - (beta_vec(t) * worker.E_bins_total + lambdaT(t))).exp()));
         P.row(t) = math::nansum_colwise((worker.dos_total.colwise() - (beta_vec(t) * worker.E_bins_total + lambdaT(t))).exp()) / ZT;
     }
-    int middle = (int) (worker.M_bins_total.size() - 1) / 2;
+    int middle = static_cast<int>(worker.M_bins_total.size() - 1) / 2;
     F          = P.log().array().colwise() / (-beta_vec) / constants::N();
     for(int t = 0; t < T_num; t++) { F.row(t) -= F(t, middle); }
 }

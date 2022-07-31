@@ -223,8 +223,9 @@ void print_status(class_worker &worker, bool force) {
     MPI_Barrier(MPI_COMM_WORLD);
     if(worker.world_ID == 0) {
         std::cout << "-----"
-                  << " MaxWalks: " << std::fixed << std::setprecision(0) << (int) ceil(log(constants::minimum_lnf) / log(constants::reduce_factor_lnf))
-                  << " Merges: " << std::fixed << std::setprecision(0) << counter::merges << "(" << constants::max_merges << ")"
+                  << " MaxWalks: " << std::fixed << std::setprecision(0)
+                  << static_cast<int>(std::ceil(log(constants::minimum_lnf) / log(constants::reduce_factor_lnf))) << " Merges: " << std::fixed
+                  << std::setprecision(0) << counter::merges << "(" << constants::max_merges << ")"
                   << " Iteration: " << std::fixed << std::setprecision(0) << worker.iteration + 1 << "(" << constants::simulation_reps << ")";
         worker.t_total.print_total<double>();
         std::cout << " s";
