@@ -3,6 +3,7 @@
 //
 
 #include "class_WL_teams.h"
+#include "general/nmspc_logger.h"
 #include <algorithm/class_WL_worker.h>
 #include <general/nmspc_mpi_extensions.h>
 
@@ -33,7 +34,12 @@ void class_WL_teams::sync_teams() {
     for(int i = 1; i < team_size; i++) { displ(i) = displ(i - 1) + sizes(i - 1); }
 
     std::vector<state> random_walk_recv((unsigned long) (sizes.sum()));
-    MPI_Allgatherv(worker.random_walk.data(), size, MPI_2INT, random_walk_recv.data(), sizes.data(), displ.data(), MPI_2INT, MPI_COMM_TEAM);
+    static MPI_Datatype mpi_state_type;
+    if(not mpi_state_type){
+        MPI_Type_contiguous(2, MPI_LONG, &mpi_state_type);
+        MPI_Type_commit(&mpi_state_type);
+    }
+    MPI_Allgatherv(worker.random_walk.data(), size, mpi_state_type, random_walk_recv.data(), sizes.data(), displ.data(), mpi_state_type, MPI_COMM_TEAM);
 
     for(auto &rwri : random_walk_recv) {
         worker.histogram(rwri.E_idx, rwri.M_idx) += 1;
