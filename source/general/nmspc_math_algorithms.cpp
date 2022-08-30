@@ -4,6 +4,7 @@
 
 #include "nmspc_math_algorithms.h"
 #include "params/nmspc_WL_constants.h"
+#include <Eigen/Geometry>
 
 namespace math {
 
