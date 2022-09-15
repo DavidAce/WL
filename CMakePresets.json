@@ -124,12 +124,29 @@
       ]
     },
     {
-      "name": "release-gcc-11-native-find",
-      "displayName": "Release|gcc-11|pkg-find",
+      "name": "release-native-find",
+      "displayName": "Release|march=native|pkg-find",
       "inherits": [
         "release",
-        "gcc-11",
         "pkg-find",
+        "default"
+      ]
+    },
+    {
+      "name": "release-native-cmake",
+      "displayName": "Release|march=native|pkg-cmake",
+      "inherits": [
+        "release",
+        "pkg-cmake",
+        "default"
+      ]
+    },
+    {
+      "name": "release-native-conan",
+      "displayName": "Release|march=native|pkg-conan",
+      "inherits": [
+        "release",
+        "pkg-conan",
         "default"
       ]
     },
@@ -170,25 +187,15 @@
       ]
     },
     {
-      "name": "release-gcc-12-conan",
-      "displayName": "Release|gcc-12|pkg-conan",
-      "inherits": [
-        "release",
-        "gcc-12",
-        "pkg-conan",
-        "default"
-      ]
-    },
-    {
       "name": "release-gcc-12-native-conan",
       "displayName": "Release|gcc-12|march=native|pkg-conan",
       "inherits": [
+        "release",
+        "gcc-12",
         "native",
-        "release-gcc-12-conan"
-      ],
-      "cacheVariables": {
-        "COMPILER_ENABLE_MOLD": "TRUE"
-      }
+        "pkg-conan",
+        "default"
+      ]
     },
     {
       "name": "release-clang-14-conan",
@@ -208,7 +215,6 @@
         "release-clang-14-conan"
       ],
       "cacheVariables": {
-        "COMPILER_ENABLE_MOLD": "TRUE",
         "CMAKE_VERBOSE_MAKEFILE": "TRUE"
       }
     },
@@ -227,10 +233,11 @@
     },
     {
       "name": "debug-gcc-11-cmake",
-      "displayName": "Debug|gcc-11|shared|asan|cmake",
+      "displayName": "Debug|gcc-11|shared|asan|pkg-cmake",
       "inherits": [
         "debug",
         "gcc-11",
+        "pkg-cmake",
         "default"
       ],
       "cacheVariables": {
@@ -286,9 +293,34 @@
       "configurePreset": "release-conan"
     },
     {
+      "name": "release-native-find",
+      "displayName": "Release|march=native|pkg-find",
+      "configurePreset": "release-native-find"
+    },
+    {
+      "name": "release-native-cmake",
+      "displayName": "Release|march=native|pkg-cmake",
+      "configurePreset": "release-native-cmake"
+    },
+    {
+      "name": "release-native-conan",
+      "displayName": "Release|march=native|pkg-conan",
+      "configurePreset": "release-native-conan"
+    },
+    {
+      "name": "release-gcc-11-cmake",
+      "displayName": "Release|gcc-11|pkg-conan",
+      "configurePreset": "release-gcc-11-conan"
+    },
+    {
       "name": "release-gcc-11-conan",
       "displayName": "Release|gcc-11|pkg-conan",
       "configurePreset": "release-gcc-11-conan"
+    },
+    {
+      "name": "release-gcc-11-native-cmake",
+      "displayName": "Release|gcc-11|march=native|pkg-cmake",
+      "configurePreset": "release-gcc-11-native-cmake"
     },
     {
       "name": "release-gcc-11-native-conan",
@@ -296,14 +328,14 @@
       "configurePreset": "release-gcc-11-native-conan"
     },
     {
-      "name": "release-gcc-12-conan",
-      "displayName": "Release|gcc-12|pkg-conan",
-      "configurePreset": "release-gcc-12-conan"
-    },
-    {
       "name": "release-gcc-12-native-conan",
       "displayName": "Release|gcc-12|march=native|pkg-conan",
       "configurePreset": "release-gcc-12-native-conan"
+    },
+    {
+      "name": "release-clang-14-conan",
+      "displayName": "Release|clang-14|pkg-conan",
+      "configurePreset": "release-clang-14-conan"
     },
     {
       "name": "release-clang-14-native-conan",
@@ -346,6 +378,21 @@
       "configurePreset": "release-conan"
     },
     {
+      "name": "release-native-find",
+      "displayName": "Release|march=native|pkg-find",
+      "configurePreset": "release-native-find"
+    },
+    {
+      "name": "release-native-cmake",
+      "displayName": "Release|march=native|pkg-cmake",
+      "configurePreset": "release-native-cmake"
+    },
+    {
+      "name": "release-native-conan",
+      "displayName": "Release|march=native|pkg-conan",
+      "configurePreset": "release-native-conan"
+    },
+    {
       "name": "release-gcc-11-conan",
       "displayName": "Release|gcc-11|pkg-conan",
       "configurePreset": "release-gcc-11-conan"
@@ -354,11 +401,6 @@
       "name": "release-gcc-11-native-conan",
       "displayName": "Release|gcc-11|march=native|pkg-conan",
       "configurePreset": "release-gcc-11-native-conan"
-    },
-    {
-      "name": "release-gcc-12-conan",
-      "displayName": "Release|gcc-12|pkg-conan",
-      "configurePreset": "release-gcc-12-conan"
     },
     {
       "name": "release-gcc-12-native-conan",
