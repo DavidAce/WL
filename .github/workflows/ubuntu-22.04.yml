@@ -63,12 +63,8 @@ jobs:
       - name: Setup apt packages common
         run: sudo apt install ninja-build -y
 
-      - name: Install conan
-        uses: actions/setup-python@v2
+      - name: Setup conan
         if: matrix.manager == 'conan'
-        with:
-          python-version: '3.x'
-          cache: 'pip'
         run: |
           pip install conan
           conan user
