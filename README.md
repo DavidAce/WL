@@ -28,24 +28,74 @@ stuck for too long in one place, which would ruin the smoothness of the DOS.
 Some energy windows may reach `f_min` quicker than others, in which case the "finished" processes cease their random walks and go
 join another window, to help that part of the DOS converge quicker. 
 
+## Minimum Requirements
+
+The following software is required to build the project:
+
+- C++17 compiler. Tested with:
+    * *To build dependencies*: Fortran compiler
+- CMake version >= 3.20.
+
+## Dependencies
+
+- [**Eigen**](http://eigen.tuxfamily.org) for tensor and matrix and linear algebra (tested with version >= 3.3).
+- [**h5pp**](https://github.com/DavidAce/h5pp) a wrapper for HDF5.
+- [**fmt**](https://github.com/fmtlib/fmt) for formatting strings (bundled with h5pp).
+- [**spdlog**](https://github.com/gabime/spdlog) for logging (bundled with h5pp).
+- [**CLI11**](https://github.com/CLIUtils/CLI11) For parsing input arguments (WIP).
+- [**OpenMPI**](https://www.open-mpi.org/) For parallelization. On Ubuntu/Debian systems, install with  `sudo apt install openmpi-bin libopenmpi-dev` 
 
 
-## Requirements
-* Eigen library. If not found it will be automatically downloaded to `./libs`. It is safe to remove.
-* OpenMPI.  `sudo apt install openmpi-bin libopenmpi-dev`
-  
-  
-## Usage
+## Build
+The simplest way to build is to use a CMake preset. Some common presets are found in `CMakePresets.json`, 
+which can serve as a starting point for generating your own in `CMakeUserPresets.json`. 
+[Read more](https://cmake.org/cmake/help/latest/manual/cmake-presets.7.html).
 
-Two scripts in the project root folder facilitate usage: `build.sh` and `run.sh`.
-To learn more about optional parameters, run these with flag  `-h`.
-By default, `./build.sh` will build in release mode, and `./run.sh` will run a simulation with `mpirun`
+To list available presets, run
+
+```
+cmake --list-presets
+```
+
+Selecting a preset, for example `release-gcc-11-native-cmake`, which sets the `-march=native` compiler flag and uses
+`WL_PACKAGE_MANAGER=cmake`, to use CMake exclusively to build the dependency tree. To configure and build, run
+
+```
+cmake --preset=release-gcc-11-native-cmake
+cmake --build --preset=release-gcc-11-native-cmake
+```
+
+Use the CMake argument `WL_PACKAGE_MANAGER=<find|cmake|cpm|conan>` to choose how WL handles dependencies. 
+The option `find` (default) will simply call `find_package(...)` for all dependencies, and leave their installation
+up to the user. 
+
+The CMake flag `WL_PACKAGE_MANAGER` controls the automated behavior for finding or installing dependencies. It can
+take one of these string values:
+
+| Value                | Description                                                                                                                                         |
+|----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------|
+| `find` **(default)** | Use CMake's `find_package` to find dependencies                                                                                                     |
+| `cmake` **¹**        | Use isolated CMake instances to install dependencies during configure. Disregards pre-installed dependencies on your system             |
+| `cpm`                | Use [CPM](https://github.com/cpm-cmake/CPM.cmake) to install dependencies. Disregards pre-installed dependencies on your system         |
+| `conan` **²**        | Use the [Conan package manager](https://conan.io/) to install dependencies automatically. Disregards libraries elsewhere on your system |
+
+There are several variables you can pass to CMake to guide `find_package` calls and install location,
+see [CMake options](#cmake-options) below.
+
+**¹** Dependencies are installed into `${WL_PKG_INSTALL_DIR}`.
+
+**²** Conan is guided by `conanfile.txt` found in this project's root directory. This method requires conan to be
+installed prior (for instance through `pip`, `conda`, `apt`, etc). To let CMake find conan you have three options:
+* 
+* Add Conan install (or bin) directory to the environment variable `PATH`.
+* Export Conan install (or bin) directory in the environment variable `CONAN_PREFIX`, i.e. from command
+  line: `export CONAN_PREFIX=<path-to-conan>`
+* Give the variable `CONAN_PREFIX` directly to CMake, i.e. from command
+  line: `cmake -DCONAN_PREFIX:PATH=<path-to-conan> ...`
+
+## Run
+The scripts `run*.sh` show example usage. By default `./run.sh` will run a simulation with `mpirun`
 using 4 cores.
- 
-The default setting will run 2 independent and consecutive simulations, to generate 
-good quality thermodynamic averages using bootstrap. See below on how to control the number of simulations.
-
-## Run time parameters
 
 All parameters are defined at compile time, by modifying them in the header file `source/params/nmspc_WL_constants.h`.
 Please refer to the comments in that file to learn more.
@@ -62,7 +112,6 @@ used for the final averaged results.
 The folder `outdata/final/`  contains the main results, in the form of thermodynamic averages and corresponding error
 estimates from made from bootstrapping portions of the DOS. For the bootstrap to be meaningful, you need to run multiple simulations. You can
 control the number of independent simulations with the parameter `simulation_reps` found in the header file `source/params/nmspc_WL_constants.h`.
- 
  
 Enable `constants::collect_samples` to obtain a subfolder `outdata/samples/` containing lattice samples that are uniformly
 distributed in energy and magnetization. This is useful for generating training data for machine learning algorithms, for instance.

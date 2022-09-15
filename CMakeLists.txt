@@ -1,18 +1,20 @@
 cmake_minimum_required(VERSION 3.15)
 project(WL
-        VERSION 1.0.0
+        VERSION 1.1.0
         DESCRIPTION "Wang-Landau algorithm"
         HOMEPAGE_URL "https://github.com/DavidAce/WL")
 
-include(cmake/DeprecationWarnings.cmake) # Warn if user passes deprecated settings
+include(cmake/Deprecation.cmake) # Warn if user passes deprecated settings
 
 # Set options this build
-option(WL_INSTALL                       "Enable installation"                                          OFF)
-option(WL_ENABLE_LTO                    "Enable link time optimization"                                OFF)
-option(WL_ENABLE_ASAN                   "Enable runtime address sanitizer -fsanitize=address"          OFF)
-option(WL_PREFIX_ADD_PKGNAME            "Install dependencies into CMAKE_INSTALL_PREFIX/<libname>"     OFF)
-option(CMAKE_POSITION_INDEPENDENT_CODE  "Use -fPIC when compiling shared libraries"                    ON)
-
+option(WL_INSTALL                         "Enable installation"                                          OFF)
+option(WL_ENABLE_ASAN                     "Enable runtime address sanitizer -fsanitize=address"          OFF)
+option(WL_CMAKE_DEBUG                     "Extra information during CMake configuration"                 OFF)
+option(COMPILER_ENABLE_ASAN               "Enable runtime address sanitizer -fsanitize=address"          OFF)
+option(COMPILER_ENABLE_USAN               "Enable undefined behavior sanitizer -fsanitize=undefined"     OFF)
+option(CMAKE_POSITION_INDEPENDENT_CODE    "Use -fPIC when compiling shared libraries"                    ON)
+option(THREADS_PREFER_PTHREAD_FLAG        "Prefer -pthread flag over -lpthread or similar"               ON)
+option(CMAKE_INTERPROCEDURAL_OPTIMIZATION "Enable link-time-optimization"                                OFF)
 
 # Make an "enum" for valid download methods
 set(WL_PACKAGE_MANAGERS_VALID find cmake cpm conan)
@@ -54,28 +56,15 @@ file(GLOB_RECURSE SOURCES "source/*.cpp")
 file(GLOB_RECURSE HEADERS "source/*.h")
 add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
 target_include_directories(${PROJECT_NAME} PUBLIC source)
-set_target_properties(${PROJECT_NAME} PROPERTIES LINK_WHAT_YOU_USE TRUE)
 
 # Link all the things
 target_link_libraries(${PROJECT_NAME} PUBLIC wl-deps wl-flags)
 
-# Print summary
-include(cmake/PrintTargetInfo.cmake)
-print_project_summary(${PROJECT_NAME})
-
-
-
-###################
-### INFORMATION ###
-###################
-message(STATUS "")
-message(STATUS "=============================================================================")
-message(STATUS "")
-message(STATUS "      To clean CMake cache, run './build.sh -c'")
-message(STATUS "      To launch this program,  './run.sh'")
-message(STATUS "")
-message(STATUS "=============================================================================")
-message(STATUS "")
-
+# Print summary of CMake configuration
+if (WL_CMAKE_DEBUG)
+    # Print summary of CMake configuration
+    include(cmake/PrintTargetInfo.cmake)
+    print_and_write_project_summary(WL)
+endif()
 
 

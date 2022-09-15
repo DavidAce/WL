@@ -1,0 +1,84 @@
+name: Ubuntu 22.04
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+      - development
+
+jobs:
+  ci:
+    name: ${{ matrix.compiler }}-${{ matrix.linkage }}-${{ matrix.manager }}
+    runs-on: ubuntu-22.04
+    env:
+      cache-name: cache-v1-${{ matrix.compiler }}-${{ matrix.linkage }}-${{ matrix.manager }}
+    strategy:
+      fail-fast: false # True stops all on first error. Stick to false when debugging
+      matrix:
+        include:
+          - { compiler: gcc,   manager: cmake        , build_type: Debug   , linkage: static}
+          - { compiler: gcc,   manager: cmake        , build_type: Debug   , linkage: shared}
+          - { compiler: gcc,   manager: conan        , build_type: Release , linkage: static}
+          - { compiler: gcc,   manager: conan        , build_type: Release , linkage: shared}
+          - { compiler: clang, manager: cmake        , build_type: Debug   , linkage: static}
+          - { compiler: clang, manager: cmake        , build_type: Debug   , linkage: shared}
+          - { compiler: clang, manager: conan        , build_type: Release , linkage: static}
+          - { compiler: clang, manager: conan        , build_type: Release , linkage: shared}
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v1
+        if: contains(matrix.manager, 'conan')
+        with:
+          python-version: '3.x'
+
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.conan/data
+            ~/pkg-install
+            ~/.ccache
+          key: ${{ env.cache-name }}
+
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1
+        with:
+          key: ${{ env.cache-name }}
+          max-size: 1000M
+
+
+      - name: Setup gcc # compilers are already installed on the CI
+        if: matrix.compiler == 'gcc'
+        run: |
+          echo "CC=gcc-11"   >> $GITHUB_ENV
+          echo "CXX=g++-11"  >> $GITHUB_ENV
+
+      - name: Setup clang
+        if: matrix.compiler == 'clang' # compilers are already installed on the CI # sudo apt-get install libclang-10-dev gfortran -y
+        run: |
+          echo "CC=clang-12"     >> $GITHUB_ENV
+          echo "CXX=clang++-12"  >> $GITHUB_ENV
+
+      - name: Setup apt packages common
+        run: sudo apt install ninja-build -y
+
+      - name: Install conan
+        uses: actions/setup-python@v2
+        if: matrix.manager == 'conan'
+        with:
+          python-version: '3.x'
+          cache: 'pip'
+        run: |
+          pip install conan
+          conan user
+
+        # For conan: ceres-solver must be compiled in release mode because it only works with glog in release mode
+      - name: Build
+        run: |
+          cmake -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DBUILD_SHARED_LIBS=${{ matrix.linkage == 'shared' }} -DWL_PACKAGE_MANAGER=${{ matrix.manager }} -DWL_PKG_INSTALL_DIR=~/pkg-install --preset=github-actions
+          cmake --build --preset=github-actions
+
+      - name: Test
+        run: |
+          ctest --extra-verbose --preset=github-actions

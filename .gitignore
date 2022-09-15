@@ -12,3 +12,4 @@ test*.cfg
 
 outdata/
 *.m~
+CMakeUserPresets.json

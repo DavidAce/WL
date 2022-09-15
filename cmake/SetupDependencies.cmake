@@ -16,9 +16,9 @@ target_link_libraries(wl-deps INTERFACE std::filesystem)
 
 
 # Install dependencies
-include(cmake/SetupDependenciesFind.cmake)
 include(cmake/SetupDependenciesCMake.cmake)
 include(cmake/SetupDependenciesCPM.cmake)
 include(cmake/SetupDependenciesConan.cmake)
+include(cmake/SetupDependenciesFind.cmake)
 
 
