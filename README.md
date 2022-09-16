@@ -1,3 +1,5 @@
+[![Ubuntu 22.04](https://github.com/DavidAce/WL/actions/workflows/ubuntu-22.04.yml/badge.svg?branch=master)](https://github.com/DavidAce/WL/actions/workflows/ubuntu-22.04.yml)
+
 # Wang-Landau Algorithm
 
 The Wang-Landau algorithm estimates the Density of States (DOS) of discrete models as function of energy and (optionally) magnetization,
