@@ -219,31 +219,47 @@
       }
     },
     {
+      "name": "debug-find",
+      "displayName": "Debug|shared|asan|pkg-find",
+      "inherits": [
+        "debug",
+        "pkg-find",
+        "default"
+      ]
+    },
+    {
+      "name": "debug-conan",
+      "displayName": "Debug|shared|asan|pkg-conan",
+      "inherits": [
+        "debug",
+        "pkg-conan",
+        "default"
+      ]
+    },
+    {
+      "name": "debug-cmake",
+      "displayName": "Debug|shared|asan|pkg-cmake",
+      "inherits": [
+        "debug",
+        "pkg-cmake",
+        "default"
+      ]
+    },
+    {
       "name": "debug-gcc-11-conan",
       "displayName": "Debug|gcc-11|shared|asan|pkg-conan",
       "inherits": [
-        "debug",
         "gcc-11",
-        "pkg-conan",
-        "default"
-      ],
-      "cacheVariables": {
-        "BUILD_SHARED_LIBS": "TRUE"
-      }
+        "debug-conan"
+      ]
     },
     {
       "name": "debug-gcc-11-cmake",
       "displayName": "Debug|gcc-11|shared|asan|pkg-cmake",
       "inherits": [
-        "debug",
         "gcc-11",
-        "pkg-cmake",
-        "default"
-      ],
-      "cacheVariables": {
-        "BUILD_SHARED_LIBS": "TRUE",
-        "WL_PACKAGE_MANAGER": "cmake"
-      }
+        "debug-cmake"
+      ]
     },
     {
       "name": "github-actions",
@@ -341,6 +357,21 @@
       "name": "release-clang-14-native-conan",
       "displayName": "Release|clang-14|march=native|pkg-conan",
       "configurePreset": "release-clang-14-native-conan"
+    },
+    {
+      "name": "debug-find",
+      "displayName": "Debug|pkg-find",
+      "configurePreset": "debug-find"
+    },
+    {
+      "name": "debug-conan",
+      "displayName": "Debug|pkg-conan",
+      "configurePreset": "debug-conan"
+    },
+    {
+      "name": "debug-cmake",
+      "displayName": "Debug|pkg-cmake",
+      "configurePreset": "debug-cmake"
     },
     {
       "name": "kraken",
