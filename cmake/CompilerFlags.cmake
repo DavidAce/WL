@@ -20,11 +20,11 @@ target_compile_features(wl-flags INTERFACE cxx_std_17)
 
 # Settings for sanitizers
 if(COMPILER_ENABLE_ASAN)
-    target_compile_options(wl-flags INTERFACE -fsanitize=address -fno-omit-frame-pointer)
+    target_compile_options(wl-flags INTERFACE $<$<COMPILE_LANGUAGE:CXX>:-fsanitize=address -fno-omit-frame-pointer>)
     target_link_libraries(wl-flags INTERFACE -fsanitize=address)
 endif()
 if(COMPILER_ENABLE_USAN)
-    target_compile_options(wl-flags INTERFACE -fsanitize=undefined,leak,pointer-compare,pointer-subtract,alignment,bounds -fno-omit-frame-pointer)
+    target_compile_options(wl-flags INTERFACE $<$<COMPILE_LANGUAGE:CXX>:-fsanitize=undefined,leak,pointer-compare,pointer-subtract,alignment,bounds -fno-omit-frame-pointer>)
     target_link_libraries(wl-flags INTERFACE -fsanitize=undefined,leak,pointer-compare,pointer-subtract,alignment,bounds)
 endif()
 
