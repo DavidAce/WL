@@ -75,6 +75,6 @@ jobs:
           cmake -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DBUILD_SHARED_LIBS=${{ matrix.linkage == 'shared' }} -DWL_PACKAGE_MANAGER=${{ matrix.manager }} -DWL_PKG_INSTALL_DIR=~/pkg-install --preset=github-actions
           cmake --build --preset=github-actions
 
-      - name: Test
-        run: |
-          ctest --extra-verbose --preset=github-actions
+#      - name: Test
+#        run: |
+#          ctest --extra-verbose --preset=github-actions
