@@ -61,7 +61,7 @@ jobs:
           echo "CXX=clang++-12"  >> $GITHUB_ENV
 
       - name: Setup apt packages common
-        run: sudo apt install ninja-build -y
+        run: sudo apt install openmpi-bin libopenmpi-dev  ninja-build -y
 
       - name: Setup conan
         if: matrix.manager == 'conan'
