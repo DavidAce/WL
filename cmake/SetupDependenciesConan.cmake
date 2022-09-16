@@ -15,15 +15,12 @@ if(WL_PACKAGE_MANAGER MATCHES "conan")
              EXPECTED_HASH MD5=81d5eab13a49f43527e35a90bfac6960
              TLS_VERIFY ON)
     endif()
+    include(${CMAKE_BINARY_DIR}/conan/conan.cmake)
 
     if(BUILD_SHARED_LIBS)
         list(APPEND CONAN_OPTIONS OPTIONS "*:shared=True")
     else()
         list(APPEND CONAN_OPTIONS OPTIONS "*:shared=False")
-    endif()
-
-    if(CMAKE_BUILD_TYPE MATCHES "Debug")
-        list(APPEND CONAN_OPTIONS OPTIONS "ceres-solver:use_glog=False")
     endif()
 
     # Copy the current compiler flags to conan
